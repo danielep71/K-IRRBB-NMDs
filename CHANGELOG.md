@@ -99,6 +99,14 @@ Use only the categories needed by a release.
 
 ### Added
 
+- VBA import core (#71, stage 1): `CORE_Import` validates the account panel
+  and the market-rate file line by line in the contract's rule order (`E01`–
+  `E11`, cross-row `E11`, `E10`, `E05`, `E08`), and for a data window reports
+  warnings `W01`–`W06`, totals per date, segment and currency (compensated
+  sums, never across currencies) and missing extracts (`E12`).
+  `DATA-VALID-01` and `DATA-INVALID-01` now run in VBA against the
+  hand-computed expected files. No file input, workbook output or lineage
+  yet; not run in Excel.
 - Workbook template (#5): `src/workbook/IRRBB_Template.xlsx`, macro-free and
   sanitized, with ten sheets, their CodeNames, named input and output areas,
   input validation and a status cell per output sheet that starts as not

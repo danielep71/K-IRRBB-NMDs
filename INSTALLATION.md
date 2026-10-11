@@ -42,7 +42,7 @@ parsing modules and the regression harness.
 | VBA source layout | Defined in [`docs/REPOSITORY_STRUCTURE.md`](docs/REPOSITORY_STRUCTURE.md) |
 | VBA conventions | Defined in [`docs/VBA_HOUSE_STYLE.md`](docs/VBA_HOUSE_STYLE.md) |
 | Static checks | Available: `python tools/check.py` |
-| VBA source | `src/core/`: CORE_Parse (dates, decimals, rates) and CORE_Codes (segments, currency allowlist); no model yet |
+| VBA source | `src/core/`: CORE_Parse (dates, decimals, rates), CORE_Codes (segments, currency allowlist, identifiers) and CORE_Import (validation and summary of the data files, #71; no file input yet); no model yet |
 | Workbook template | [`src/workbook/IRRBB_Template.xlsx`](src/workbook/IRRBB_Template.xlsx), macro-free, generated from source; layout in [`docs/WORKBOOK_CONTRACT.md`](docs/WORKBOOK_CONTRACT.md) (#5); not yet opened in Excel |
 | Regression harness | `tests/modules/` (#8): runs from a [development workbook](#development-workbook); no Excel run recorded yet |
 | Supported hosts and references | Decided in issue #3; see [supported hosts](#supported-hosts) |
@@ -183,9 +183,10 @@ LibreOffice early-warning run are in
 ### Manual import
 
 Use these steps when the builder cannot be used. Components at present:
-`src/core/CORE_Codes.bas`, `src/core/CORE_Parse.bas`; development only:
-`tests/modules/TEST_Harness.bas`, `tests/modules/TEST_CoreCases.bas`,
-`tests/modules/TEST_WorkbookCases.bas`.
+`src/core/CORE_Codes.bas`, `src/core/CORE_Parse.bas`,
+`src/core/CORE_Import.bas`; development only: `tests/modules/TEST_Harness.bas`,
+`tests/modules/TEST_CoreCases.bas`, `tests/modules/TEST_WorkbookCases.bas`,
+`tests/modules/TEST_DataCases.bas`, `tests/modules/TEST_Fixtures.bas`.
 
 1. Start from **one exact commit** in a Git checkout, so `.bas`, `.cls` and
    `.frm` files have CRLF line endings. Never mix components from different

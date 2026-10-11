@@ -6,12 +6,15 @@ Assembles a macro-enabled **development** workbook from one checked-out commit, 
 | --- | --- |
 | `build_dev_workbook.py` | Writes `build/IRRBB_Dev.xlsm` (ignored by Git): the [workbook template](../../docs/WORKBOOK_CONTRACT.md) with a build stamp and evidence steps on `Readme` and a **Run tests** button on `Checks`; embeds every `.bas` in `src/core`, `src/modules`, `src/workbook`, `tests/modules` and `examples/modules` unchanged, with document modules for `ThisWorkbook` and each sheet. Standard library only. A tracked change, or an untracked file in those folders, stamps the build as not evidence-grade. |
 | `vba_project.py` | Writes `vbaProject.bin` from the [MS-OVBA] and [MS-CFB] specifications: compressed module source, `dir` stream, `PROJECT` streams, no p-code cache, so Excel compiles from source on open. Deterministic for a given commit. Read back by an independent decoder in [`tools/test_devbuild.py`](../test_devbuild.py). |
+| `fixture_module.py` | Writes `tests/modules/TEST_Fixtures.bas`: the data-contract fixtures and their hand-computed expectations as VBA string literals, so the data cases need no file paths. `--check` compares; `tools/test_vba_harness.py` fails when the committed module is stale. |
 | `lo_smoke.py` | Optional early warning: opens the workbook in headless LibreOffice with VBA compatibility, runs `TEST_Harness.RunTests`, plants stale rows, runs again to check they are withdrawn, and prints a JSON summary. LibreOffice is not a supported host; this is never Excel evidence. Needs LibreOffice and `python3-uno`. |
 
 ```shell
 python tools/devbuild/build_dev_workbook.py
 python tools/devbuild/lo_smoke.py            # optional
 ```
+
+LibreOffice is stricter than Excel in a few places. Valid VBA that it does not run correctly, and that the source therefore avoids: a `vbObjectError + n` constant expression; `CDec`; functions returning a typed array (`As Long()`); arrays of user-defined types; a collection item read through the default member of a module-level object (`c(key)`, use `c.Item(key)`); a single-line `If ... Then ReDim Preserve`.
 
 Changes made in the VBA editor are not read back: export the changed modules by hand to their source folders (LF line endings, `Attribute VB_Name` header kept) and rebuild.
 

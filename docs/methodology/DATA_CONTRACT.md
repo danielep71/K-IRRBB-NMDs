@@ -164,7 +164,7 @@ same file always gives the same findings in the same order.
 
 | Code | Error | Rows checked |
 | --- | --- | --- |
-| `E01` | Header or number of fields does not match the contract | File, then each row |
+| `E01` | Header or number of fields does not match the contract, or a line holds a character outside ASCII | File, then each row |
 | `E03` | A required field is empty | Each row |
 | `E02` | A date is not a valid ISO date, or `as_of_date` is not a month end | Each row |
 | `E04` | A value cannot be parsed or is out of range (ID characters, balance or rate format, rate bounds, `indexed` not `0`/`1`) | Each row |
@@ -329,8 +329,10 @@ re-reads the fixtures with an independent Python reading of this contract and
 fails if fixtures, expectations and rules disagree. It also runs the
 leakage tests: altering, adding or removing information learned after an
 origin leaves every predictor at that origin unchanged, and dropping a month
-end from the window gives `E12`. The VBA importer, when it exists, must
-reproduce the same expected files.
+end from the window gives `E12`. The VBA import core (`CORE_Import`, #71)
+reproduces the same expected files in `DATA-VALID-01` and `DATA-INVALID-01`;
+transition outcomes, the point-in-time view, file input and lineage follow in
+later stages of #71.
 
 <a id="decisions"></a>
 
