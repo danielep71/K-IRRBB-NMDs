@@ -99,6 +99,16 @@ Use only the categories needed by a release.
 
 ### Added
 
+- Workbook template (#5): `src/workbook/IRRBB_Template.xlsx`, macro-free and
+  sanitized, with ten sheets, their CodeNames, named input and output areas,
+  input validation and a status cell per output sheet that starts as not
+  current. `docs/WORKBOOK_CONTRACT.md` defines the layout and the result
+  status protocol; the template is generated from
+  `tools/workbook/build_template.py` and checked against it, the contract and
+  the harness by `tools/test_workbook_template.py`. Placeholder sheets are
+  marked as such. Not yet opened in Excel.
+- `WB-LAYOUT-01`: a harness case that checks the sheets, CodeNames and names of
+  the built workbook through Excel.
 - Regression harness for Excel (#8): `TEST_Harness.RunTests` runs every case
   in `docs/methodology/TEST_CASES.md` in register order and writes per-case and
   per-assertion results to the `Checks` sheet. Earlier results are withdrawn
@@ -115,9 +125,9 @@ Use only the categories needed by a release.
   missing and invalid separately; `CORE_Codes` holds the segment codes and the
   currency allowlist.
 - Development workbook builder (`tools/devbuild/`, import route for #6):
-  writes `build/IRRBB_Dev.xlsm` with the VBA project generated from source, so
-  no VBA trust setting is needed; checked by `tools/test_devbuild.py` with an
-  independent decoder.
+  writes `build/IRRBB_Dev.xlsm`, the workbook template with the VBA project
+  generated from source, so no VBA trust setting is needed; standard library
+  only; checked by `tools/test_devbuild.py` with an independent decoder.
 
 - Daily repository traffic export with history on a separate branch,
   main-only analytics access, and traffic alerts, following the SA-CCR

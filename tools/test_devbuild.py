@@ -4,7 +4,7 @@ tools/devbuild/vba_project.py writes vbaProject.bin from the [MS-OVBA] and
 [MS-CFB] specifications. These tests decompress and parse its output with a
 separate, minimal implementation of the same specifications, so a writer defect
 fails here without Excel. Standard library only; the workbook assembly itself
-(openpyxl) is exercised only when openpyxl is installed.
+is built from the template generator and read back too.
 """
 from __future__ import annotations
 
@@ -209,7 +209,6 @@ class ProjectStorage(unittest.TestCase):
         self.assertNotEqual(first, vba_project.build_vba_project(sample_modules(), "{" + "1" * 8 + "-0000-0000-0000-" + "0" * 12 + "}"))
 
 
-@unittest.skipUnless(__import__("importlib").util.find_spec("openpyxl"), "openpyxl not installed")
 class DevelopmentWorkbook(unittest.TestCase):
     def test_workbook_embeds_every_component(self) -> None:
         import tempfile
@@ -222,6 +221,10 @@ class DevelopmentWorkbook(unittest.TestCase):
                 self.assertIn("xl/vbaProject.bin", package.namelist())
                 self.assertIn("macroEnabled", package.read("[Content_Types].xml").decode())
                 cfb = CompoundFile(package.read("xl/vbaProject.bin"))
+        for sheet in build_dev_workbook.build_template.SHEETS:
+            with self.subTest(document_module=sheet.code_name):
+                self.assertIn(f"Attribute VB_Name = \"{sheet.code_name}\"",
+                              decompress(cfb.read(f"VBA/{sheet.code_name}")).decode("cp1252"))
         for path in build_dev_workbook.components():
             with self.subTest(component=path.stem):
                 source = decompress(cfb.read(f"VBA/{path.stem}")).decode("cp1252")
