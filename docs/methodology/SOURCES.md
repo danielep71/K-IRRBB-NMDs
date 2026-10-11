@@ -32,7 +32,7 @@ repository.
 
 | ID | Source | Relied on for | Verified |
 | --- | --- | --- | :---: |
-| `REG-1` | Basel Committee on Banking Supervision, *Interest rate risk in the banking book*, Standards, April 2016 (BCBS d368); consolidated in the Basel Framework, SRP31 (version effective 1 January 2026, published 16 July 2024) | Non-maturity deposit categories; the standardised framework's caps on the proportion and average maturity of core deposits per category; non-core deposits in the overnight bucket | ☑ |
+| `REG-1` | Basel Committee on Banking Supervision, *Interest rate risk in the banking book*, Standards, April 2016 (BCBS d368); consolidated in the Basel Framework, SRP31 (version effective 1 January 2026, published 16 July 2024) | Non-maturity deposit categories; the standardized framework's caps on the proportion and average maturity of core deposits per category; non-core deposits in the overnight bucket | ☑ |
 | `REG-2` | European Banking Authority, *Guidelines on IRRBB and CSRBB*, EBA/GL/2022/14 (exact title and dates not yet verified) | Expectations on behavioral assumptions for non-maturity deposits; the EU 5-year cap on their average repricing maturity, as reported by secondary sources | ☐ |
 | `REG-3` | Commission Delegated Regulation (EU) 2024/856 of 1 December 2023 supplementing Directive 2013/36/EU of the European Parliament and of the Council with regard to regulatory technical standards specifying the supervisory shock scenarios, the common modelling and parametric assumptions and what constitutes a large decline. OJ L, 2024/856, 24.4.2024 | Supervisory shock scenarios for EVE and NII; the post-shock interest-rate floor | ☑ |
 

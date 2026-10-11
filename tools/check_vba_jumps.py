@@ -62,7 +62,7 @@ def label_at_start(code: str) -> str | None:
 
 
 def _statement_jumps(code: str) -> list[tuple[str, str]]:
-    """Labelled jump targets in one statement, as ``(operation, target)``.
+    """Labeled jump targets in one statement, as ``(operation, target)``.
 
     ``Resume``/``Resume Next`` and ``On Error GoTo 0``/``-1`` name no label and are skipped.
     """

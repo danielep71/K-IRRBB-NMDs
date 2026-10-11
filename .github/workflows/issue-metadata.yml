@@ -36,5 +36,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number || '' }}
+          ISSUE_IS_PULL_REQUEST: ${{ github.event.issue.pull_request && 'true' || '' }}
           ISSUE_MILESTONE_NUMBER: ${{ vars.ISSUE_MILESTONE_NUMBER || '1' }}
         run: python3 .github/scripts/issue-metadata.py

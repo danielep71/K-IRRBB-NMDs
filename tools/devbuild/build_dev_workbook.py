@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Build the development workbook (decay model, harness and example).
+"""Build the development workbook (regression harness, its cases and the decay example).
 
 Usage: python tools/devbuild/build_dev_workbook.py [output.xlsm]
 Default output: build/IRRBB_Dev.xlsm (ignored by Git; never commit it).
 
-The workbook is assembled from one commit: src/core, src/modules, tests/modules
-and examples/modules are embedded unchanged (CRLF), with document modules for
-ThisWorkbook and each sheet. It is NOT the template of issue #5 and not an
-import tool (issue #6); it exists so the decay engine and the regression
-harness can be compiled and run in Excel and recorded per docs/EXCEL_EVIDENCE.md.
-Requires openpyxl.
+The workbook is assembled from one commit: every .bas in src/core, src/modules,
+src/workbook, tests/modules and examples/modules is embedded unchanged (CRLF),
+with document modules for ThisWorkbook and each sheet, so Excel compiles the
+project from source on open. It is the owner-chosen import route of issue #6
+and the vehicle for the harness evidence of issue #8; it is not the workbook
+template of issue #5. Requires openpyxl.
 """
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from vba_project import Module, build_vba_project, document_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-NAVY, INPUT, GREY = "1F3A5F", "FFF4D6", "F2F4F7"
+NAVY, GREY, INPUT = "1F3A5F", "F2F4F7", "FFF4D6"
 HDR = (Font(bold=True, color="FFFFFF"), PatternFill("solid", fgColor=NAVY))
 THIN = Side(style="thin", color="C8CED6")
 BOX = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
@@ -66,7 +66,10 @@ def components() -> list[Path]:
 
 def build(target: Path) -> None:
     sha = git("rev-parse", "HEAD")
-    dirty = bool(git("status", "--porcelain", "--untracked-files=no"))
+    # Any tracked change, or an untracked file where components are collected (it would
+    # be embedded without being part of the commit), makes the build not evidence-grade.
+    dirty = bool(git("status", "--porcelain", "--untracked-files=no")
+                 or git("status", "--porcelain", "--untracked-files=all", "--", *COMPONENT_DIRS))
     built = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     comps = components()
 
@@ -82,7 +85,7 @@ def build(target: Path) -> None:
 
     # Readme ------------------------------------------------------------------
     ws = ws_by["Readme"]
-    ws["A1"] = "IRRBB Toolkit - development workbook (decay model)"
+    ws["A1"] = "IRRBB Toolkit - development workbook (regression harness)"
     ws["A1"].font = Font(bold=True, size=14, color=NAVY)
     ws["A2"] = "Built from source for compile and regression evidence. Not the template of issue #5; never commit it."
     ws["A2"].font = Font(italic=True, color="5B6573")
@@ -99,8 +102,9 @@ def build(target: Path) -> None:
         "2. Alt+F11 > Tools > References: only the four defaults must be ticked.",
         "3. Debug > Compile VBAProject: must complete without error.",
         "4. Sheet Checks > Run tests: every built case must be PASS; NOT RUN cases are listed, never counted as passed.",
-        "5. Sheet DecayExample > Run example; then enter an invalid input (e.g. confidence 1) and check that outputs are withdrawn.",
-        "6. Record commit, Excel version/build/bitness, OS, compile, harness counts and failure-path result.",
+        "5. Run tests a second time: the status must show RUNNING while it runs and the tables must be rewritten, not appended.",
+        "6. Sheet DecayExample > Run example; then set Confidence to 1 and run again: all outputs must be withdrawn.",
+        "7. Record commit, Excel version/build/bitness, OS, compile result, harness counts and the example failure path (docs/EXCEL_EVIDENCE.md).",
     ]
     for i, t in enumerate(steps):
         ws.cell(11 + i, 1, t).font = Font(bold=(i == 0), color=NAVY if i == 0 else "000000")
@@ -201,6 +205,7 @@ def build(target: Path) -> None:
         ch.add_data(Reference(ws, min_col=col, min_row=21, max_row=22 + 120), titles_from_data=True)
     ch.set_categories(Reference(ws, min_col=5, min_row=22, max_row=22 + 120))
     ws.add_chart(ch, "L3")
+
 
     buf = io.BytesIO()
     wb.save(buf)

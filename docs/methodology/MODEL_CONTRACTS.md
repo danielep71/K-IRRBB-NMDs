@@ -29,24 +29,35 @@ numerical cases that will test each model are registered in
 > [!IMPORTANT]
 > These contracts were **accepted by the owner on 2026-10-08 in issue #9**,
 > including the [decisions](#decisions) below; see the
-> [acceptance record](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/9#issuecomment-6068527520). Regulatory figures are labelled with their source; those resting on an
+> [acceptance record](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/9#issuecomment-6068527520). Regulatory figures are labeled with their source; those resting on an
 > unverified source in the [register](SOURCES.md) are provisional.
 
 ### Implementation hold points from the repository audit
 
-The accepted baseline is not numerical validation. Before implementing estimators,
-resolve [#26](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/26) in a reviewed
-contract amendment:
+The accepted baseline is not numerical validation. The owner-approved roadmap
+of 2026-10-09 splits [#26](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/26)
+into focused prerequisites. Each affected implementation must wait for its
+reviewed contract amendment; the parent's v0.7.0 milestone does not defer the
+earlier gates:
 
-- field availability at each forecast origin, and verified closure versus missing
-  data/right censoring for W05;
+- ~~field availability at each forecast origin, and verified closure versus missing
+  data/right censoring for W05 (#32, v0.2.0)~~ — decided on 2026-10-09 in #32:
+  [point-in-time view](DATA_CONTRACT.md#look-ahead) and
+  [transition outcomes](DATA_CONTRACT.md#outcomes);
 - full ECM dynamic stability with dependent-variable lags, root convention and
-  tolerance, beyond the beta/lambda bounds below;
+  tolerance, beyond the beta/lambda bounds below (#33, v0.4.0);
 - account-cohort versus aggregate compounding and the exact evolution of survival
-  weights (50/50 balances, survival .9/.1, two months: 41 versus 25);
+  weights (50/50 balances, survival .9/.1, two months: 41 versus 25), together
+  with reproducible fractional-logit conventions (#34, v0.5.0);
 - deterministic model/lag ties, comparable estimation samples, and complete HAC
-  settings and ECM/DIFF reporting;
-- outstanding source verification and independent numerical benchmarks.
+  settings and ECM/DIFF reporting (#33, v0.4.0);
+- outstanding official-source verification and regulatory applicability (#35,
+  v0.7.0, before each affected overlay);
+- independent numerical benchmarks delivered with each model: Decay #36
+  (v0.3.0), Rates #33 (v0.4.0), Stable #34 (v0.5.0);
+- the Stable-Decay integration contract, reconciling existing-account survival
+  with aggregate balances without double-counting runoff (#37, before v0.6.0
+  integration).
 
 These are explicit implementation blockers. Do not silently choose one
 interpretation or report these models as validated.
@@ -190,9 +201,11 @@ later, and how does that depend on observable drivers?
 For each account $i$ and consecutive month ends $t \to t+1$ inside the
 estimation window with $B_{i,t} > 0$:
 
-- $B_{i,t+1}$ is the next observation; it is $0$ if the account closed in
-  $(t, t+1]$ or disappeared after $t$ (data-contract warning `W05`);
-- a transition across a gap (`W01`) is excluded;
+- the transition's [outcome](DATA_CONTRACT.md#outcomes) is *observed*
+  ($B_{i,t+1}$ is the next observation) or a *verified closure* in
+  $(t, t+1]$ ($B_{i,t+1} = 0$);
+- a gap (`W01`), a censored disappearance (`W05`) and the last month end of the
+  window are right-censored or excluded and give no cash-out label;
 - a migration (`W03`) stays in the segment of month $t$ and is counted.
 
 $$s_{i,t} = \frac{\min(B_{i,t+1},\, B_{i,t})}{B_{i,t}} \in [0, 1], \qquad c_{i,t} = 1 - s_{i,t}$$
@@ -213,7 +226,9 @@ are divided by their mean before estimation.
 
 ### Predictors
 
-Every predictor is **known at $t$**; nothing dated after $t$ enters $x_{i,t}$.
+Every predictor is **known at $t$**: it is computed from the
+[point-in-time view](DATA_CONTRACT.md#look-ahead) at $t$, so nothing dated or
+learned after $t$, including a back-filled `close_date`, enters $x_{i,t}$.
 
 | Predictor | Definition |
 | --- | --- |
@@ -263,7 +278,10 @@ confidence level?
 ### Specification
 
 1. **Balance unit:** the aggregate balance $B_t = \sum_i B_{i,t}$ of the
-   segment and currency, including new accounts.
+   segment and currency, including new accounts. Censored disappearances
+   (`W05`) reduce this total as supplied; their balance is reported in the
+   lineage per month end, and whether the decay series adjusts for it is
+   decided in #36.
 2. **Log changes** for consecutive month ends with $B > 0$:
 
    $$g_t = \ln B_t - \ln B_{t-1}$$
@@ -327,7 +345,7 @@ The toolkit keeps two separate layers and always reports both:
 | **Overlay** | Constraints on what may be used for regulatory repricing assumptions | `REG-1`, `REG-2`, `REG-3` |
 
 The overlay never changes a fitted parameter. It produces a separate,
-constrained profile, labelled with the source ID and the verification status of
+constrained profile, labeled with the source ID and the verification status of
 each constraint applied:
 
 1. **Non-core in the overnight bucket**: the overlay profile places the

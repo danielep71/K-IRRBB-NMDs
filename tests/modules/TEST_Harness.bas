@@ -6,6 +6,8 @@ Attribute VB_Name = "TEST_Harness"
 '   Runs every case registered in docs/methodology/TEST_CASES.md that has a VBA
 '   implementation, with deterministic case IDs and assertion counts, and lists
 '   every other registered case as NOT RUN. A failure is never shown as PASS.
+'   The registry below mirrors the register in order; tools/test_vba_harness.py
+'   fails if they differ. Case modules are reached through DispatchCase.
 '
 ' OUTCOMES
 '   PASS     every assertion of the case passed (and at least one ran)
@@ -24,6 +26,11 @@ Attribute VB_Name = "TEST_Harness"
 '   rel |x - r| <= eps * max(1, |r|), exact x = r.
 '==============================================================================
 Option Explicit
+
+' Raised by a case module asked for a case it does not implement:
+' vbObjectError + 1000, written as a literal because LibreOffice, the early
+' warning proxy, does not compile the constant expression.
+Public Const TEST_ERR_NO_CASE As Long = -2147220504
 
 Private Const SH_CHECKS As String = "Checks"
 Private Const SH_README As String = "Readme"
@@ -86,8 +93,14 @@ Private Function Registry() As Variant
     Dim c As New Collection, out() As Variant, i As Long
     Const DATA_NOTE As String = "Checked in Python by tools/test_data_contract.py; VBA importer not built"
     Const DECAY_ONLY As String = "Decay model only; rate and stable parts not built"
+    c.Add Array("HARN-OUT-01", True, "")
     c.Add Array("DATA-VALID-01", False, DATA_NOTE)
     c.Add Array("DATA-INVALID-01", False, DATA_NOTE)
+    c.Add Array("DATA-PIT-01", False, DATA_NOTE)
+    c.Add Array("DATA-PIT-02", False, DATA_NOTE)
+    c.Add Array("DATA-PARSE-01", True, "")
+    c.Add Array("DATA-PARSE-02", True, "")
+    c.Add Array("DATA-CODES-01", True, "")
     c.Add Array("RATE-OLS-01", False, "Rate model not built")
     c.Add Array("RATE-ADF-01", False, "Rate model not built")
     c.Add Array("RATE-EG-01", False, "Rate model not built")
@@ -111,7 +124,7 @@ Private Function Registry() As Variant
     c.Add Array("DEC-ERR-01", True, "")
     c.Add Array("OOS-FREEZE-01", True, DECAY_ONLY)
     c.Add Array("OOS-LEAK-01", True, DECAY_ONLY)
-    c.Add Array("OOS-SCORE-01", True, "Decay exceedance only; bias, MAE and RMSE not built")
+    c.Add Array("OOS-SCORE-01", True, "Decay exceedance rate only; bias, MAE and RMSE not built")
     ReDim out(0 To c.Count - 1)
     For i = 1 To c.Count
         out(i - 1) = c(i)
@@ -121,6 +134,7 @@ End Function
 
 
 Private Sub RunOne(ByVal caseId As String, ByVal built As Boolean, ByVal note As String)
+    Dim errored As Boolean
     mCaseCount = mCaseCount + 1
     If mCaseCount > UBound(mCaseId) Then
         GrowCases
@@ -128,20 +142,16 @@ Private Sub RunOne(ByVal caseId As String, ByVal built As Boolean, ByVal note As
     mCurrent = mCaseCount
     mCaseId(mCurrent) = caseId
     mCaseNote(mCurrent) = note
-    If Not built Then
-        mCaseOutcome(mCurrent) = "NOT RUN"
-        Exit Sub
+    If built Then
+        On Error GoTo CaseErr
+        DispatchCase caseId
+        On Error GoTo 0
     End If
 
-    On Error GoTo CaseErr
-    TEST_DecayCases.TEST_RunDecayCase caseId
-    If mCaseAsserts(mCurrent) = 0 Then
-        mCaseOutcome(mCurrent) = "FAIL"
+Finish:
+    mCaseOutcome(mCurrent) = TEST_CaseOutcome(built, errored, mCaseAsserts(mCurrent), mCasePassed(mCurrent))
+    If built And Not errored And mCaseAsserts(mCurrent) = 0 Then
         mCaseNote(mCurrent) = Trim$(note & " No assertion was executed.")
-    ElseIf mCasePassed(mCurrent) = mCaseAsserts(mCurrent) Then
-        mCaseOutcome(mCurrent) = "PASS"
-    Else
-        mCaseOutcome(mCurrent) = "FAIL"
     End If
     Exit Sub
 
@@ -149,8 +159,76 @@ CaseErr:
     AddRow caseId, "Unexpected error " & Err.Number & ": " & Err.Description & " [" & Err.Source & "]", _
            Empty, Empty, Empty, "", "ERROR"
     mCaseAsserts(mCurrent) = mCaseAsserts(mCurrent) + 1
-    mCaseOutcome(mCurrent) = "ERROR"
+    errored = True
+    Resume Finish
 End Sub
+
+
+'------------------------------------------------------------------------------
+' DispatchCase: route a built case to the module that implements it.
+'------------------------------------------------------------------------------
+Private Sub DispatchCase(ByVal caseId As String)
+    Select Case caseId
+        Case "HARN-OUT-01", "DATA-PARSE-01", "DATA-PARSE-02", "DATA-CODES-01"
+            TEST_CoreCases.TEST_RunCoreCase caseId
+        Case "DEC-LOG-01", "DEC-MPA-01", "DEC-PROF-01", "DEC-LIFE-01", "DEC-CAP-01", "DEC-E2E-01"
+            TEST_DecayCases.TEST_RunDecayCase caseId
+        Case "DEC-ERR-01", "OOS-FREEZE-01", "OOS-LEAK-01", "OOS-SCORE-01"
+            TEST_DecayCases.TEST_RunDecayCase caseId
+        Case Else
+            Err.Raise TEST_ERR_NO_CASE, "TEST_Harness.DispatchCase", "No VBA implementation for " & caseId & "."
+    End Select
+End Sub
+
+
+'==============================================================================
+' Outcome and tolerance rules (pure; tested by HARN-OUT-01)
+'==============================================================================
+
+'------------------------------------------------------------------------------
+' TEST_CaseOutcome: NOT RUN if the case is not built; ERROR if it raised an
+' unexpected error; FAIL if it made no assertion or any assertion failed;
+' PASS only if every one of at least one assertion passed.
+'------------------------------------------------------------------------------
+Public Function TEST_CaseOutcome(ByVal built As Boolean, ByVal errored As Boolean, _
+                                 ByVal asserts As Long, ByVal passed As Long) As String
+    If Not built Then
+        TEST_CaseOutcome = "NOT RUN"
+    ElseIf errored Then
+        TEST_CaseOutcome = "ERROR"
+    ElseIf asserts = 0 Then
+        TEST_CaseOutcome = "FAIL"
+    ElseIf passed = asserts Then
+        TEST_CaseOutcome = "PASS"
+    Else
+        TEST_CaseOutcome = "FAIL"
+    End If
+End Function
+
+
+'------------------------------------------------------------------------------
+' TEST_WithinTolerance (TEST_CASES.md): abs |x - r| <= eps;
+' rel |x - r| <= eps * max(1, |r|); exact x = r. Any other kind is False.
+'------------------------------------------------------------------------------
+Public Function TEST_WithinTolerance(ByVal actual As Double, ByVal expected As Double, _
+                                     ByVal kind As String, ByVal eps As Double) As Boolean
+    Dim diff As Double
+    diff = Abs(actual - expected)
+    Select Case kind
+        Case "abs"
+            TEST_WithinTolerance = (diff <= eps)
+        Case "rel"
+            If Abs(expected) > 1 Then
+                TEST_WithinTolerance = (diff <= eps * Abs(expected))
+            Else
+                TEST_WithinTolerance = (diff <= eps)
+            End If
+        Case "exact"
+            TEST_WithinTolerance = (actual = expected)
+        Case Else
+            TEST_WithinTolerance = False
+    End Select
+End Function
 
 
 '==============================================================================
@@ -158,22 +236,18 @@ End Sub
 '==============================================================================
 Public Sub TEST_AssertNear(ByVal caseId As String, ByVal label As String, ByVal actual As Double, _
                            ByVal expected As Double, ByVal kind As String, ByVal eps As Double)
-    Dim diff As Double, ok As Boolean, tolText As String
-    diff = Abs(actual - expected)
-    Select Case kind
-        Case "abs"
-            ok = (diff <= eps)
-        Case "rel"
-            If Abs(expected) > 1 Then ok = (diff <= eps * Abs(expected)) Else ok = (diff <= eps)
-        Case "exact"
-            ok = (actual = expected)
-        Case Else
-            ok = False
-            label = label & " (unknown tolerance kind '" & kind & "')"
-    End Select
-    If actual <> actual Then ok = False
-    tolText = kind & " " & Format$(eps, "0.0E+00")
-    Record caseId, label, expected, actual, diff, tolText, ok
+    Dim ok As Boolean
+    ok = TEST_WithinTolerance(actual, expected, kind, eps)
+    If kind <> "abs" And kind <> "rel" And kind <> "exact" Then
+        label = label & " (unknown tolerance kind '" & kind & "')"
+    End If
+    Record caseId, label, expected, actual, Abs(actual - expected), kind & " " & Format$(eps, "0.0E+00"), ok
+End Sub
+
+
+Public Sub TEST_AssertText(ByVal caseId As String, ByVal label As String, ByVal actual As String, _
+                           ByVal expected As String)
+    Record caseId, label, expected, actual, Empty, "exact", actual = expected
 End Sub
 
 

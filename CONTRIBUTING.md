@@ -27,12 +27,28 @@ Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
 Suspected vulnerabilities must never be disclosed in an issue or pull request.
 
 > [!NOTE]
-> Milestone **v0.1.0 – Repository foundation** is in progress. No VBA source,
+> Milestone **v0.2.0 – Workbook, data and Excel tests** is in progress;
+> **v0.1.0 – Repository foundation** closed on 2026-10-09. No VBA source,
 > workbook, regression harness or model engine exists yet. The model families
 > and their obligations are described in
 > [`docs/methodology/`](docs/methodology/README.md); the source layout is set in
 > [`docs/REPOSITORY_STRUCTURE.md`](docs/REPOSITORY_STRUCTURE.md). Sections below
 > that refer to VBA describe the rules those changes must follow once they exist.
+
+## 🌐 Repository language
+
+Use **US English** for all repository-authored content: documentation, code
+comments, diagnostics and user-facing messages, issue and pull request titles
+and bodies, review comments, milestone descriptions, commit messages, and
+release notes. Use US spellings such as `behavior`, `modeling`, `license`,
+`analyze`, and `color`. Write new identifiers and descriptive filenames in
+English, while preserving existing API and file-format compatibility.
+
+Keep proper names, official publication titles, quotations, and external API
+identifiers accurate to their sources. Explain quoted non-English material
+in US English. Preserve glyphs and mathematical notation where useful; the
+language standard does not require ASCII-only text. Do not rewrite published
+Git history to apply an editorial correction.
 
 <a id="ways-to-contribute"></a>
 
@@ -58,7 +74,7 @@ requests follow [the PR template](.github/PULL_REQUEST_TEMPLATE.md).
 
 ## 🌿 Development workflow
 
-1. Start from the active release branch, currently `release/v0.1.0`. Never assume
+1. Start from the active release branch, currently `release/v0.2.0`. Never assume
    GitHub's default branch is the right base.
 2. Create one focused task branch named in the repository convention:
    `fix/<issue>-<slug>`, `docs/<slug>` or `test/<slug>`.
@@ -73,7 +89,9 @@ requests follow [the PR template](.github/PULL_REQUEST_TEMPLATE.md).
 8. Review the complete diff, then open a pull request **against the release
    branch** with evidence and explicit limitations.
 9. Merge only after review, with the **Repository integrity** check green and
-   every review finding resolved.
+   every review finding resolved. The release branch accepts changes only
+   through pull requests; a merge commit keeps each commit as authored, and a
+   squash must carry a commit message that follows the rules below.
 
 Nothing is committed directly to the release branch or to `main`. Integration
 of the release branch into `main` happens only on the owner's request; see
@@ -129,10 +147,11 @@ from a documented procedure, with its generator or seed committed or described,
 and not derived from real records: rescaled, shifted, anonymized or sampled
 real balances, rates or account histories are **not** synthetic.
 
-**Private visibility is not permission.** The repository being private does
-not authorize storing client, employer or personal data, and does not waive
-confidentiality, GDPR or contractual restrictions. Treat every commit as if the
-repository were public, because history is hard to erase.
+**Visibility is not permission.** The repository is public, and its full
+history, branches and pull-request refs are readable by anyone. A private fork
+or branch does not authorize storing client, employer or personal data, and
+does not waive confidentiality, GDPR or contractual restrictions. Treat every
+commit as published, because history is hard to erase.
 
 **Third-party material needs explicit rights.** Do not commit, attach or
 paraphrase at length:
@@ -150,7 +169,7 @@ where an integration contract requires it, never its internals.
 
 **State provenance.** A pull request that adds data, a fixture, an expected
 value or adapted code states where it came from: generator and seed, the public
-source cited, or the licence of the adapted material.
+source cited, or the license of the adapted material.
 
 **If sensitive material reaches Git**, stop pushing to that branch and report
 it privately as described in [`SECURITY.md`](SECURITY.md#data-and-secrets).
@@ -282,10 +301,11 @@ technical and respectful under the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## 📄 Licensing and maintainer
 
-This project is distributed under the [MIT License](LICENSE). Contributors must
+This project is distributed under the [Mozilla Public License 2.0](LICENSE)
+(MPL-2.0); contributions are accepted under the same license. Contributors must
 have the right to submit every part of a contribution, including code, tests,
 data, images and generated material. Third-party methodologies are cited, not
-copied. The licence is reviewed before any external distribution; see
+copied. The license is reviewed before any external distribution; see
 [`docs/GOVERNANCE.md`](docs/GOVERNANCE.md#licensing-and-distribution).
 
 Maintained by **Daniele Penza**.

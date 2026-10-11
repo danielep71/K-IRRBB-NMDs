@@ -2,7 +2,7 @@ name: Detect issue-label drift
 run-name: Label drift — ${{ github.ref_name }} @ ${{ github.sha }}
 
 # Pull requests exercise only deterministic offline fixtures. Scheduled and
-# manual detection read the live label catalogue with read-only permissions.
+# manual detection read the live label catalog with read-only permissions.
 # This workflow has no repository mutation path; reconciliation remains in
 # labels-sync.yml on trusted events.
 

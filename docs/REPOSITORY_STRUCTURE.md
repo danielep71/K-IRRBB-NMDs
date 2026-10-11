@@ -57,7 +57,7 @@ touches workbook objects, so every estimator can be tested from arrays without a
 workbook and reused if a library deliverable is ever wanted.
 
 `.github/label-policy.json` already selects the `application` profile for the
-label catalogue; this document makes it the architecture decision as well.
+label catalog; this document makes it the architecture decision as well.
 
 <a id="excel-workflow"></a>
 
@@ -91,7 +91,7 @@ tests/      regression modules, synthetic fixtures and expected results
 examples/   runnable examples of the supported API
 docs/       contracts, architecture and methodology
 tools/      static checks and evidence tooling; later, build tooling
-.github/    workflows, label catalogue and scripts
+.github/    workflows, label catalog and scripts
 ```
 
 | Directory | Owns | Must not own |

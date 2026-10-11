@@ -1,6 +1,6 @@
 # Issue labels
 
-The canonical label catalogue is `.github/labels.json`; `.github/label-policy.json` selects the `application` profile. This catalogue and reconciliation scripts are adapted from VBA-SACCR-Toolkit.
+The canonical label catalog is `.github/labels.json`; `.github/label-policy.json` selects the `application` profile. This catalog and reconciliation scripts are adapted from VBA-SACCR-Toolkit.
 
 - Priority: exactly one of `P1`, `P2`, `P3`.
 - Type/area: `repository`, `enhancement`, `tests`, `documentation`, `ci`, `security`, etc.

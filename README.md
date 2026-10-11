@@ -2,12 +2,12 @@
 
 # 🏦 IRRBB Behavioral Models — Excel/VBA Toolkit
 
-### Interest Rate Risk in the Banking Book | behavioral modelling, calibration and independent testing
+### Interest Rate Risk in the Banking Book | behavioral modeling, calibration and independent testing
 
 [![Excel VBA](https://img.shields.io/badge/Excel_VBA-Windows-217346?style=for-the-badge&logo=microsoft-excel&logoColor=white)](INSTALLATION.md)
 [![Status](https://img.shields.io/badge/Status-Foundation%20only-6e7781?style=for-the-badge)](#status)
-[![Development](https://img.shields.io/badge/Development-release%2Fv0.1.0-6f42c1?style=for-the-badge)](https://github.com/danielep71/VBA-IRRBB-Toolkit/tree/release/v0.1.0)
-[![License](https://img.shields.io/badge/License-MIT-2ea44f?style=for-the-badge)](LICENSE)
+[![Development](https://img.shields.io/badge/Development-release%2Fv0.2.0-6f42c1?style=for-the-badge)](https://github.com/danielep71/VBA-IRRBB-Toolkit/tree/release/v0.2.0)
+[![License](https://img.shields.io/badge/License-MPL--2.0-2ea44f?style=for-the-badge)](LICENSE)
 
 <br>
 
@@ -19,7 +19,7 @@
 
 ## ✨ Purpose
 
-**VBA-IRRBB-Toolkit** is an Excel/VBA **application project** intended to develop transparent, independently testable tools for behavioral assumptions in Interest Rate Risk in the Banking Book (IRRBB). It addresses the modelling of non-maturity deposits (NMDs) and, where applicable, demand-side balances, with an emphasis on reproducible calculations, model risk management and ALM parameter export.
+**VBA-IRRBB-Toolkit** is an Excel/VBA **application project** intended to develop transparent, independently testable tools for behavioral assumptions in Interest Rate Risk in the Banking Book (IRRBB). It addresses the modeling of non-maturity deposits (NMDs) and, where applicable, demand-side balances, with an emphasis on reproducible calculations, model risk management and ALM parameter export.
 
 The planned scope has three distinct model families:
 
@@ -37,20 +37,21 @@ Planned cross-cutting functionality includes data validation, calibration, histo
 <a id="status"></a>
 ## 🧭 Status
 
-**v0.1.0 – Repository foundation (in progress).** This initial milestone establishes source layout, documentation, issue governance, CI and static source checks; it does **not** deliver pricing, econometric fitting, a production workbook or certified IRRBB outputs.
+**v0.2.0 – Workbook, data and Excel tests (in progress).** The [v0.1.0 foundation](docs/Milestones/v0.1.0.md), closed on 2026-10-09, established source layout, documentation, issue governance, CI and static source checks; v0.2.0 builds the first workbook, data import and Excel test harness. Neither delivers pricing, econometric fitting, a production workbook or certified IRRBB outputs.
 
-- **Decay model (draft, not validated):** core, public facade `IRRBB_Decay`, regression harness and example are in the source, built to [`MODEL_CONTRACTS.md`](docs/methodology/MODEL_CONTRACTS.md#decay-model); no Excel evidence is recorded yet. Rate and stable-amount models are not built.
+- **Decay model (draft, not validated, branch `test/decay-model`):** core, public facade `IRRBB_Decay`, harness cases and example, built to [`MODEL_CONTRACTS.md`](docs/methodology/MODEL_CONTRACTS.md#decay-model) and under review in [#36](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/36); no Excel evidence is recorded yet. Rate and stable-amount models are not built.
 - Application profile: an Excel workbook will be the end-user deliverable, assembled from reviewed exported VBA source.
 - Production calculations will live in `src/core/` without direct Excel object dependencies.
 - `src/modules/` will expose a documented public facade; `src/workbook/` will contain host glue only.
 - `tests/` will hold synthetic test cases and expected results; evidence from a real Excel run must be separately recorded.
-- No client data, confidential third-party material, vendor source code or customer-specific models are allowed in Git, even while the repository is private.
+- No client data, confidential third-party material, vendor source code or customer-specific models are allowed in Git; the repository and its history are public.
 
 ## 📁 Repository navigation
 
 | Resource | Purpose |
 | --- | --- |
 | [Structure](docs/REPOSITORY_STRUCTURE.md) | Application profile, ownership and dependency boundaries |
+| [Milestone guides](docs/Milestones/README.md) | Detailed guides to each milestone: purpose, deliverables, dependencies and completion evidence |
 | [Methodology roadmap](docs/methodology/README.md) | Model definitions, reference and calibration obligations |
 | [Validation plan](docs/methodology/VALIDATION_PLAN.md) | Backtesting, numerical evidence and model-risk controls |
 | [Installation](INSTALLATION.md) | Development prerequisites and local static checks |
@@ -59,7 +60,7 @@ Planned cross-cutting functionality includes data validation, calibration, histo
 | [VBA house style](docs/VBA_HOUSE_STYLE.md) | Module contracts, error handling and export discipline |
 | [Excel evidence](docs/EXCEL_EVIDENCE.md) | Real-host evidence, independent of static checks |
 | [Tooling](tools/README.md) | Repository checks and CI limits |
-| [Labels](docs/LABELS.md) | Issue-label catalogue and priority rules |
+| [Labels](docs/LABELS.md) | Issue-label catalog and priority rules |
 | [Releasing](RELEASING.md) | Integration into `main` and the release sequence |
 | [Security](SECURITY.md) | Vulnerability and information-handling policy |
 | [Code of conduct](CODE_OF_CONDUCT.md) | Participant behavior and conduct reporting |
@@ -70,7 +71,7 @@ Planned cross-cutting functionality includes data validation, calibration, histo
 ```shell
 git clone https://github.com/danielep71/VBA-IRRBB-Toolkit.git
 cd VBA-IRRBB-Toolkit
-git switch release/v0.1.0
+git switch release/v0.2.0
 python tools/check.py
 ```
 
@@ -78,7 +79,7 @@ Git and Python 3.10+ are needed for the static checks. A Windows 64-bit Excel ho
 
 ## 🔒 Data, confidentiality and provenance
 
-This project is **generic and independent**. Only synthetic or redistributable reference datasets and expressly permitted source material may be committed. Do not copy third-party proprietary methodologies verbatim, internal bank models, customer balances, reports, restricted vendor manuals or training material, or tools into this repository. Private repository visibility is not permission to store any of these. The current MIT license covers original repository content; it does not grant rights over third-party intellectual property, and it is reviewed before any external distribution.
+This project is **generic and independent**. Only synthetic or redistributable reference datasets and expressly permitted source material may be committed. Do not copy third-party proprietary methodologies verbatim, internal bank models, customer balances, reports, restricted vendor manuals or training material, or tools into this repository. No visibility setting or private fork is permission to store any of these. The Mozilla Public License 2.0 covers original repository content; it does not grant rights over third-party intellectual property, and it is reviewed before any external distribution.
 
 Contributor rules are in [Data, confidentiality and provenance](CONTRIBUTING.md#data-confidentiality-and-provenance); the distribution gate is in [Governance](docs/GOVERNANCE.md#licensing-and-distribution).
 
@@ -88,4 +89,4 @@ Contributor rules are in [Data, confidentiality and provenance](CONTRIBUTING.md#
 
 ## 📄 License
 
-[MIT](LICENSE)
+[Mozilla Public License 2.0](LICENSE) (MPL-2.0), copyright 2026 Daniele Penza.

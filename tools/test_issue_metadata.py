@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import copy
 import importlib.util
+import os
+import subprocess
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-spec = importlib.util.spec_from_file_location("issue_metadata", Path(__file__).resolve().parents[1]
-                                             / ".github/scripts/issue-metadata.py")
+ROOT = Path(__file__).resolve().parents[1]
+spec = importlib.util.spec_from_file_location("issue_metadata", ROOT / ".github/scripts/issue-metadata.py")
 policy = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(policy)
 
@@ -65,6 +67,55 @@ class IssueMetadataTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "must be open"):
             self.simulate({"assignees": [{"login": "danielep71"}], "labels": [{"name": "P2"}],
                            "milestone": None}, "closed")
+
+
+class IssueMetadataEntryTests(unittest.TestCase):
+    """Event routing in main() and API failure reporting (#41)."""
+
+    def run_main(self, **env):
+        environment = {"GITHUB_REPOSITORY": "owner/repo", "ISSUE_MILESTONE_NUMBER": "2", **env}
+        with patch.dict(os.environ, environment, clear=True):
+            return policy.main()
+
+    def test_pull_request_event_is_skipped_before_any_api_call(self):
+        with patch.object(policy, "api", side_effect=AssertionError("no API call expected")), \
+                patch.object(policy, "reconcile", side_effect=AssertionError("no reconcile expected")):
+            self.assertEqual(self.run_main(ISSUE_NUMBER="38", ISSUE_IS_PULL_REQUEST="true"), 0)
+
+    def test_genuine_issue_event_is_reconciled(self):
+        with patch.object(policy, "reconcile") as reconcile:
+            self.assertEqual(self.run_main(ISSUE_NUMBER="41", ISSUE_IS_PULL_REQUEST=""), 0)
+        reconcile.assert_called_once_with("owner/repo", 41, 2)
+
+    def test_sweep_reconciles_every_issue_and_no_pull_request(self):
+        pages = [[{"number": 1}, {"number": 38, "pull_request": {}}], [{"number": 41}]]
+        with patch.object(policy, "api", return_value=pages) as api, \
+                patch.object(policy, "reconcile") as reconcile:
+            self.assertEqual(self.run_main(), 0)
+        api.assert_called_once_with("repos/owner/repo/issues?state=all&per_page=100", paginate=True)
+        self.assertEqual([call.args[1] for call in reconcile.call_args_list], [1, 41])
+
+    def test_api_failure_reports_status_and_redacts_tokens(self):
+        token = "ghs_" + "A" * 36
+        failed = subprocess.CompletedProcess(
+            [], 1, stdout='{"message": "Not Found", "note": "' + token + '"}',
+            stderr="gh: Not Found (HTTP 404)\n")
+        with patch.object(policy.subprocess, "run", return_value=failed):
+            with self.assertRaises(RuntimeError) as raised:
+                policy.api("repos/owner/repo/issues/38")
+        message = str(raised.exception)
+        self.assertIn("GET repos/owner/repo/issues/38 failed (gh exit 1)", message)
+        self.assertIn("HTTP 404", message)
+        self.assertIn("[REDACTED]", message)
+        self.assertNotIn(token, message)
+
+    def test_failure_detail_is_bounded(self):
+        self.assertLessEqual(len(policy.failure_detail("x" * 5000)), policy.DETAIL_LIMIT + 3)
+
+    def test_workflow_passes_pull_request_flag_from_event_payload(self):
+        workflow = (ROOT / ".github/workflows/issue-metadata.yml").read_text(encoding="utf-8")
+        self.assertIn("ISSUE_IS_PULL_REQUEST: ${{ github.event.issue.pull_request && 'true' || '' }}",
+                      workflow)
 
 
 if __name__ == "__main__":

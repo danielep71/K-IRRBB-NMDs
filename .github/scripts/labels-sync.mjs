@@ -414,7 +414,7 @@ function renderSummary({
   if (verified !== null) lines.push(`- Post-run exact match: **${verified ? "yes" : "no"}**`);
   lines.push(
     "",
-    "## Resolved label catalogue",
+    "## Resolved label catalog",
     "",
     `- Core labels (${coreLabels.length}): ${renderLabelNames(coreLabels)}`,
     `- Profile labels (${profile ?? "none"}; ${profileLabels.length}): ${renderLabelNames(profileLabels)}`,

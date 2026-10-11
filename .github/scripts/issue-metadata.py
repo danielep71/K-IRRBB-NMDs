@@ -3,11 +3,20 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 
 PRIORITIES = ("P1", "P2", "P3")
 OWNER = "danielep71"
+SECRET = re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})")
+DETAIL_LIMIT = 500
+
+
+def failure_detail(text):
+    """Return API error text safe for a public log: token-like strings redacted, length capped."""
+    detail = SECRET.sub("[REDACTED]", " ".join(text.split()))
+    return detail if len(detail) <= DETAIL_LIMIT else detail[:DETAIL_LIMIT] + "..."
 
 
 def api(endpoint, method="GET", payload=None, paginate=False):
@@ -17,7 +26,12 @@ def api(endpoint, method="GET", payload=None, paginate=False):
     if payload is not None:
         command += ["--input", "-"]
     completed = subprocess.run(command, input=json.dumps(payload) if payload is not None else None,
-                               capture_output=True, text=True, check=True)
+                               capture_output=True, text=True)
+    if completed.returncode != 0:
+        # gh prints the HTTP status and reason on stderr and the response body on stdout;
+        # the request payload is never echoed.
+        detail = failure_detail(f"{completed.stderr} {completed.stdout}")
+        raise RuntimeError(f"{method} {endpoint} failed (gh exit {completed.returncode}): {detail}")
     return json.loads(completed.stdout) if completed.stdout.strip() else None
 
 
@@ -59,6 +73,12 @@ def main():
     if milestone < 1:
         raise ValueError("ISSUE_MILESTONE_NUMBER must be positive")
     number = os.environ.get("ISSUE_NUMBER", "")
+    if number and os.environ.get("ISSUE_IS_PULL_REQUEST", "") == "true":
+        # GitHub also sends issues events (for example milestoned) for pull requests. The
+        # workflow token has no pull-requests permission, so reading one through the issues
+        # API fails; pull requests are out of scope, so skip before any API call.
+        print(f"#{number} is a pull request; issue metadata policy does not apply")
+        return 0
     if number:
         numbers = [int(number)]
     else:

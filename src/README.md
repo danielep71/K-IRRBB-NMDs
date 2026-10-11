@@ -7,4 +7,4 @@ Source-first application profile, adapted from VBA-SACCR-Toolkit.
 - `workbook/`: host adapters and exported Excel document modules.
 - `classes/`, `forms/`: introduce only when needed.
 
-The first production source is the draft decay model: `core/CORE_Math`, `core/CORE_Codes`, `core/CORE_Decay`, `core/CORE_Overlay` and the facade `modules/IRRBB_Decay`. It is not validated and has no Excel evidence yet. Layout, dependency direction and the parameter and units boundary are defined in [`docs/REPOSITORY_STRUCTURE.md`](../docs/REPOSITORY_STRUCTURE.md).
+`core/` holds the first modules: `CORE_Parse` (locale-independent dates, decimals and rates of the data contract) and `CORE_Codes` (segment codes and the currency allowlist), plus the draft decay model `CORE_Math`, `CORE_Decay`, `CORE_Overlay` with the facade `modules/IRRBB_Decay`, under review in #36 and without Excel evidence. Layout, dependency direction and the parameter and units boundary are defined in [`docs/REPOSITORY_STRUCTURE.md`](../docs/REPOSITORY_STRUCTURE.md).

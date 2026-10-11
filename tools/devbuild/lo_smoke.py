@@ -4,8 +4,9 @@
 Usage: python tools/devbuild/lo_smoke.py [build/IRRBB_Dev.xlsm]
 
 Opens the workbook in LibreOffice with VBA compatibility, runs
-TEST_Harness.RunTests and EX_DecayExample.RunDecayExample, forces one invalid
-input to check that outputs are withdrawn, and prints a JSON summary. Needs
+TEST_Harness.RunTests, plants a stale row in the result tables, runs it again to
+check that previous results are withdrawn, runs the decay example with valid and
+then invalid input (outputs must be withdrawn), and prints a JSON summary. Needs
 LibreOffice and python3-uno. LibreOffice is NOT Excel: this is never Excel
 evidence (docs/EXCEL_EVIDENCE.md), only an early warning for runtime defects.
 """
@@ -74,19 +75,26 @@ def main() -> int:
         out: dict[str, object] = {"modules": list(doc.BasicLibraries.getByName(lib).getElementNames())}
         out["harness_error"] = run("TEST_Harness", "RunTests")
         out["status"] = [r[1] for r in cells("Checks", "A3:B11")]
-        out["cases"] = [r for r in cells("Checks", "A14:F60") if r[0]]
+        out["cases"] = [r for r in cells("Checks", "A14:F80") if r[0]]
         rows = cells("Checks", "H14:N3000")
         out["assertion_rows"] = sum(1 for r in rows if r[0])
         out["failed_assertions"] = [r for r in rows if r[0] and r[6] != "PASS"]
-        out["example_error"] = run("EX_DecayExample", "RunDecayExample")
-        out["example_status"] = cells("DecayExample", "B14:B16")
-        out["example_summary"] = cells("DecayExample", "F3:G17") + cells("DecayExample", "I3:J13")
-        sheet = doc.Sheets.getByName("DecayExample")
-        sheet.getCellRangeByName("B8").setValue(1.0)
-        run("EX_DecayExample", "RunDecayExample")
-        out["failure_path"] = {"status": cells("DecayExample", "B14:B14")[0][0],
-                               "outputs_withdrawn": all(v in ("", None) for r in cells("DecayExample", "F3:J17")
-                                                        for v in r)}
+        checks = doc.Sheets.getByName("Checks")
+        checks.getCellRangeByName("A70").setString("STALE")
+        checks.getCellRangeByName("H2900").setString("STALE")
+        out["rerun_error"] = run("TEST_Harness", "RunTests")
+        out["rerun_status"] = cells("Checks", "B3:B3")[0][0]
+        out["stale_rows_withdrawn"] = (cells("Checks", "A70:A70")[0][0] in ("", None)
+                                       and cells("Checks", "H2900:H2900")[0][0] in ("", None))
+        if doc.Sheets.hasByName("DecayExample"):
+            out["example_error"] = run("EX_DecayExample", "RunDecayExample")
+            out["example_status"] = cells("DecayExample", "B14:B14")[0][0]
+            example = doc.Sheets.getByName("DecayExample")
+            example.getCellRangeByName("B8").setValue(1.0)  # confidence 1: invalid input
+            run("EX_DecayExample", "RunDecayExample")
+            out["example_failure_path"] = {
+                "status": cells("DecayExample", "B14:B14")[0][0],
+                "outputs_withdrawn": all(v in ("", None) for r in cells("DecayExample", "F3:J17") for v in r)}
         doc.close(True)
         try:
             desk.terminate()

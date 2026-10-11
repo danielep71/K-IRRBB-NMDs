@@ -4,7 +4,7 @@
 
 ### Set up, validate, and later import the IRRBB Toolkit into Excel
 
-[![Status](https://img.shields.io/badge/Status-Foundation_only-6e7781?style=flat-square)](#current-status)
+[![Status](https://img.shields.io/badge/Status-In_development-d97706?style=flat-square)](#current-status)
 [![Checks](https://img.shields.io/badge/Checks-python_tools%2Fcheck.py-0969da?style=flat-square)](#run-the-checks)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab?style=flat-square&logo=python&logoColor=white)](#prerequisites)
 [![Security](https://img.shields.io/badge/Security-Private_policy-d73a49?style=flat-square)](SECURITY.md)
@@ -31,19 +31,20 @@ and removal**. Contribution workflow is owned by
 
 ## 🧭 Current status
 
-Milestone **v0.1.0 – Repository foundation** is in progress. There is **no
-IRRBB release**. The only VBA in the repository is the draft decay model, its
-regression harness and an example; they can be imported for development and
-evidence, not for use.
+Milestone **v0.2.0 – Workbook, data and Excel tests** is in progress;
+**v0.1.0 – Repository foundation** closed on 2026-10-09. There is **no
+IRRBB release** and **no model to run in Excel yet**: the repository holds
+documentation, issue governance, CI, static source checks, the first core
+parsing modules and the regression harness.
 
 | Topic | Status |
 | --- | --- |
 | VBA source layout | Defined in [`docs/REPOSITORY_STRUCTURE.md`](docs/REPOSITORY_STRUCTURE.md) |
 | VBA conventions | Defined in [`docs/VBA_HOUSE_STYLE.md`](docs/VBA_HOUSE_STYLE.md) |
 | Static checks | Available: `python tools/check.py` |
-| VBA source | Decay model only (draft); rate and stable models not built |
+| VBA source | `src/core/`: CORE_Parse (dates, decimals, rates), CORE_Codes (segments, currency allowlist); draft decay model (CORE_Math, CORE_Decay, CORE_Overlay, facade IRRBB_Decay) under review in #36 |
 | Workbook template | Not yet present (#5) |
-| Regression harness | `TEST_Harness.RunTests` (#8); decay cases built, others NOT RUN |
+| Regression harness | `tests/modules/` (#8): runs from a [development workbook](#development-workbook); no Excel run recorded yet |
 | Supported hosts and references | Decided in issue #3; see [supported hosts](#supported-hosts) |
 | Excel evidence | Requirements defined in [`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md); no record yet |
 | Released versions | None |
@@ -58,7 +59,8 @@ Passing static checks is **not** evidence of correct IRRBB calculations.
 | --- | --- |
 | Git | Cloning and all repository work |
 | Python 3.10 or later | `python tools/check.py`; standard library only, no packages |
-| Node.js 20 or later | Optional: local label-catalogue checks |
+| `openpyxl` (Python package) | Optional: building the [development workbook](#development-workbook) |
+| Node.js 20 or later | Optional: local label-catalog checks |
 | Microsoft Excel for Windows | **Future** VBA import, compile and model execution; see [supported hosts](#supported-hosts); not needed for static checks |
 
 <a id="supported-hosts"></a>
@@ -112,10 +114,10 @@ Use a **Git clone**:
 ```sh
 git clone https://github.com/danielep71/VBA-IRRBB-Toolkit.git
 cd VBA-IRRBB-Toolkit
-git switch release/v0.1.0
+git switch release/v0.2.0
 ```
 
-`release/v0.1.0` is the active development branch; `main` receives it only on
+`release/v0.2.0` is the active development branch; `main` receives it only on
 the owner's request.
 
 Do not use **Code → Download ZIP**. `.gitattributes` excludes repository
@@ -145,7 +147,7 @@ python tools/check.py --ci
 python tools/check.py --ci --base <base-sha>   # for a pull request's full range
 ```
 
-Optional label-catalogue checks:
+Optional label-catalog checks:
 
 ```sh
 node .github/scripts/labels-sync.mjs --policy .github/label-policy.json --self-test
@@ -159,16 +161,38 @@ checks: they never compile VBA, run Excel or validate a model.
 
 ## 📂 Importing VBA into Excel
 
-> [!NOTE]
-> Components at this commit, in import order: `src/core/` `CORE_Math`,
-> `CORE_Codes`, `CORE_Decay`, `CORE_Overlay`; `src/modules/` `IRRBB_Decay`; development only:
-> `tests/modules/` `TEST_DecayData`, `TEST_DecayCases`, `TEST_Harness` and
-> `examples/modules/` `EX_DecayExample`. The harness writes to a sheet named
-> `Checks` and reads `Source commit` from a sheet named `Readme`; the example
-> uses a sheet named `DecayExample`. Until the template (#5) and import helper
-> (#6) exist, `python tools/devbuild/build_dev_workbook.py` assembles a
-> development workbook with these sheets from the checked-out commit
-> ([`tools/devbuild/README.md`](tools/devbuild/README.md)).
+<a id="development-workbook"></a>
+
+### Development workbook
+
+For compile and regression evidence, build the workbook from the checkout
+instead of importing by hand:
+
+```shell
+pip install openpyxl
+python tools/devbuild/build_dev_workbook.py   # writes build/IRRBB_Dev.xlsm
+```
+
+The builder embeds every `.bas` under `src/core/`, `src/modules/`,
+`src/workbook/`, `tests/modules/` and `examples/modules/` unchanged and stamps
+the commit on the `Readme` sheet; a dirty checkout is stamped as not
+evidence-grade. Open the file, enable macros, run **Debug → Compile
+VBAProject**, then **Run tests** on the `Checks` sheet and **Run example** on
+the `DecayExample` sheet. Details and the
+LibreOffice early-warning run are in
+[`tools/devbuild/README.md`](tools/devbuild/README.md).
+
+### Manual import
+
+Use these steps when the builder cannot be used, or for the template of #5
+once it exists. Components at present, in import order:
+`src/core/CORE_Codes.bas`, `src/core/CORE_Parse.bas`, `src/core/CORE_Math.bas`,
+`src/core/CORE_Decay.bas`, `src/core/CORE_Overlay.bas`,
+`src/modules/IRRBB_Decay.bas`; development only:
+`tests/modules/TEST_Harness.bas`, `tests/modules/TEST_CoreCases.bas`,
+`tests/modules/TEST_DecayData.bas`, `tests/modules/TEST_DecayCases.bas` and
+`examples/modules/EX_DecayExample.bas` (needs sheets `Readme`, `Checks` and
+`DecayExample`).
 
 1. Start from **one exact commit** in a Git checkout, so `.bas`, `.cls` and
    `.frm` files have CRLF line endings. Never mix components from different

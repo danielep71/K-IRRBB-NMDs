@@ -35,15 +35,16 @@ sequence**. Day-to-day contribution is owned by
 | Property | State |
 | --- | --- |
 | Released versions | None |
-| Active branch | `release/v0.1.0` |
-| Active milestone | `v0.1.0 - Repository foundation` |
+| Active branch | `release/v0.2.0` |
+| Active milestone | `v0.2.0 - Workbook, data and Excel tests` |
+| Closed milestones | `v0.1.0 - Repository foundation` (2026-10-09, no release) |
 | Version file | Not present; created when the first release is prepared ([versioning](#versioning)) |
 | Release evidence tooling | Static checks (`tools/check.py`) |
 | Excel certification procedure | Policy in [`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md); harness *(to be defined)* |
 
 Steps below marked *(to be defined)* are settled with the first VBA source and
-the first distributed artifact. The v0.1.0 foundation milestone is not expected
-to produce a release.
+the first distributed artifact. The v0.1.0 foundation milestone closed without
+producing a release.
 
 ## 🌿 Branch model
 
@@ -101,13 +102,28 @@ rerun. Never compensate by editing an already-tested artifact.
 
 Done only when the owner asks. This is an integration, not a release.
 
+Both `main` and `release/**` accept changes **only through pull requests**
+with the **Repository integrity** check green; direct pushes, including
+fast-forwards, are rejected by the branch rulesets.
+
 1. Confirm the release branch is green and has no open review findings.
-2. Open a PR from the release branch into `main`.
-3. The owner reviews and merges it with a **merge commit**, not a squash.
-4. Bring the release branch back level with `main` with a merge commit, or, at
-   a milestone closeout, open the next `release/vX.Y.Z` branch from the merge
-   commit and point the docs at it.
-5. Verify both branches contain the merge commit and that CI passed on it.
+2. **Always create an integration branch** from the release tip and use it as
+   the PR head, never `release/vX.Y.Z` itself: the repository deletes a PR's
+   head branch after merging, which would remove the release branch.
+3. **Bring `main` in if it has moved.** If `main` has commits the release
+   branch lacks, merge `main` into the integration branch with a merge commit
+   and resolve any conflict so the result keeps the release branch's content.
+4. Open the PR into `main`, wait for **Repository integrity** and the review
+   findings, then merge it with a **merge commit**, not a squash, so both
+   branches share history.
+5. **Bring the release branch level with `main`** with a second PR from `main`
+   into `release/vX.Y.Z`, merged with a **merge commit**. `main` then becomes an
+   ancestor of the release branch, and the next integration merges without
+   conflicts. At a milestone closeout, open the next `release/vX.Y.Z` branch
+   from the merge commit instead, and point the docs and
+   `ISSUE_MILESTONE_NUMBER` at its milestone.
+6. Verify that the release branch contains the `main` merge commit, that both
+   trees are identical, and that CI passed on both.
 
 Never rebase, amend, force-push or reset either branch.
 
@@ -220,7 +236,7 @@ it does not replace it.
 | 6 | Excel certification and reference cases pass | ☐ |
 | 7 | Artifacts built, tested and hashed (if any) | ☐ |
 | 8 | Release branch merged into `main` with a merge commit | ☐ |
-| 9 | Release branch level with `main` again | ☐ |
+| 9 | Release branch level with `main` again (PR from `main`, merge commit) | ☐ |
 | 10 | Annotated tag targets the certified `main` SHA | ☐ |
 | 11 | GitHub Release published and verified | ☐ |
 

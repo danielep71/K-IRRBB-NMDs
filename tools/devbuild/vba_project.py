@@ -93,7 +93,10 @@ def _compress_chunk(chunk: bytes) -> bytes:
         body[flag_pos] = flag
     if len(body) + 2 > 4098:
         if len(chunk) != 4096:
-            raise ValueError("incompressible partial chunk")
+            # [MS-OVBA] allows a raw chunk only as 4096 bytes and a short chunk only
+            # last; a short last chunk that will not compress cannot be represented
+            # without padding the module source, so stop instead of writing it.
+            raise ValueError(f"the last {len(chunk)} bytes do not compress into one chunk")
         return struct.pack("<H", (4095 & 0x0FFF) | (0b011 << 12)) + chunk
     header = ((len(body) + 2 - 3) & 0x0FFF) | (0b011 << 12) | (1 << 15)
     return struct.pack("<H", header) + bytes(body)
@@ -391,7 +394,11 @@ def build_vba_project(modules: list[Module], project_id: str | None = None) -> b
     vba = {"_VBA_PROJECT": bytes([0xCC, 0x61, 0xFF, 0xFF, 0x00, 0x00, 0x00]),
            "dir": compress(build_dir("VBAProject", modules))}
     for m in modules:
-        vba[m.name] = compress(m.source.encode("cp1252"))
+        try:
+            vba[m.name] = compress(m.source.encode("cp1252"))
+        except ValueError as error:
+            raise ValueError(f"module {m.name}: {error}; import it by hand as described in "
+                             "INSTALLATION.md (Manual import)") from error
     return write_cfb({"PROJECT": build_project_text(project_id, modules),
                       "PROJECTwm": build_projectwm(modules),
                       "VBA": vba})

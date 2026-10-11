@@ -1,6 +1,6 @@
 # IRRBB Toolkit — Pull Request
 
-> Target `release/v0.1.0` except for an explicitly approved integration into `main`. Use synthetic data only. No claim of Excel execution without an actual recorded run.
+> Target `release/v0.2.0` except for an explicitly approved integration into `main`. Use synthetic data only. No claim of Excel execution without an actual recorded run.
 
 ## Scope
 

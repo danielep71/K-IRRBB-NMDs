@@ -32,8 +32,11 @@ a longer record. Unique visitors over several days cannot be obtained by adding
 daily unique counts. The visitors badge is the 14-day unique count; the visits
 badge sums daily unique counts and can count a returning visitor on several days.
 
-The repository and traffic branch remain private. Public shields.io badges
-cannot read these private JSON files. Traffic does not require GitHub Pages.
+The repository is public, so the `traffic-history` branch is readable by
+anyone. It holds aggregate counts only (views, clones, referrers, popular
+paths), the same data GitHub shows repository admins, and no visitor
+identities. Its badge JSON files can therefore back shields.io endpoint badges.
+Traffic does not require GitHub Pages.
 
 After at least two snapshots, qualifying traffic spikes, increases in stars or
 forks, or new referrers create a `P3` issue assigned to `danielep71` in the
@@ -47,7 +50,7 @@ The workflow prevents duplicate alerts for the same day.
 
 After integration into `main`, use **Actions → Daily traffic export → Run
 workflow → main**. Confirm that the run succeeds, that `traffic-history`
-contains the expected files, and that repository visibility remains private.
+contains the expected files, and that they hold aggregate counts only.
 A run from a different branch is skipped. A missing/expired token or API error
 fails the run; it must not be reported as a successful traffic snapshot.
 

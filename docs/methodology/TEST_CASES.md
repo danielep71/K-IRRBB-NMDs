@@ -17,14 +17,17 @@ The models are specified in [`MODEL_CONTRACTS.md`](MODEL_CONTRACTS.md); the
 evidence protocol is in [`VALIDATION_PLAN.md`](VALIDATION_PLAN.md).
 
 > [!NOTE]
-> At v0.1.0 the cases below are **registered, not built**, except the data
-> contract cases, which exist and are checked on every run of
-> `python tools/check.py`, and the decay cases marked *Built*, whose fixtures,
-> expected files and VBA implementation (`tests/modules/TEST_DecayCases.bas`,
-> run by `TEST_Harness.RunTests`) are committed. *Built* is not *passed in
-> Excel*: an Excel run is evidence only when recorded per
-> [`EXCEL_EVIDENCE.md`](../EXCEL_EVIDENCE.md). A case moves to *built* when its
-> fixture and expected file are committed with their provenance.
+> The rate and stable-amount cases below are **registered, not built**; the
+> decay cases are *Built (VBA)* on the decay branch, pending review in #36. The data contract cases
+> are *built*: their fixtures and expected files exist and are checked on every
+> run of `python tools/check.py`. Cases marked *Built (VBA)* have a VBA
+> implementation run by `TEST_Harness.RunTests` in Excel; their literal
+> expectations are checked without Excel by `tools/test_vba_harness.py`; the
+> decay expectations are generated into `tests/modules/TEST_DecayData.bas` and
+> checked against their expected files by the same tool. No
+> Excel run is recorded yet. A case moves to *built* when its fixture and
+> expected file are committed with their provenance; the harness registry in
+> `tests/modules/TEST_Harness.bas` lists every ID here, in this order.
 
 <a id="provenance"></a>
 
@@ -61,12 +64,23 @@ statistical check, not a tolerance test.
 
 ## 📋 Register
 
+### Harness
+
+| ID | Checks | Reference | Tolerance | Status |
+| --- | --- | --- | --- | --- |
+| `HARN-OUT-01` | Case outcome rules (`NOT RUN`, `ERROR`, `FAIL` with no assertion, `PASS` only when every assertion passes) and the `abs`, `rel` and `exact` tolerance kinds | Rules on this page; expectations re-derived by [`test_vba_harness.py`](../../tools/test_vba_harness.py) | `exact` | Built (VBA) |
+
 ### Data contract
 
 | ID | Checks | Reference | Tolerance | Status |
 | --- | --- | --- | --- | --- |
 | `DATA-VALID-01` | Totals per date, segment and currency; warnings `W01`–`W05` | Hand computation, [`accounts_summary.json`](../../tests/expected/data_contract/accounts_summary.json) | `abs 0.005` balances; `exact` counts and codes | Built |
 | `DATA-INVALID-01` | First error per line, `E02`–`E11` | Hand construction, [`accounts_invalid_findings.json`](../../tests/expected/data_contract/accounts_invalid_findings.json) | `exact` | Built |
+| `DATA-PIT-01` | Transition outcome per account month (observed, verified closure, gap, censored, end of sample), `W05` censoring, `close_date` visible at each origin | Hand assignment, [`availability_outcomes.json`](../../tests/expected/data_contract/availability_outcomes.json) | `exact` | Built |
+| `DATA-PIT-02` | Leakage: altering, adding or removing information learned after an origin leaves every predictor at that origin unchanged; a missing month end gives `E12` | Property test on both panels at every origin, with an unmasked negative control | `exact` | Built |
+| `DATA-PARSE-01` | ISO dates (`CORE_ParseIsoDate`): missing versus invalid, calendar and leap-year validity, years 1900–9999, no time part; month ends (`CORE_IsMonthEnd`) | [File format](DATA_CONTRACT.md#file-format); expectations re-derived from the Python reading in [`test_data_contract.py`](../../tools/test_data_contract.py) | `exact` | Built (VBA) |
+| `DATA-PARSE-02` | Balances (4 places) and rates (8 places, −0.05 to 0.25) (`CORE_ParseDecimal`, `CORE_ParseRate`): missing versus invalid, locale-like forms rejected | As `DATA-PARSE-01` | `rel 1e-15` balances; `exact` rates and codes | Built (VBA) |
+| `DATA-CODES-01` | Segment codes and the currency allowlist reject every other value, including case and spacing variants | As `DATA-PARSE-01` | `exact` | Built (VBA) |
 
 ### Rate pass-through
 
@@ -97,25 +111,25 @@ statistical check, not a tolerance test.
 Expected files are in [`tests/expected/decay/`](../../tests/expected/decay/), produced by
 [`make_expected.py`](../../tests/expected/decay/make_expected.py) from the fixtures in
 [`tests/fixtures/decay/`](../../tests/fixtures/decay/); each file records its tool versions,
-method, date and producer.
+method, date and producer. They have not yet been reviewed by the owner (#36).
 
 | ID | Checks | Reference | Tolerance | Status |
 | --- | --- | --- | --- | --- |
-| `DEC-LOG-01` | Log changes, $\hat\mu$, $\hat\sigma$ with and without break dummies | Closed form of OLS with impulse dummies, evaluated by script on an 8-month hand-chosen series | `abs 1e-12` | Built |
-| `DEC-MPA-01` | $MPA(h)$ for $h = 0, \dots, 120$, and $z = \Phi^{-1}(1-c)$ | Independent closed-form calculation, offline (scipy `norm.ppf`) | `rel 1e-10` | Built |
-| `DEC-PROF-01` | Runoff, remainder, notional conservation, monotonicity | Direct evaluation of the contract formulas on a 6-month hand case | `abs 1e-8` currency units | Built |
-| `DEC-LIFE-01` | Mean life of the profile and of the core | Direct evaluation of the contract formulas on the same hand case | `abs 1e-9` months | Built |
-| `DEC-CAP-01` | Overlay: core-share scaling and cutoff reduction for the maturity cap | Direct implementation of the overlay rules with the `REG-1` Table 2 caps, three segments | `abs 1e-8` | Built |
-| `DEC-E2E-01` | Full fit with a break dummy on a 168-month generated series: parameters, profile, mean lives, Ljung–Box and Jarque–Bera diagnostics, empirical quantile, overlay and 12-horizon backtest | numpy `lstsq`; scipy `norm.ppf`, `chi2.sf`, `jarque_bera`, `skew`, `kurtosis`; numpy `quantile` (type 7) | `rel 1e-9` | Built |
-| `DEC-ERR-01` | Rejected input raises the documented error: sample below 36 changes, unknown segment, currency outside the run allowlist or not upper case, confidence, cutoff, break outside the window or given as text, zero balance, non-month-end date, gap, non-monotone overlay path | Hand construction | `exact` (error number) | Built |
+| `DEC-LOG-01` | Log changes, $\hat\mu$, $\hat\sigma$ with and without break dummies | Closed form of OLS with impulse dummies, evaluated by script on an 8-month hand-chosen series | `abs 1e-12` | Built (VBA) |
+| `DEC-MPA-01` | $MPA(h)$ for $h = 0, \dots, 120$, and $z = \Phi^{-1}(1-c)$ | Independent closed-form calculation, offline (scipy `norm.ppf`) | `rel 1e-10` | Built (VBA) |
+| `DEC-PROF-01` | Runoff, remainder, notional conservation, monotonicity | Direct evaluation of the contract formulas on a 6-month hand case | `abs 1e-8` currency units | Built (VBA) |
+| `DEC-LIFE-01` | Mean life of the profile and of the core | Direct evaluation of the contract formulas on the same hand case | `abs 1e-9` months | Built (VBA) |
+| `DEC-CAP-01` | Overlay: core-share scaling and cutoff reduction for the maturity cap | Direct implementation of the overlay rules with the `REG-1` Table 2 caps, three segments | `abs 1e-8` | Built (VBA) |
+| `DEC-E2E-01` | Full fit with a break dummy on a 168-month generated series: parameters, profile, mean lives, Ljung–Box and Jarque–Bera diagnostics, empirical quantile, overlay and 12-horizon backtest | numpy `lstsq`; scipy `norm.ppf`, `chi2.sf`, `jarque_bera`, `skew`, `kurtosis`; numpy `quantile` (type 7) | `rel 1e-9` | Built (VBA) |
+| `DEC-ERR-01` | Rejected input raises the documented error: sample below 36 changes, unknown segment, currency outside the run allowlist or not upper case, confidence, cutoff, break outside the window or given as text, zero balance, non-month-end date, gap, non-monotone overlay path | Hand construction | `exact` (error number) | Built (VBA) |
 
 ### Common
 
 | ID | Checks | Reference | Tolerance | Status |
 | --- | --- | --- | --- | --- |
-| `OOS-FREEZE-01` | Coefficients unchanged across forecast origins in the test window | Property test | `exact` | Built for decay; rate and stable registered |
-| `OOS-LEAK-01` | A forecast from origin $t$ is unchanged when data after $t$ are altered | Property test | `exact` | Built for decay; rate and stable registered |
-| `OOS-SCORE-01` | Bias, MAE, RMSE and exceedance rate on a small hand case | Hand computation ([`OOS-SCORE-01.json`](../../tests/expected/decay/OOS-SCORE-01.json) for the decay exceedance rate) | `abs 1e-12` | Built for the exceedance rate; bias, MAE, RMSE registered |
+| `OOS-FREEZE-01` | Coefficients unchanged across forecast origins in the test window | Property test | `exact` | Built (VBA) for decay; rate and stable registered |
+| `OOS-LEAK-01` | A forecast from origin $t$ is unchanged when data after $t$ are altered | Property test | `exact` | Built (VBA) for decay; rate and stable registered |
+| `OOS-SCORE-01` | Bias, MAE, RMSE and exceedance rate on a small hand case | Hand computation ([`OOS-SCORE-01.json`](../../tests/expected/decay/OOS-SCORE-01.json) for the decay exceedance rate) | `abs 1e-12` | Built (VBA) for the exceedance rate; bias, MAE, RMSE registered |
 
 ## ➕ Adding a case
 

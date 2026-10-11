@@ -94,33 +94,14 @@ Use only the categories needed by a release.
 
 ## [Unreleased]
 
-- Repository audit corrections (#25): shared VBA comment/continuation lexer,
-  exact workbook path and encoding-independent XML reference checks, stronger
-  account/market fixture validation, and reconciliation without premature rounding.
-- Automatic issue owner/milestone/priority reconciliation, including closed issues;
-  traffic alerts select an explicit configurable milestone. Ruff/mypy settings
-  are documented as optional development targets, not claimed CI gates.
-- Accepted host/data/model records now have direct evidence links; unresolved
-  model interpretation and reproducibility requirements are tracked in #26.
-
-
-
-- Core-boundary checks now reject `CreateObject` and `GetObject`, including
-  variable or concatenated ProgIDs that could previously hide Excel access.
-  External COM automation belongs in host adapters; these names are reserved
-  in core code even for non-Excel objects. Comments and strings remain allowed
-  ([#22](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/22)).
-- Continued comments now recognize VBA whitespace, including tabs, and require
-  the continuation underscore immediately before the newline.
-
 > Not yet released. Development takes place on the active release branch,
-> `release/v0.1.0`; changes to `main` require an explicit owner instruction.
+> `release/v0.2.0`; changes to `main` require an explicit owner instruction.
 
 ### Added
 
 - **Decay model** per `MODEL_CONTRACTS.md` (draft `DECAY-1.0-draft`, not
-  validated): host-independent core (`CORE_Math`, `CORE_Codes`,
-  `CORE_Decay`, `CORE_Overlay`) and the public facade `IRRBB_Decay` (`IRRBB_DecayFit`,
+  validated; review in #36): host-independent core `CORE_Math`, `CORE_Decay`
+  and `CORE_Overlay`, and the public facade `IRRBB_Decay` (`IRRBB_DecayFit`,
   `IRRBB_DecayOverlay`, `IRRBB_DecayBacktest`, layout enums), listed in
   `docs/PUBLIC_API.txt`. Log changes with declared impulse breaks, residual
   sigma with n - 1 - K degrees of freedom, prudential drift, minimum probable
@@ -130,25 +111,40 @@ Use only the categories needed by a release.
   average-maturity cap by cutoff reduction; `REG-2` shown provisional and not
   applied) and the out-of-sample exceedance score with frozen parameters.
   Input is rejected below 36 log changes, on non-month-end dates, gaps,
-  non-positive balances, unknown segments and currencies outside the
-  versioned run allowlist (`EUR`, `USD` for the synthetic data).
-- **Regression harness** `TEST_Harness.RunTests` (#8): deterministic case IDs
-  from `TEST_CASES.md`, per-case and per-assertion outcomes, every unbuilt
-  case listed as NOT RUN, previous results withdrawn before a run, primary and
-  cleanup errors kept. Decay cases `DEC-LOG-01`, `DEC-MPA-01`, `DEC-PROF-01`,
-  `DEC-LIFE-01`, `DEC-CAP-01`, the new `DEC-E2E-01` and `DEC-ERR-01`, and the
-  decay parts of `OOS-FREEZE-01`, `OOS-LEAK-01`, `OOS-SCORE-01` are built,
-  with synthetic fixtures (`tests/fixtures/decay/`, generator and seed) and
-  independent expected values (`tests/expected/decay/`, numpy and scipy, with
-  provenance).
-- Example module `examples/modules/EX_DecayExample.bas` using only the facade.
-- Development workbook build `tools/devbuild/` (not the template of #5 nor
-  the import helper of #6): assembles `build/IRRBB_Dev.xlsm` from one commit
-  with the decay source, harness and example, and an optional headless
-  LibreOffice smoke run. Built workbooks stay out of Git.
+  non-positive balances, unknown segments and currencies outside the run
+  allowlist.
+- Decay cases `DEC-LOG-01`, `DEC-MPA-01`, `DEC-PROF-01`, `DEC-LIFE-01`,
+  `DEC-CAP-01`, the new `DEC-E2E-01` and `DEC-ERR-01`, and the decay parts of
+  `OOS-FREEZE-01`, `OOS-LEAK-01` and `OOS-SCORE-01`, run by the harness through
+  `TEST_DecayCases`; synthetic fixtures with generator and seed
+  (`tests/fixtures/decay/`); independent expected values from numpy and scipy
+  with provenance (`tests/expected/decay/`), generated into
+  `tests/modules/TEST_DecayData.bas`, which `tools/test_vba_harness.py` now
+  keeps equal to the expected files.
+- Example `examples/modules/EX_DecayExample.bas` (facade only) on a new
+  `DecayExample` sheet of the development workbook; `lo_smoke.py` also runs the
+  example and its invalid-input path.
+- Regression harness for Excel (#8): `TEST_Harness.RunTests` runs every case
+  in `docs/methodology/TEST_CASES.md` in register order and writes per-case and
+  per-assertion results to the `Checks` sheet. Earlier results are withdrawn
+  before a run; a case with no assertion or an unexpected error never passes; an
+  unbuilt case is `NOT RUN`. First VBA cases: `HARN-OUT-01` (outcome and
+  tolerance rules), `DATA-PARSE-01`, `DATA-PARSE-02` and `DATA-CODES-01`.
+  `tools/test_vba_harness.py` checks their expectations against the contract
+  and the registry against the register without Excel. No Excel run is
+  recorded yet.
+- First core modules: `CORE_Parse` parses the data contract's dates,
+  decimals and rates without Excel's locale-dependent conversions, returning
+  missing and invalid separately; `CORE_Codes` holds the segment codes and the
+  currency allowlist.
+- Development workbook builder (`tools/devbuild/`, import route for #6):
+  writes `build/IRRBB_Dev.xlsm` with the VBA project generated from source, so
+  no VBA trust setting is needed; checked by `tools/test_devbuild.py` with an
+  independent decoder.
 
-- Daily repository traffic export with private history, main-only analytics
-  access, and traffic alerts, following the SA-CCR repository setup.
+- Daily repository traffic export with history on a separate branch,
+  main-only analytics access, and traffic alerts, following the SA-CCR
+  repository setup.
   Setup and verification are documented in `docs/TRAFFIC.md`.
 
 - `tools/check_source.py` rejects Excel object-model and UI identifiers
@@ -157,18 +153,28 @@ Use only the categories needed by a release.
   host-independent; covered by `tools/test_core_boundary.py` (#2).
 
 - Initial repository foundation for a source-first Excel/VBA IRRBB behavioral
-  modelling application.
+  modeling application.
 - Documentation of model scope, validation requirements, source boundaries and
   synthetic-data policy.
 - Portable static-checking tools and CI configuration adapted from the
   maintainer's SA-CCR repository.
+- Automatic issue owner/milestone/priority reconciliation, including closed issues;
+  traffic alerts select an explicit configurable milestone. Ruff/mypy settings
+  are documented as optional development targets, not claimed CI gates.
 
 ### Changed
 
-- The active release branch is now `release/v0.1.0`, opened from `main` after
-  the foundation was integrated (PR #13). Documentation, the PR template and
-  the `Bootstrap v0.1.0 tracking` workflow trigger point to it, and release
-  branches are named `release/vX.Y.Z` from now on.
+- The data contract now states that dates have a year from 1900 to 9999 (the
+  Excel date system) and that a decimal has digits on both sides of any `.`
+  (#8).
+- The repository is now licensed under the Mozilla Public License 2.0
+  (MPL-2.0) instead of MIT (#49). `LICENSE` holds the MPL-2.0 text and is the
+  license notice for every file; contributions are accepted under MPL-2.0.
+  Copies obtained before the change keep the MIT License.
+- The active release branch is now `release/v0.2.0`, opened from `main` when
+  milestone v0.1.0 closed (#55). Documentation and the PR template point to
+  it. `release/v0.1.0`, opened after the foundation was integrated (PR #13),
+  carried the foundation work; release branches are named `release/vX.Y.Z`.
 
 ### Security
 
@@ -186,6 +192,38 @@ Use only the categories needed by a release.
   push to the release branch.
 
 ### Documentation
+
+- Data-contract amendment for point-in-time data (#32), decided by the owner
+  on 2026-10-09: a back-filled `close_date` is accepted but masked in the
+  point-in-time view at earlier forecast origins, and closures are assumed
+  reported by the month end in which they occur (attested per import, recorded
+  in the lineage); only a recorded closure is a
+  cash-out, and an account that disappears without one is right-censored
+  (`W05`, redefined); a month end with no rows inside the window rejects the
+  import (new `E12`); `E10` now also rejects a row dated on its own `close_date`, so a
+  closure never sits on a month-end row. `DATA_CONTRACT.md` defines the outcome of every
+  transition (observed, verified closure, gap, censored, end of sample) and its
+  eligibility and lineage; `MODEL_CONTRACTS.md` updates the stable-model
+  cash-out rule and the predictor timing. A hand-built fixture and leakage
+  tests (`DATA-PIT-01`, `DATA-PIT-02`) check it.
+- Translate all milestone guides into US English and establish US English
+  as the repository language standard. Standardize surrounding documentation
+  while preserving glyphs, navigation, technical scope, and official source
+  titles.
+
+- Detailed milestone guides in `docs/Milestones/`, one per milestone
+  from v0.1.0 through v1.0.0, with a navigation index, purpose, deliverables,
+  dependencies, synthetic examples and completion evidence. Implementation
+  tracking gaps are explicit; the guides do not change model contracts or
+  assert that planned functions are delivered.
+- The v0.1.0 guide records the milestone as closed on 2026-10-09: each
+  deliverable links its issue and the document where it lives, the
+  distribution review (#42) and MPL-2.0 relicensing (#49) are included, and
+  the completion criteria are marked met. The status sections of README,
+  `CONTRIBUTING.md`, `INSTALLATION.md` and `RELEASING.md` now name v0.2.0 as
+  the active milestone.
+- `docs/FOUNDATION_CLOSEOUT.md` records the v0.1.0 closeout: every checklist
+  item is marked met with the evidence it rests on.
 
 - Root documents (`CHANGELOG.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`,
   `INSTALLATION.md`, `RELEASING.md`, `SECURITY.md`) expanded to the
@@ -231,9 +269,31 @@ Use only the categories needed by a release.
   the owner: profile rationale, the intended Excel workflow, layout,
   dependency direction, public API boundary, canonical units at the facade,
   immutable versioned parameter sets and intentional non-goals (#2).
+- Owner-approved v0.1.0-to-v1.0.0 roadmap: workbook/import/harness work moves
+  to v0.2.0, with all Excel obligations retained; model-contract amendments
+  are split into milestone-specific prerequisites (#26, #32-#37). Independent
+  benchmarks accompany each model, and Stable-Decay composition is explicit.
+- Accepted host/data/model records now have direct evidence links; unresolved
+  model interpretation and reproducibility requirements are tracked in #26.
+- `RELEASING.md` describes integration through pull requests only: always
+  open it from an integration branch (never the release branch, which would be
+  deleted on merge), bring a moved `main` into it first, merge into `main`
+  with a merge commit, and bring the release branch level with a second PR
+  from `main`, also merged with a merge commit.
+- Documentation prepared for public visibility (#42): `SECURITY.md` routes
+  reports through GitHub private vulnerability reporting, with email as the
+  fallback; `docs/TRAFFIC.md` states that the traffic branch is public and
+  holds aggregate counts only; README, `CONTRIBUTING.md`, `GOVERNANCE.md` and
+  the foundation closeout no longer assume a private repository, and public
+  visibility is recorded as an owner decision separate from any release.
 
 ### Fixed
 
+- The issue-metadata workflow no longer fails on issue events that GitHub
+  raises for pull requests (#41): it skips them before reading the item, which
+  its token, without pull-request access, cannot do. Failed API calls now log
+  the HTTP status and response, with token-like strings redacted, instead of a
+  bare `CalledProcessError`.
 - Label commands now default to the checked-in `.github/label-policy.json`.
 - Workbook package checks reject missing core parts and archive corruption;
   these structural checks do not certify Excel compatibility.
@@ -242,26 +302,38 @@ Use only the categories needed by a release.
 - Traffic alert issues are now created in the repository's single open
   milestone, so every issue carries a milestone; the run fails if there is
   no open milestone or more than one.
+- The data-contract reference check applies the cross-row history rule
+  (`E11`) before duplicate (`E05`) and currency-change (`E08`) rules and to
+  every affected row, as `DATA_CONTRACT.md` orders them; duplicates and
+  currency changes no longer hide inconsistent account dates.
+- Repository audit corrections (#25): shared VBA comment/continuation lexer,
+  exact workbook path and encoding-independent XML reference checks, stronger
+  account/market fixture validation, and reconciliation without premature rounding.
+- Core-boundary checks now reject `CreateObject` and `GetObject`, including
+  variable or concatenated ProgIDs that could previously hide Excel access.
+  External COM automation belongs in host adapters; these names are reserved
+  in core code even for non-Excel objects. Comments and strings remain allowed
+  ([#22](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/22)).
+- Continued comments now recognize VBA whitespace, including tabs, and require
+  the continuation underscore immediately before the newline.
 
 ### Validation
 
-- Decay source executed only in LibreOffice 24.2 with VBA compatibility
-  (`tools/devbuild/lo_smoke.py`): 10 built cases PASS, 647 of 647 assertions,
-  16 registered cases NOT RUN; the example run and its failure path (outputs
-  withdrawn) behave as specified. **No Excel compile or run has been
-  recorded**; LibreOffice is not a supported host and this is not Excel
-  evidence.
+- Decay branch at the merge of `release/v0.2.0`: `python tools/check.py --ci`
+  passes; LibreOffice 24.2 headless proxy run of the development workbook, see
+  the commit message for counts. **No Excel compile or run has been recorded**;
+  LibreOffice is not a supported host and this is not Excel evidence.
 
 ### Known limitations
 
-- Only the decay model exists. The rate pass-through and stable-amount models,
-  the account-panel importer (#4) and the workbook template (#5) are not built;
-  decay inputs are aggregate series that the caller derives from the panel.
-- Decay choices not fixed by the contract, pending owner review with #26: a
-  break date is the month end at which the affected log change ends; the
-  median path uses mu*; diagnostics use Ljung-Box with 12 lags, Jarque-Bera
-  with population moments and the type-7 empirical quantile; backtest pairs use
-  horizons 1 to 12 with origin and realisation inside the test window.
+- Only the decay model exists, as a draft under review (#36). The rate
+  pass-through and stable-amount models, the account-panel importer and the
+  workbook template (#5) are not built; decay inputs are aggregate series that
+  the caller derives from the panel.
+- Decay choices not fixed by the contract await an owner decision in #36: the
+  treatment of censored disappearances (`W05`) in the aggregate series, the
+  break-date convention, the median path, the diagnostic settings and the
+  backtest horizons 1 to 12.
 - No automated check compiles VBA, runs Excel or validates a model; passing CI
   is not evidence of correct IRRBB calculations.
 - The methodology is a roadmap, not a validated specification, and its
@@ -269,4 +341,4 @@ Use only the categories needed by a release.
 
 ---
 
-[Unreleased]: https://github.com/danielep71/VBA-IRRBB-Toolkit/compare/main...release/v0.1.0
+[Unreleased]: https://github.com/danielep71/VBA-IRRBB-Toolkit/compare/main...release/v0.2.0

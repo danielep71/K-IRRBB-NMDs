@@ -26,7 +26,7 @@ Define the balance unit (aggregate vs per-account), logarithmic changes, structu
 
 ## Regulatory overlay
 
-Maintain an explicit reference register for the applicable EBA Guidelines, EU RTS and supervisory expectations before implementing any rule: [`SOURCES.md`](SOURCES.md). No entry is verified yet. Separate **internal measurement assumptions** from **standardized method assumptions**. Regulatory rule versions and sources must be attached to test evidence, not inferred from the econometric output.
+Maintain an explicit reference register for the applicable EBA Guidelines, EU RTS and supervisory expectations before implementing any rule: [`SOURCES.md`](SOURCES.md). `REG-1` and `REG-3` are verified for the provisions listed in its verification record; `REG-2` and the econometric sources are not, and anything resting on them stays provisional. Separate **internal measurement assumptions** from **standardized method assumptions**. Regulatory rule versions and sources must be attached to test evidence, not inferred from the econometric output.
 
 ## Reproducibility
 
