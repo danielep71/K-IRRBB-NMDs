@@ -24,9 +24,14 @@ import test_data_contract as reference  # noqa: E402
 sys.path.insert(0, str(ROOT / "tools" / "workbook"))
 import build_template  # noqa: E402
 
+sys.path.insert(0, str(ROOT / "tools" / "devbuild"))
+import fixture_module  # noqa: E402
+
 HARNESS = ROOT / "tests" / "modules" / "TEST_Harness.bas"
 CORE_CASES = ROOT / "tests" / "modules" / "TEST_CoreCases.bas"
 WORKBOOK_CASES = ROOT / "tests" / "modules" / "TEST_WorkbookCases.bas"
+DATA_CASES = ROOT / "tests" / "modules" / "TEST_DataCases.bas"
+FIXTURE_MODULE = ROOT / "tests" / "modules" / "TEST_Fixtures.bas"
 CORE_PARSE = ROOT / "src" / "core" / "CORE_Parse.bas"
 CORE_CODES = ROOT / "src" / "core" / "CORE_Codes.bas"
 REGISTER = ROOT / "docs" / "methodology" / "TEST_CASES.md"
@@ -233,11 +238,69 @@ class Registry(unittest.TestCase):
         built = {case for case, flag in registry() if flag}
         self.assertTrue(built)
         self.assertEqual(select_cases(read(HARNESS), "Private Sub DispatchCase"), built)
-        implemented = (select_cases(read(CORE_CASES), "Public Sub TEST_RunCoreCase")
-                       | select_cases(read(WORKBOOK_CASES), "Public Sub TEST_RunWorkbookCase"))
+        implemented = set()
+        for path in sorted(HARNESS.parent.glob("TEST_*Cases.bas")):
+            entry = re.search(r"Public Sub (TEST_Run\w+Case)\(", read(path)).group(1)
+            implemented |= select_cases(read(path), f"Public Sub {entry}")
         self.assertEqual(implemented, built)
-        expected = {case for case, _, _ in expectations() + expectations(WORKBOOK_CASES)}
-        self.assertEqual(expected, built)
+        declared = set(re.findall(r'Const C As String = "([A-Z0-9-]+)"',
+                                  "".join(read(p) for p in HARNESS.parent.glob("TEST_*Cases.bas"))))
+        self.assertEqual(declared, built)
+
+
+class DataCases(unittest.TestCase):
+    """TEST_DataCases literals agree with the Python reading of DATA_CONTRACT.md; TEST_Fixtures is generated."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.calls = expectations(DATA_CASES)
+
+    def args(self, helper: str) -> list[list[object]]:
+        found = [args for _, name, args in self.calls if name == helper]
+        self.assertTrue(found, helper)
+        return found
+
+    @staticmethod
+    def findings(reader, text: str) -> str:
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "input.csv"
+            path.write_text(text.replace("|", "\n") + "\n", encoding="ascii")
+            result = reader(path)
+        errors = result[1] if isinstance(result, tuple) else result
+        return ",".join(f'{e["line"]}:{e["code"]}' for e in errors)
+
+    def test_fixture_module_is_generated_from_the_fixtures(self) -> None:
+        self.assertEqual(read(FIXTURE_MODULE).replace("\r\n", "\n"), fixture_module.module_text(),
+                         "regenerate with: python tools/devbuild/fixture_module.py")
+
+    def test_every_expect_line_is_read(self) -> None:
+        lines = [line for line in read(DATA_CASES).splitlines() if line.strip().startswith("Expect")]
+        self.assertEqual(len(self.calls), len(lines))
+        self.assertEqual({name for _, name, _ in self.calls},
+                         {"ExpectAccountFindings", "ExpectRateFindings", "ExpectMissingExtract"})
+
+    def test_account_findings(self) -> None:
+        for text, expected in self.args("ExpectAccountFindings"):
+            with self.subTest(text=text[:80]):
+                self.assertEqual(self.findings(reference.read_accounts, text), expected)
+
+    def test_rate_findings(self) -> None:
+        for text, expected in self.args("ExpectRateFindings"):
+            with self.subTest(text=text[:80]):
+                self.assertEqual(self.findings(reference.read_market_rates, text), expected)
+
+    def test_missing_extract(self) -> None:
+        import json
+        summary = json.loads((ROOT / "tests/expected/data_contract/accounts_summary.json").read_text(encoding="utf-8"))
+        first = reference.parse_date(summary["window"]["first"])
+        last = reference.parse_date(summary["window"]["last"])
+        rows, _ = reference.read_accounts(ROOT / summary["fixture"])
+        for (month_end,) in self.args("ExpectMissingExtract"):
+            with self.subTest(month_end=month_end):
+                kept = [(n, r) for n, r in rows if r["as_of_date"] != month_end]
+                self.assertEqual(reference.missing_extracts(kept, first, last),
+                                 [{"code": "E12", "as_of_date": month_end}])
 
 
 class WorkbookLayout(unittest.TestCase):
