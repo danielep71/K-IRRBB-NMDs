@@ -298,7 +298,7 @@ Public Function CORE_AccountsSummarize(ByVal firstMonthEnd As Date, ByVal lastMo
     Dim present As New Collection, totals As New Collection
     Dim inWindow() As Long, keys() As String, order() As Long, n As Long
     Dim i As Long, j As Long, k As Long, t As Long, gap As Long
-    Dim previous As Long, closeText As String, ratio As Double, monthEndDay As Date, monthEndText As String
+    Dim previous As Long, closeText As String, ratio As Double, monthEndText As String
 
     RequireState mState, STATE_ENDED, "CORE_Import.CORE_AccountsSummarize"
     If Not CORE_IsMonthEnd(firstMonthEnd) Or Not CORE_IsMonthEnd(lastMonthEnd) _
@@ -378,12 +378,11 @@ Public Function CORE_AccountsSummarize(ByVal firstMonthEnd As Date, ByVal lastMo
         End If
     Next j
 
-    monthEndDay = firstMonthEnd
-    Do While monthEndDay <= lastMonthEnd
-        monthEndText = IsoText(monthEndDay)
+    ' By month index, so a window ending in December 9999 never builds a later date.
+    For k = MonthIndex(firstMonthEnd) To MonthIndex(lastMonthEnd)
+        monthEndText = IsoText(MonthEnd(k))
         If Not HasKey(present, monthEndText) Then AddMissing monthEndText
-        monthEndDay = MonthEnd(MonthIndex(monthEndDay) + 1)
-    Loop
+    Next k
 
     ReDim keys(1 To mWarnCount + 1)
     For j = 1 To mWarnCount
@@ -878,13 +877,14 @@ Private Function MonthIndex(ByVal d As Date) As Long
 End Function
 
 
-' Last day of the month with the given index (year * 12 + month - 1).
+' Last day of the month with the given index (year * 12 + month - 1). December
+' is built directly: the first of the next month does not exist after 9999.
 Private Function MonthEnd(ByVal index As Long) As Date
     Dim y As Long, m As Long
     y = index \ 12
     m = index Mod 12 + 1
     If m = 12 Then
-        MonthEnd = DateSerial(y + 1, 1, 1) - 1
+        MonthEnd = DateSerial(y, 12, 31)
     Else
         MonthEnd = DateSerial(y, m + 1, 1) - 1
     End If

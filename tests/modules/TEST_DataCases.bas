@@ -87,6 +87,7 @@ Private Sub CaseInvalid()
     ExpectRateFindings C, "as_of_date,rate_id,currency,tenor_months,rate|2025-01-31,EUR_1M,EUR,1,0.0290|2025-01-31,EUR_1M,EUR,1,0.0300|2025-02-28,EUR_1M,EUR,3,0.0300|2025-02-28,EUR_3M,EUR,0,0.0300|2025-02-27,EUR_6M,EUR,6,0.0100|2025-02-28,GBP_1M,GBP,1,0.0100|2025-03-31,EUR_1M,EUR,1,", "3:E05,4:E08,5:E04,6:E02,7:E07,8:E03"
     ExpectRateFindings C, "as_of_date,rate_id,currency,tenor_months|2025-01-31,EUR_1M,EUR,1", "1:E01"
     ExpectMissingExtract C, "2025-03-31"
+    ExpectWindowGaps C, "as_of_date,account_id,segment,currency,balance,customer_rate,indexed,open_date,close_date|9999-10-31,Z001,RET_TX,EUR,1.00,,0,,", "9999-10-31", "9999-12-31", "9999-11-30,9999-12-31"
 End Sub
 
 
@@ -122,6 +123,20 @@ Private Sub ExpectMissingExtract(ByVal caseId As String, ByVal monthEnd As Strin
     missing = CORE_AccountsSummarize(IsoDate(window(1)), IsoDate(window(2)))
     TEST_AssertText caseId, "missing extracts without " & monthEnd, CStr(missing), "1"
     If missing >= 1 Then TEST_AssertText caseId, "missing extract", CORE_MissingExtract(1), monthEnd
+End Sub
+
+
+' Missing month ends (E12) of a literal panel over a literal window.
+Private Sub ExpectWindowGaps(ByVal caseId As String, ByVal fileText As String, ByVal first As String, _
+                             ByVal last As String, ByVal expected As String)
+    Dim i As Long, text As String
+    ImportAccounts Split(fileText, "|")
+    CORE_AccountsSummarize IsoDate(first), IsoDate(last)
+    For i = 1 To CORE_MissingExtractCount()
+        If i > 1 Then text = text & ","
+        text = text & CORE_MissingExtract(i)
+    Next i
+    TEST_AssertText caseId, "missing extracts " & first & " to " & last, text, expected
 End Sub
 
 

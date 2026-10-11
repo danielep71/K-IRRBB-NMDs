@@ -278,7 +278,7 @@ class DataCases(unittest.TestCase):
         lines = [line for line in read(DATA_CASES).splitlines() if line.strip().startswith("Expect")]
         self.assertEqual(len(self.calls), len(lines))
         self.assertEqual({name for _, name, _ in self.calls},
-                         {"ExpectAccountFindings", "ExpectRateFindings", "ExpectMissingExtract"})
+                         {"ExpectAccountFindings", "ExpectRateFindings", "ExpectMissingExtract", "ExpectWindowGaps"})
 
     def test_account_findings(self) -> None:
         for text, expected in self.args("ExpectAccountFindings"):
@@ -289,6 +289,17 @@ class DataCases(unittest.TestCase):
         for text, expected in self.args("ExpectRateFindings"):
             with self.subTest(text=text[:80]):
                 self.assertEqual(self.findings(reference.read_market_rates, text), expected)
+
+    def test_window_gaps(self) -> None:
+        import tempfile
+        for text, first, last, expected in self.args("ExpectWindowGaps"):
+            with self.subTest(window=(first, last)), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "input.csv"
+                path.write_text(text.replace("|", "\n") + "\n", encoding="ascii")
+                rows, errors = reference.read_accounts(path)
+                self.assertEqual(errors, [])
+                gaps = reference.missing_extracts(rows, reference.parse_date(first), reference.parse_date(last))
+                self.assertEqual(",".join(g["as_of_date"] for g in gaps), expected)
 
     def test_missing_extract(self) -> None:
         import json
