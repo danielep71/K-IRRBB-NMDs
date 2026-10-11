@@ -67,6 +67,12 @@ statistical check, not a tolerance test.
 | --- | --- | --- | --- | --- |
 | `HARN-OUT-01` | Case outcome rules (`NOT RUN`, `ERROR`, `FAIL` with no assertion, `PASS` only when every assertion passes) and the `abs`, `rel` and `exact` tolerance kinds | Rules on this page; expectations re-derived by [`test_vba_harness.py`](../../tools/test_vba_harness.py) | `exact` | Built (VBA) |
 
+### Workbook
+
+| ID | Checks | Reference | Tolerance | Status |
+| --- | --- | --- | --- | --- |
+| `WB-LAYOUT-01` | Sheet order, names and CodeNames; every defined name refers to its address; no other names | [`WORKBOOK_CONTRACT.md`](../WORKBOOK_CONTRACT.md); literals checked against [`build_template.py`](../../tools/workbook/build_template.py) by [`test_vba_harness.py`](../../tools/test_vba_harness.py) | `exact` | Built (VBA) |
+
 ### Data contract
 
 | ID | Checks | Reference | Tolerance | Status |

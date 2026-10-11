@@ -43,7 +43,7 @@ parsing modules and the regression harness.
 | VBA conventions | Defined in [`docs/VBA_HOUSE_STYLE.md`](docs/VBA_HOUSE_STYLE.md) |
 | Static checks | Available: `python tools/check.py` |
 | VBA source | `src/core/`: CORE_Parse (dates, decimals, rates) and CORE_Codes (segments, currency allowlist); no model yet |
-| Workbook template | Not yet present (#5) |
+| Workbook template | [`src/workbook/IRRBB_Template.xlsx`](src/workbook/IRRBB_Template.xlsx), macro-free, generated from source; layout in [`docs/WORKBOOK_CONTRACT.md`](docs/WORKBOOK_CONTRACT.md) (#5); not yet opened in Excel |
 | Regression harness | `tests/modules/` (#8): runs from a [development workbook](#development-workbook); no Excel run recorded yet |
 | Supported hosts and references | Decided in issue #3; see [supported hosts](#supported-hosts) |
 | Excel evidence | Requirements defined in [`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md); no record yet |
@@ -59,7 +59,6 @@ Passing static checks is **not** evidence of correct IRRBB calculations.
 | --- | --- |
 | Git | Cloning and all repository work |
 | Python 3.10 or later | `python tools/check.py`; standard library only, no packages |
-| `openpyxl` (Python package) | Optional: building the [development workbook](#development-workbook) |
 | Node.js 20 or later | Optional: local label-catalog checks |
 | Microsoft Excel for Windows | **Future** VBA import, compile and model execution; see [supported hosts](#supported-hosts); not needed for static checks |
 
@@ -169,11 +168,11 @@ For compile and regression evidence, build the workbook from the checkout
 instead of importing by hand:
 
 ```shell
-pip install openpyxl
 python tools/devbuild/build_dev_workbook.py   # writes build/IRRBB_Dev.xlsm
 ```
 
-The builder embeds every `.bas` under `src/core/`, `src/modules/`,
+The workbook is the [template](docs/WORKBOOK_CONTRACT.md) with the VBA
+project added. The builder embeds every `.bas` under `src/core/`, `src/modules/`,
 `src/workbook/`, `tests/modules/` and `examples/modules/` unchanged and stamps
 the commit on the `Readme` sheet; a dirty checkout is stamped as not
 evidence-grade. Open the file, enable macros, run **Debug → Compile
@@ -183,16 +182,17 @@ LibreOffice early-warning run are in
 
 ### Manual import
 
-Use these steps when the builder cannot be used, or for the template of #5
-once it exists. Components at present: `src/core/CORE_Codes.bas`,
-`src/core/CORE_Parse.bas`; development only: `tests/modules/TEST_Harness.bas`,
-`tests/modules/TEST_CoreCases.bas`.
+Use these steps when the builder cannot be used. Components at present:
+`src/core/CORE_Codes.bas`, `src/core/CORE_Parse.bas`; development only:
+`tests/modules/TEST_Harness.bas`, `tests/modules/TEST_CoreCases.bas`,
+`tests/modules/TEST_WorkbookCases.bas`.
 
 1. Start from **one exact commit** in a Git checkout, so `.bas`, `.cls` and
    `.frm` files have CRLF line endings. Never mix components from different
    commits.
-2. Build the workbook from the macro-free template (planned path
-   `src/workbook/IRRBB_Template.xlsx`) and save it as a macro-enabled workbook
+2. Open the macro-free template `src/workbook/IRRBB_Template.xlsx` and save
+   it as a macro-enabled workbook (its sheets already carry the CodeNames of
+   [`docs/WORKBOOK_CONTRACT.md`](docs/WORKBOOK_CONTRACT.md))
    **outside** the checkout or in an ignored location. Built workbooks are never
    committed.
 3. Open the VBE (**Alt+F11**) and check that **Tools → References** lists only

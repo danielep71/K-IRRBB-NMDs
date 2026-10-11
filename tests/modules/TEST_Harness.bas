@@ -94,6 +94,7 @@ Private Function Registry() As Variant
     Const DATA_NOTE As String = "Checked in Python by tools/test_data_contract.py; VBA importer not built"
     Const DECAY_NOTE As String = "Decay model not on this branch (#36, v0.3.0)"
     c.Add Array("HARN-OUT-01", True, "")
+    c.Add Array("WB-LAYOUT-01", True, "")
     c.Add Array("DATA-VALID-01", False, DATA_NOTE)
     c.Add Array("DATA-INVALID-01", False, DATA_NOTE)
     c.Add Array("DATA-PIT-01", False, DATA_NOTE)
@@ -169,6 +170,8 @@ Private Sub DispatchCase(ByVal caseId As String)
     Select Case caseId
         Case "HARN-OUT-01", "DATA-PARSE-01", "DATA-PARSE-02", "DATA-CODES-01"
             TEST_CoreCases.TEST_RunCoreCase caseId
+        Case "WB-LAYOUT-01"
+            TEST_WorkbookCases.TEST_RunWorkbookCase caseId
         Case Else
             Err.Raise TEST_ERR_NO_CASE, "TEST_Harness.DispatchCase", "No VBA implementation for " & caseId & "."
     End Select

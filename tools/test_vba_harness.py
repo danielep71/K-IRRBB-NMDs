@@ -21,8 +21,12 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 import test_data_contract as reference  # noqa: E402
 
+sys.path.insert(0, str(ROOT / "tools" / "workbook"))
+import build_template  # noqa: E402
+
 HARNESS = ROOT / "tests" / "modules" / "TEST_Harness.bas"
 CORE_CASES = ROOT / "tests" / "modules" / "TEST_CoreCases.bas"
+WORKBOOK_CASES = ROOT / "tests" / "modules" / "TEST_WorkbookCases.bas"
 CORE_PARSE = ROOT / "src" / "core" / "CORE_Parse.bas"
 CORE_CODES = ROOT / "src" / "core" / "CORE_Codes.bas"
 REGISTER = ROOT / "docs" / "methodology" / "TEST_CASES.md"
@@ -61,11 +65,11 @@ def literal_value(token: str, names: dict[str, object]) -> object:
     raise ValueError(f"not a literal: {token!r}")
 
 
-def expectations() -> list[tuple[str, str, list[object]]]:
+def expectations(path: Path = CORE_CASES) -> list[tuple[str, str, list[object]]]:
     """Every Expect* call as (case ID, helper, arguments); fails on a line it cannot read."""
     names = constants(CORE_PARSE)
     calls, case_id = [], None
-    for number, line in enumerate(read(CORE_CASES).splitlines(), 1):
+    for number, line in enumerate(read(path).splitlines(), 1):
         text = line.strip()
         declared = re.fullmatch(r'Const C As String = "([A-Z0-9-]+)"', text)
         if declared:
@@ -74,7 +78,7 @@ def expectations() -> list[tuple[str, str, list[object]]]:
             continue
         match = re.fullmatch(r"(Expect\w+) C, (.+)", text)
         if not match or case_id is None:
-            raise ValueError(f"TEST_CoreCases.bas:{number}: unreadable expectation: {text}")
+            raise ValueError(f"{path.name}:{number}: unreadable expectation: {text}")
         tokens = [m.group(1) for m in ARGUMENT.finditer(match.group(2)) if m.group(0)]
         calls.append((case_id, match.group(1), [literal_value(t, names) for t in tokens]))
     return calls
@@ -229,8 +233,38 @@ class Registry(unittest.TestCase):
         built = {case for case, flag in registry() if flag}
         self.assertTrue(built)
         self.assertEqual(select_cases(read(HARNESS), "Private Sub DispatchCase"), built)
-        self.assertEqual(select_cases(read(CORE_CASES), "Public Sub TEST_RunCoreCase"), built)
-        self.assertEqual({case for case, _, _ in expectations()}, built)
+        implemented = (select_cases(read(CORE_CASES), "Public Sub TEST_RunCoreCase")
+                       | select_cases(read(WORKBOOK_CASES), "Public Sub TEST_RunWorkbookCase"))
+        self.assertEqual(implemented, built)
+        expected = {case for case, _, _ in expectations() + expectations(WORKBOOK_CASES)}
+        self.assertEqual(expected, built)
+
+
+class WorkbookLayout(unittest.TestCase):
+    """WB-LAYOUT-01 literals equal the template generator's sheet and name contract."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.calls = expectations(WORKBOOK_CASES)
+
+    def args(self, helper: str) -> list[list[object]]:
+        return [args for _, name, args in self.calls if name == helper]
+
+    def test_every_expect_line_is_read(self) -> None:
+        lines = [line for line in read(WORKBOOK_CASES).splitlines() if line.strip().startswith("Expect")]
+        self.assertEqual(len(self.calls), len(lines))
+        self.assertEqual({name for _, name, _ in self.calls}, {"ExpectCounts", "ExpectSheet", "ExpectName"})
+
+    def test_sheets_and_code_names(self) -> None:
+        self.assertEqual(self.args("ExpectSheet"),
+                         [[i, s.name, s.code_name] for i, s in enumerate(build_template.SHEETS, 1)])
+
+    def test_defined_names(self) -> None:
+        self.assertEqual({name: (sheet, ref) for name, sheet, ref in self.args("ExpectName")}, build_template.NAMES)
+        self.assertEqual(len(self.args("ExpectName")), len(build_template.NAMES))
+
+    def test_counts(self) -> None:
+        self.assertEqual(self.args("ExpectCounts"), [[len(build_template.SHEETS), len(build_template.NAMES)]])
 
 
 if __name__ == "__main__":
