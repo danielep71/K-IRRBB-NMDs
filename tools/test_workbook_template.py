@@ -75,6 +75,13 @@ class Template(unittest.TestCase):
         for info in self.package.infolist():
             self.assertEqual(info.date_time, build_template.ZIP_TIME, info.filename)
 
+    def test_shared_string_counts(self) -> None:
+        table = self.xml("xl/sharedStrings.xml")
+        references = sum(len(self.sheet(s.name).findall(".//m:c[@t='s']", NS)) for s in build_template.SHEETS)
+        self.assertEqual(int(table.get("count")), references)
+        self.assertEqual(int(table.get("uniqueCount")), len(table))
+        self.assertLess(len(table), references)
+
     def test_no_cell_formulas(self) -> None:
         for s in build_template.SHEETS:
             with self.subTest(sheet=s.name):

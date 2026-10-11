@@ -362,8 +362,9 @@ def package(stamp: list[str] | None = None, notes: list[str] | None = None) -> b
     members.append(("xl/_rels/workbook.xml.rels", _xml(f'<Relationships xmlns="{PKG_REL_NS}">{rels}</Relationships>')))
     members.append(("xl/styles.xml", STYLES))
     items = "".join(f'<si><t xml:space="preserve">{escape(text)}</t></si>' for text in strings)
+    references = sum(xml.count(b't="s"') for xml in sheets_xml)  # count: every reference; uniqueCount: entries
     members.append(("xl/sharedStrings.xml", _xml(
-        f'<sst xmlns="{MAIN_NS}" count="{len(strings)}" uniqueCount="{len(strings)}">{items}</sst>')))
+        f'<sst xmlns="{MAIN_NS}" count="{references}" uniqueCount="{len(strings)}">{items}</sst>')))
     for i, xml in enumerate(sheets_xml, 1):
         members.append((f"xl/worksheets/sheet{i}.xml", xml))
 
