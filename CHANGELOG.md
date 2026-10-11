@@ -113,7 +113,9 @@ Use only the categories needed by a release.
   in `docs/methodology/TEST_CASES.md` in register order and writes per-case and
   per-assertion results to the `Checks` sheet. Earlier results are withdrawn
   before a run; a case with no assertion or an unexpected error never passes; an
-  unbuilt case is `NOT RUN`. First VBA cases: `HARN-OUT-01` (outcome and
+  unbuilt case is `NOT RUN`. If writing the results fails, the run ends
+  `FAILED` with both the primary and the cleanup error shown, and no earlier
+  result remains. First VBA cases: `HARN-OUT-01` (outcome and
   tolerance rules), `DATA-PARSE-01`, `DATA-PARSE-02` and `DATA-CODES-01`.
   `tools/test_vba_harness.py` checks their expectations against the contract
   and the registry against the register without Excel. No Excel run is

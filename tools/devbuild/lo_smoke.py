@@ -5,7 +5,8 @@ Usage: python tools/devbuild/lo_smoke.py [build/IRRBB_Dev.xlsm]
 
 Opens the workbook in LibreOffice with VBA compatibility, runs
 TEST_Harness.RunTests, plants a stale row in the result tables, runs it again to
-check that previous results are withdrawn, and prints a JSON summary. Needs
+check that previous results are withdrawn, runs it once more with every results
+write failing (both errors must be kept) and prints a JSON summary. Needs
 LibreOffice and python3-uno. LibreOffice is NOT Excel: this is never Excel
 evidence (docs/EXCEL_EVIDENCE.md), only an early warning for runtime defects.
 """
@@ -85,6 +86,13 @@ def main() -> int:
         out["rerun_status"] = cells("Checks", "B3:B3")[0][0]
         out["stale_rows_withdrawn"] = (cells("Checks", "A70:A70")[0][0] in ("", None)
                                        and cells("Checks", "H2900:H2900")[0][0] in ("", None))
+        # A run whose every results write fails must end FAILED with both errors kept and
+        # no earlier result left in the tables.
+        out["fault_error"] = run("TEST_Harness", "TEST_RunTestsWithWriteFault")
+        status = [r[1] for r in cells("Checks", "A3:B11")]
+        out["fault_status"], out["fault_primary"], out["fault_cleanup"] = status[0], status[7], status[8]
+        out["fault_tables_empty"] = (not any(r[0] for r in cells("Checks", "A14:A514"))
+                                     and not any(r[0] for r in cells("Checks", "H14:H3000")))
         doc.close(True)
         try:
             desk.terminate()

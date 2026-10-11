@@ -18,7 +18,8 @@ Attribute VB_Name = "TEST_Harness"
 ' STALE RESULTS AND ERRORS
 '   Previous results are withdrawn before the run (status RUNNING). If the run
 '   itself fails, the primary error and any cleanup error are both kept in the
-'   status block.
+'   status block (B10, B11) with status FAILED. TEST_RunTestsWithWriteFault
+'   exercises that path by making every results write fail.
 '
 ' OUTPUT
 '   Sheet "Checks": status block (rows 3-11), case table (A13:F), assertion
@@ -36,6 +37,8 @@ Private Const SH_CHECKS As String = "Checks"
 Private Const SH_README As String = "Readme"
 Private Const CASE_ROW As Long = 14
 Private Const ASSERT_COL As Long = 8
+' vbObjectError + 1001, a literal for the same reason as TEST_ERR_NO_CASE.
+Private Const ERR_INJECTED_WRITE As Long = -2147220503
 
 Private mCaseId() As String
 Private mCaseOutcome() As String
@@ -48,6 +51,7 @@ Private mCurrent As Long
 Private mRows() As Variant
 Private mRowCount As Long
 Private mStarted As Date
+Private mInjectWriteFault As Boolean
 
 
 '==============================================================================
@@ -68,12 +72,19 @@ Public Sub RunTests()
     Exit Sub
 
 Fail:
+    ' Resume clears the error first: an error raised while a handler is still
+    ' active is not trapped in this procedure and would escape with the status
+    ' left at RUNNING and neither error recorded.
     primary = "Primary error " & Err.Number & ": " & Err.Description & " [" & Err.Source & "]"
+    Resume ReportPrimary
+ReportPrimary:
     On Error GoTo CleanupFail
     WriteResults primary
     Exit Sub
 CleanupFail:
-    cleanup = "Cleanup error " & Err.Number & ": " & Err.Description
+    cleanup = "Cleanup error " & Err.Number & ": " & Err.Description & " [" & Err.Source & "]"
+    Resume ReportBoth
+ReportBoth:
     On Error Resume Next
     With ThisWorkbook.Worksheets(SH_CHECKS)
         .Cells(3, 2).Value = "FAILED"
@@ -82,6 +93,20 @@ CleanupFail:
     End With
     Debug.Print primary
     Debug.Print cleanup
+End Sub
+
+
+'------------------------------------------------------------------------------
+' TEST_RunTestsWithWriteFault: run the harness with every results write failing,
+' to show that the primary and the cleanup error are both reported and that no
+' earlier result is left looking current. Leaves status FAILED.
+'------------------------------------------------------------------------------
+Public Sub TEST_RunTestsWithWriteFault()
+    mInjectWriteFault = True
+    On Error GoTo Done          ' RunTests reports its own errors; this only resets the flag
+    RunTests
+Done:
+    mInjectWriteFault = False
 End Sub
 
 
@@ -334,6 +359,9 @@ Private Sub WriteResults(ByVal primary As String)
     Dim ws As Worksheet, i As Long, j As Long, block() As Variant
     Dim nPass As Long, nFail As Long, nErr As Long, nNot As Long, aPass As Long, aTotal As Long
     Set ws = ThisWorkbook.Worksheets(SH_CHECKS)
+    If mInjectWriteFault Then
+        Err.Raise ERR_INJECTED_WRITE, "TEST_Harness.WriteResults", "Injected results write fault"
+    End If
 
     If mCaseCount > 0 Then
         ReDim block(1 To mCaseCount, 1 To 6)
