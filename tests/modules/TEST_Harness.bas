@@ -116,14 +116,13 @@ End Sub
 Private Function Registry() As Variant
     ' Built as a Collection so the list never needs more than 24 line continuations.
     Dim c As New Collection, out() As Variant, i As Long
-    Const DATA_NOTE As String = "Checked in Python by tools/test_data_contract.py; VBA outcomes and point-in-time view not built (#71)"
     Const DECAY_NOTE As String = "Decay model not on this branch (#36, v0.3.0)"
     c.Add Array("HARN-OUT-01", True, "")
     c.Add Array("WB-LAYOUT-01", True, "")
     c.Add Array("DATA-VALID-01", True, "")
     c.Add Array("DATA-INVALID-01", True, "")
-    c.Add Array("DATA-PIT-01", False, DATA_NOTE)
-    c.Add Array("DATA-PIT-02", False, DATA_NOTE)
+    c.Add Array("DATA-PIT-01", True, "")
+    c.Add Array("DATA-PIT-02", True, "")
     c.Add Array("DATA-PARSE-01", True, "")
     c.Add Array("DATA-PARSE-02", True, "")
     c.Add Array("DATA-CODES-01", True, "")
@@ -197,7 +196,7 @@ Private Sub DispatchCase(ByVal caseId As String)
             TEST_CoreCases.TEST_RunCoreCase caseId
         Case "WB-LAYOUT-01"
             TEST_WorkbookCases.TEST_RunWorkbookCase caseId
-        Case "DATA-VALID-01", "DATA-INVALID-01"
+        Case "DATA-VALID-01", "DATA-INVALID-01", "DATA-PIT-01", "DATA-PIT-02"
             TEST_DataCases.TEST_RunDataCase caseId
         Case Else
             Err.Raise TEST_ERR_NO_CASE, "TEST_Harness.DispatchCase", "No VBA implementation for " & caseId & "."

@@ -99,6 +99,14 @@ Use only the categories needed by a release.
 
 ### Added
 
+- Transition outcomes and point-in-time view (#71, stage 2): the import
+  summary assigns every observed month its outcome (observed, verified
+  closure, gap, censored disappearance, end of sample), and `CORE_ViewBuild`
+  gives the rows known at a forecast origin with later close dates masked.
+  `DATA-PIT-01` and `DATA-PIT-02` now run in VBA: the hand-assigned outcomes
+  and visible closures, and a leakage test showing that changing everything
+  learned after an origin leaves the view at that origin unchanged. Not run
+  in Excel.
 - VBA import core (#71, stage 1): `CORE_Import` validates the account panel
   and the market-rate file line by line in the contract's rule order (`E01`–
   `E11`, cross-row `E11`, `E10`, `E05`, `E08`), and for a data window reports

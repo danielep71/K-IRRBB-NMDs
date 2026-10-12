@@ -3,8 +3,8 @@ Attribute VB_Name = "TEST_DataCases"
 ' TEST_DataCases
 '------------------------------------------------------------------------------
 ' PURPOSE
-'   VBA implementations of DATA-VALID-01 and DATA-INVALID-01
-'   (docs/methodology/TEST_CASES.md) against CORE_Import. The fixtures and
+'   VBA implementations of DATA-VALID-01, DATA-INVALID-01, DATA-PIT-01 and
+'   DATA-PIT-02 (docs/methodology/TEST_CASES.md) against CORE_Import. The fixtures and
 '   their hand-computed expectations come from TEST_Fixtures, generated from
 '   tests/fixtures and tests/expected. The literal cases below are re-derived
 '   from the Python reading of the contract by tools/test_vba_harness.py.
@@ -21,6 +21,8 @@ Public Sub TEST_RunDataCase(ByVal caseId As String)
     Select Case caseId
         Case "DATA-VALID-01": CaseValid
         Case "DATA-INVALID-01": CaseInvalid
+        Case "DATA-PIT-01": CasePitOutcomes
+        Case "DATA-PIT-02": CasePitLeakage
         Case Else
             Err.Raise TEST_ERR_NO_CASE, "TEST_DataCases.TEST_RunDataCase", "No VBA implementation for " & caseId & "."
     End Select
@@ -86,8 +88,47 @@ Private Sub CaseInvalid()
     ExpectAccountFindings C, "as_of_date,account_id,segment,currency,balance,customer_rate,indexed,open_date,close_date|2025-01-31,C004,RET_TX,EUR,1e3,,0,,|2025-01-31,C005,RET_TX,EUR,1.00,0.25000001,0,,|2025-01-31,C006,RET_TX,EUR,-0.00,,1,,", "2:E04,3:E04"
     ExpectRateFindings C, "as_of_date,rate_id,currency,tenor_months,rate|2025-01-31,EUR_1M,EUR,1,0.0290|2025-01-31,EUR_1M,EUR,1,0.0300|2025-02-28,EUR_1M,EUR,3,0.0300|2025-02-28,EUR_3M,EUR,0,0.0300|2025-02-27,EUR_6M,EUR,6,0.0100|2025-02-28,GBP_1M,GBP,1,0.0100|2025-03-31,EUR_1M,EUR,1,", "3:E05,4:E08,5:E04,6:E02,7:E07,8:E03"
     ExpectRateFindings C, "as_of_date,rate_id,currency,tenor_months|2025-01-31,EUR_1M,EUR,1", "1:E01"
-    ExpectMissingExtract C, "2025-03-31"
+    ExpectMissingExtract C, "accounts.csv", "2025-03-31"
     ExpectWindowGaps C, "as_of_date,account_id,segment,currency,balance,customer_rate,indexed,open_date,close_date|9999-10-31,Z001,RET_TX,EUR,1.00,,0,,", "9999-10-31", "9999-12-31", "9999-11-30,9999-12-31"
+End Sub
+
+
+'------------------------------------------------------------------------------
+' DATA-PIT-01: transition outcome of every observed month, warnings and the
+' close_date values visible at each origin equal the hand assignment in
+' availability_outcomes.json; a month-end closure has no row in its month.
+'------------------------------------------------------------------------------
+Private Sub CasePitOutcomes()
+    Const C As String = "DATA-PIT-01"
+    Dim window As Variant, counts As Variant
+    ImportAccounts TEST_FixtureLines("availability.csv")
+    CompareFindings C, "availability.csv", Array()
+    counts = TEST_ExpectedLines("availability_outcomes.counts")
+    TEST_AssertText C, "accepted rows", CStr(CORE_AcceptedRowCount()), counts(1)
+    window = TEST_ExpectedLines("availability_outcomes.window")
+    TEST_AssertText C, "missing extracts", CStr(CORE_AccountsSummarize(IsoDate(window(1)), IsoDate(window(2)))), "0"
+    CompareList C, "outcome", OutcomeLines(), TEST_ExpectedLines("availability_outcomes.outcomes")
+    CompareList C, "warning", WarningLines(), TEST_ExpectedLines("availability_outcomes.warnings")
+    CompareList C, "visible close_date", VisibleCloseLines(TEST_ExpectedLines("availability_outcomes.origins")), _
+                TEST_ExpectedLines("availability_outcomes.visible")
+
+    ExpectAccountFindings C, "as_of_date,account_id,segment,currency,balance,customer_rate,indexed,open_date,close_date|2025-05-31,M001,RET_TX,EUR,10.00,,0,2020-01-01,2025-06-30|2025-06-30,M001,RET_TX,EUR,0.00,,0,2020-01-01,2025-06-30", "3:E10"
+    ExpectOutcomes C, "as_of_date,account_id,segment,currency,balance,customer_rate,indexed,open_date,close_date|2025-05-31,M001,RET_TX,EUR,10.00,,0,2020-01-01,2025-06-30|2025-06-30,M001,RET_TX,EUR,0.00,,0,2020-01-01,2025-06-30", "2025-05-31", "2025-07-31", "M001|2025-05-31|RET_TX|closure"
+    ExpectOutcomes C, "as_of_date,account_id,segment,currency,balance,customer_rate,indexed,open_date,close_date|2025-01-31,G001,RET_TX,EUR,5.00,,0,,2025-09-30|2025-03-31,G001,RET_TX,EUR,5.00,,0,,2025-09-30|2025-01-31,G002,RET_TX,EUR,5.00,,0,,|2025-02-28,G002,WHS_NFC,EUR,5.00,,0,,", "2025-01-31", "2025-04-30", "G001|2025-01-31|RET_TX|gap,G001|2025-03-31|RET_TX|censored,G002|2025-01-31|RET_TX|observed,G002|2025-02-28|WHS_NFC|censored"
+End Sub
+
+
+'------------------------------------------------------------------------------
+' DATA-PIT-02: at every origin of both panels, altering, adding or removing
+' everything learned after the origin leaves the point-in-time view unchanged;
+' no account with a row at the origin shows a closure in the view; a missing
+' month end rejects the import (E12).
+'------------------------------------------------------------------------------
+Private Sub CasePitLeakage()
+    Const C As String = "DATA-PIT-02"
+    CheckNoLookAhead C, "availability.csv", "availability_outcomes.window"
+    CheckNoLookAhead C, "accounts.csv", "accounts_summary.window"
+    ExpectMissingExtract C, "availability.csv", "2025-03-31"
 End Sub
 
 
@@ -106,10 +147,10 @@ Private Sub ExpectRateFindings(ByVal caseId As String, ByVal fileText As String,
 End Sub
 
 
-' The valid panel without the rows of one month end: E12 for that month only.
-Private Sub ExpectMissingExtract(ByVal caseId As String, ByVal monthEnd As String)
+' A valid panel without the rows of one month end: E12 for that month only.
+Private Sub ExpectMissingExtract(ByVal caseId As String, ByVal fixture As String, ByVal monthEnd As String)
     Dim source As Variant, kept() As String, window As Variant, i As Long, n As Long, missing As Long
-    source = TEST_FixtureLines("accounts.csv")
+    source = TEST_FixtureLines(fixture)
     ReDim kept(1 To UBound(source))
     For i = LBound(source) To UBound(source)
         If Left$(source(i), Len(monthEnd) + 1) <> monthEnd & "," Then
@@ -119,9 +160,9 @@ Private Sub ExpectMissingExtract(ByVal caseId As String, ByVal monthEnd As Strin
     Next i
     ReDim Preserve kept(1 To n)
     ImportAccounts kept
-    window = TEST_ExpectedLines("accounts_summary.window")
+    window = TEST_ExpectedLines(WindowKey(fixture))
     missing = CORE_AccountsSummarize(IsoDate(window(1)), IsoDate(window(2)))
-    TEST_AssertText caseId, "missing extracts without " & monthEnd, CStr(missing), "1"
+    TEST_AssertText caseId, fixture & " missing extracts without " & monthEnd, CStr(missing), "1"
     If missing >= 1 Then TEST_AssertText caseId, "missing extract", CORE_MissingExtract(1), monthEnd
 End Sub
 
@@ -138,6 +179,113 @@ Private Sub ExpectWindowGaps(ByVal caseId As String, ByVal fileText As String, B
     Next i
     TEST_AssertText caseId, "missing extracts " & first & " to " & last, text, expected
 End Sub
+
+
+' Transition outcomes "account|origin|segment|outcome" of a literal panel.
+Private Sub ExpectOutcomes(ByVal caseId As String, ByVal fileText As String, ByVal first As String, _
+                           ByVal last As String, ByVal expected As String)
+    Dim lines As Variant
+    ImportAccounts Split(fileText, "|")
+    CORE_AccountsSummarize IsoDate(first), IsoDate(last)
+    lines = OutcomeLines()
+    TEST_AssertText caseId, "outcomes " & first & " to " & last, JoinLines(lines, ","), expected
+End Sub
+
+
+' The view at every origin of the fixture's window is the same for the panel
+' and for the panel with everything learned after that origin changed.
+Private Sub CheckNoLookAhead(ByVal caseId As String, ByVal fixture As String, ByVal windowKey As String)
+    Dim source As Variant, window As Variant, origin As Date, last As Date, before As String, after As String
+    Dim altered As Variant, label As String, n As Long
+    source = TEST_FixtureLines(fixture)
+    window = TEST_ExpectedLines(windowKey)
+    origin = IsoDate(window(1))
+    last = IsoDate(window(2))
+    Do
+        label = fixture & " at " & IsoText(origin)
+        ImportAccounts source
+        n = CORE_ViewBuild(origin)
+        before = ViewText()
+        TEST_AssertTrue caseId, label & ": view not empty", n > 0
+        TEST_AssertText caseId, label & ": closures in rows at the origin", CStr(ClosuresAtOrigin(origin)), "0"
+
+        altered = AlteredPanel(source, IsoText(origin))
+        If origin < last Then TEST_AssertTrue caseId, label & ": later information changed", _
+                                              Join(altered, "|") <> Join(source, "|")
+        ImportAccounts altered
+        TEST_AssertText caseId, label & ": altered panel findings", AccountFindingText(), ""
+        CORE_ViewBuild origin
+        after = ViewText()
+        TEST_AssertText caseId, label & ": view unchanged", after, before
+        If origin >= last Then Exit Do
+        origin = IsoDate(NextMonthEndText(IsoText(origin)))
+    Loop
+End Sub
+
+
+' The panel with everything after originText changed: later rows of accounts
+' ending in an odd digit removed, other later rows altered, close dates after
+' the origin moved or erased, empty close dates set in the future, and a new
+' account added in the following month.
+Private Function AlteredPanel(ByVal source As Variant, ByVal originText As String) As Variant
+    Dim out() As String, f() As String, i As Long, n As Long, nextText As String
+    ReDim out(1 To UBound(source) - LBound(source) + 2)
+    n = 1
+    out(1) = source(LBound(source))
+    For i = LBound(source) + 1 To UBound(source)
+        f = Split(source(i), ",")
+        If f(0) > originText Then
+            If InStr(1, "13579", Right$(f(1), 1)) > 0 Then GoTo NextLine
+            f(4) = "7777.77"
+            If f(2) = "WHS_NFC" Then
+                f(2) = "RET_TX"
+            Else
+                f(2) = "WHS_NFC"
+            End If
+            f(5) = "0.2000"
+        End If
+        If Len(f(8)) = 0 Then
+            f(8) = "2026-12-31"
+        ElseIf f(8) > originText Then
+            If CLng(Right$(f(8), 2)) Mod 2 = 1 Then
+                f(8) = vbNullString
+            Else
+                f(8) = "2027-01-31"
+            End If
+        End If
+        n = n + 1
+        out(n) = Join(f, ",")
+NextLine:
+    Next i
+    nextText = NextMonthEndText(originText)
+    n = n + 1
+    out(n) = nextText & ",Z99,RET_TX,EUR,1.00,,0," & nextText & ","
+    ReDim Preserve out(1 To n)
+    AlteredPanel = out
+End Function
+
+
+' View rows dated at the origin whose account shows a closure in the view.
+Private Function ClosuresAtOrigin(ByVal origin As Date) As Long
+    Dim i As Long, j As Long, count As Long
+    For i = 1 To CORE_ViewCount()
+        If CORE_ViewAsOf(i) = IsoText(origin) Then
+            For j = 1 To CORE_ViewCount()
+                If CORE_ViewAccount(j) = CORE_ViewAccount(i) And Len(CORE_ViewCloseDate(j)) > 0 Then count = count + 1
+            Next j
+        End If
+    Next i
+    ClosuresAtOrigin = count
+End Function
+
+
+Private Function ViewText() As String
+    Dim i As Long, text As String
+    For i = 1 To CORE_ViewCount()
+        text = text & CORE_ViewRecord(i) & ";"
+    Next i
+    ViewText = text
+End Function
 
 
 Private Sub CompareFindings(ByVal caseId As String, ByVal fixture As String, ByVal expected As Variant)
@@ -227,6 +375,94 @@ Private Function RateFindingText() As String
         text = text & CORE_RateFindingLine(i) & ":" & CORE_RateFindingCode(i)
     Next i
     RateFindingText = text
+End Function
+
+
+Private Function OutcomeLines() As Variant
+    Dim out() As String, i As Long
+    If CORE_OutcomeCount() = 0 Then
+        OutcomeLines = Array()
+        Exit Function
+    End If
+    ReDim out(1 To CORE_OutcomeCount())
+    For i = 1 To CORE_OutcomeCount()
+        out(i) = CORE_OutcomeAccount(i) & "|" & CORE_OutcomeOrigin(i) & "|" & CORE_OutcomeSegment(i) & "|" & _
+                 CORE_OutcomeCode(i)
+    Next i
+    OutcomeLines = out
+End Function
+
+
+' "origin|account|close_date" for every account showing a closure in the view
+' at each origin (one line per account; the view is ordered by account).
+Private Function VisibleCloseLines(ByVal origins As Variant) As Variant
+    Dim out() As String, n As Long, k As Long, i As Long, line As String, previous As String
+    ReDim out(1 To 64)
+    For k = LBound(origins) To UBound(origins)
+        CORE_ViewBuild IsoDate(origins(k))
+        previous = vbNullString
+        For i = 1 To CORE_ViewCount()
+            If Len(CORE_ViewCloseDate(i)) > 0 Then
+                line = origins(k) & "|" & CORE_ViewAccount(i) & "|" & CORE_ViewCloseDate(i)
+                If line <> previous Then
+                    n = n + 1
+                    If n > UBound(out) Then
+                        ReDim Preserve out(1 To 2 * UBound(out))
+                    End If
+                    out(n) = line
+                    previous = line
+                End If
+            End If
+        Next i
+    Next k
+    If n = 0 Then
+        VisibleCloseLines = Array()
+    Else
+        ReDim Preserve out(1 To n)
+        VisibleCloseLines = out
+    End If
+End Function
+
+
+Private Function JoinLines(ByVal lines As Variant, ByVal separator As String) As String
+    Dim i As Long, text As String
+    For i = LBound(lines) To UBound(lines)
+        If i > LBound(lines) Then text = text & separator
+        text = text & lines(i)
+    Next i
+    JoinLines = text
+End Function
+
+
+Private Function WindowKey(ByVal fixture As String) As String
+    Select Case fixture
+        Case "accounts.csv": WindowKey = "accounts_summary.window"
+        Case "availability.csv": WindowKey = "availability_outcomes.window"
+        Case Else: Err.Raise 5, "TEST_DataCases.WindowKey", "No window for " & fixture
+    End Select
+End Function
+
+
+' ISO text of the month end after an ISO month end.
+Private Function NextMonthEndText(ByVal monthEndText As String) As String
+    Dim y As Long, m As Long, lastDay As Date
+    y = CLng(Left$(monthEndText, 4))
+    m = CLng(Mid$(monthEndText, 6, 2)) + 1
+    If m = 13 Then
+        y = y + 1
+        m = 1
+    End If
+    If m = 12 Then
+        lastDay = DateSerial(y, 12, 31)
+    Else
+        lastDay = DateSerial(y, m + 1, 1) - 1
+    End If
+    NextMonthEndText = IsoText(lastDay)
+End Function
+
+
+Private Function IsoText(ByVal d As Date) As String
+    IsoText = Format$(Year(d), "0000") & "-" & Format$(Month(d), "00") & "-" & Format$(Day(d), "00")
 End Function
 
 

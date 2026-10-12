@@ -278,7 +278,8 @@ class DataCases(unittest.TestCase):
         lines = [line for line in read(DATA_CASES).splitlines() if line.strip().startswith("Expect")]
         self.assertEqual(len(self.calls), len(lines))
         self.assertEqual({name for _, name, _ in self.calls},
-                         {"ExpectAccountFindings", "ExpectRateFindings", "ExpectMissingExtract", "ExpectWindowGaps"})
+                         {"ExpectAccountFindings", "ExpectRateFindings", "ExpectMissingExtract", "ExpectWindowGaps",
+                          "ExpectOutcomes"})
 
     def test_account_findings(self) -> None:
         for text, expected in self.args("ExpectAccountFindings"):
@@ -303,15 +304,28 @@ class DataCases(unittest.TestCase):
 
     def test_missing_extract(self) -> None:
         import json
-        summary = json.loads((ROOT / "tests/expected/data_contract/accounts_summary.json").read_text(encoding="utf-8"))
-        first = reference.parse_date(summary["window"]["first"])
-        last = reference.parse_date(summary["window"]["last"])
-        rows, _ = reference.read_accounts(ROOT / summary["fixture"])
-        for (month_end,) in self.args("ExpectMissingExtract"):
-            with self.subTest(month_end=month_end):
+        expected_file = {"accounts.csv": "accounts_summary.json", "availability.csv": "availability_outcomes.json"}
+        for fixture, month_end in self.args("ExpectMissingExtract"):
+            with self.subTest(fixture=fixture, month_end=month_end):
+                spec = json.loads((ROOT / "tests/expected/data_contract" / expected_file[fixture])
+                                  .read_text(encoding="utf-8"))
+                first = reference.parse_date(spec["window"]["first"])
+                last = reference.parse_date(spec["window"]["last"])
+                rows, _ = reference.read_accounts(ROOT / "tests/fixtures/data_contract" / fixture)
                 kept = [(n, r) for n, r in rows if r["as_of_date"] != month_end]
                 self.assertEqual(reference.missing_extracts(kept, first, last),
                                  [{"code": "E12", "as_of_date": month_end}])
+
+    def test_outcomes(self) -> None:
+        import tempfile
+        for text, first, last, expected in self.args("ExpectOutcomes"):
+            with self.subTest(window=(first, last), text=text[:60]), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "input.csv"
+                path.write_text(text.replace("|", "\n") + "\n", encoding="ascii")
+                rows, _ = reference.read_accounts(path)
+                outcomes = reference.transition_outcomes(rows, reference.parse_date(first), reference.parse_date(last))
+                self.assertEqual(",".join(f'{o["account_id"]}|{o["origin"]}|{o["segment"]}|{o["outcome"]}'
+                                          for o in outcomes), expected)
 
 
 class WorkbookLayout(unittest.TestCase):

@@ -330,9 +330,9 @@ fails if fixtures, expectations and rules disagree. It also runs the
 leakage tests: altering, adding or removing information learned after an
 origin leaves every predictor at that origin unchanged, and dropping a month
 end from the window gives `E12`. The VBA import core (`CORE_Import`, #71)
-reproduces the same expected files in `DATA-VALID-01` and `DATA-INVALID-01`;
-transition outcomes, the point-in-time view, file input and lineage follow in
-later stages of #71.
+reproduces the same expected files in `DATA-VALID-01`, `DATA-INVALID-01` and
+`DATA-PIT-01`, and runs the leakage test in `DATA-PIT-02` on its own
+point-in-time view; file input and lineage follow in later stages of #71.
 
 <a id="decisions"></a>
 
