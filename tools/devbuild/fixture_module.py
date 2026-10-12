@@ -21,12 +21,15 @@ ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "tests" / "fixtures" / "data_contract"
 EXPECTED = ROOT / "tests" / "expected" / "data_contract"
 MODULE = ROOT / "tests" / "modules" / "TEST_Fixtures.bas"
-CSV_FILES = ["accounts.csv", "accounts_invalid.csv", "market_rates.csv"]
+CSV_FILES = ["accounts.csv", "accounts_invalid.csv", "market_rates.csv", "availability.csv"]
 
 
 def expected_lists() -> dict[str, list[str]]:
     summary = json.loads((EXPECTED / "accounts_summary.json").read_text(encoding="utf-8"))
     invalid = json.loads((EXPECTED / "accounts_invalid_findings.json").read_text(encoding="utf-8"))
+    availability = json.loads((EXPECTED / "availability_outcomes.json").read_text(encoding="utf-8"))
+    visible = [f"{origin}|{account}|{closed}" for origin, accounts in sorted(availability["visible_close_dates"].items())
+               for account, closed in sorted(accounts.items())]
     warnings = sorted(summary["warnings"], key=lambda w: (w["code"], w["account_id"], w["as_of_date"]))
     totals = sorted(summary["totals"], key=lambda t: (t["as_of_date"], t["segment"], t["currency"]))
     return {
@@ -38,6 +41,15 @@ def expected_lists() -> dict[str, list[str]]:
         "accounts_summary.totals": [f'{t["as_of_date"]}|{t["segment"]}|{t["currency"]}|{t["accounts"]}|'
                                     f'{t["balance"]:.4f}' for t in totals],
         "accounts_invalid_findings.errors": [f'{e["line"]}|{e["code"]}' for e in invalid["errors"]],
+        "availability_outcomes.window": [availability["window"]["first"], availability["window"]["last"]],
+        "availability_outcomes.counts": [str(availability["rows"])],
+        "availability_outcomes.outcomes": [f'{o["account_id"]}|{o["origin"]}|{o["segment"]}|{o["outcome"]}'
+                                           for o in sorted(availability["outcomes"],
+                                                           key=lambda o: (o["account_id"], o["origin"]))],
+        "availability_outcomes.warnings": [f'{w["code"]}|{w["account_id"]}|{w["as_of_date"]}' for w in sorted(
+            availability["warnings"], key=lambda w: (w["code"], w["account_id"], w["as_of_date"]))],
+        "availability_outcomes.visible": visible,
+        "availability_outcomes.origins": sorted(availability["visible_close_dates"]),
     }
 
 

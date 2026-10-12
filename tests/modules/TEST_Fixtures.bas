@@ -19,6 +19,7 @@ Public Function TEST_FixtureLines(ByVal name As String) As Variant
         Case "accounts.csv": TEST_FixtureLines = Data_AccountsCsv()
         Case "accounts_invalid.csv": TEST_FixtureLines = Data_AccountsInvalidCsv()
         Case "market_rates.csv": TEST_FixtureLines = Data_MarketRatesCsv()
+        Case "availability.csv": TEST_FixtureLines = Data_AvailabilityCsv()
         Case Else
             Err.Raise 5, "TEST_Fixtures.TEST_FixtureLines", "No fixture data named " & name & "."
     End Select
@@ -34,6 +35,12 @@ Public Function TEST_ExpectedLines(ByVal name As String) As Variant
         Case "accounts_summary.warnings": TEST_ExpectedLines = Data_AccountsSummaryWarnings()
         Case "accounts_summary.totals": TEST_ExpectedLines = Data_AccountsSummaryTotals()
         Case "accounts_invalid_findings.errors": TEST_ExpectedLines = Data_AccountsInvalidFindingsErrors()
+        Case "availability_outcomes.window": TEST_ExpectedLines = Data_AvailabilityOutcomesWindow()
+        Case "availability_outcomes.counts": TEST_ExpectedLines = Data_AvailabilityOutcomesCounts()
+        Case "availability_outcomes.outcomes": TEST_ExpectedLines = Data_AvailabilityOutcomesOutcomes()
+        Case "availability_outcomes.warnings": TEST_ExpectedLines = Data_AvailabilityOutcomesWarnings()
+        Case "availability_outcomes.visible": TEST_ExpectedLines = Data_AvailabilityOutcomesVisible()
+        Case "availability_outcomes.origins": TEST_ExpectedLines = Data_AvailabilityOutcomesOrigins()
         Case Else
             Err.Raise 5, "TEST_Fixtures.TEST_ExpectedLines", "No fixture data named " & name & "."
     End Select
@@ -138,6 +145,40 @@ Private Function Data_MarketRatesCsv() As Variant
 End Function
 
 
+Private Function Data_AvailabilityCsv() As Variant
+    Dim a(1 To 28) As String
+    a(1) = "as_of_date,account_id,segment,currency,balance,customer_rate,indexed,open_date,close_date"
+    a(2) = "2025-01-31,P01,RET_TX,EUR,1000.00,0.0050,0,2019-05-01,"
+    a(3) = "2025-01-31,P02,RET_TX,EUR,800.00,0.0050,0,2018-03-15,2025-04-15"
+    a(4) = "2025-01-31,P03,RET_TX,EUR,600.00,0.0050,0,2021-07-01,"
+    a(5) = "2025-01-31,P04,RET_TX,EUR,400.00,0.0050,0,2022-02-01,"
+    a(6) = "2025-01-31,P05,RET_NTX,EUR,300.00,0.0100,0,2020-09-01,2025-04-30"
+    a(7) = "2025-01-31,P06,WHS_NFC,EUR,5000.00,0.0150,1,2017-01-10,2025-08-31"
+    a(8) = "2025-02-28,P01,RET_TX,EUR,1000.00,0.0050,0,2019-05-01,"
+    a(9) = "2025-02-28,P02,RET_TX,EUR,700.00,0.0050,0,2018-03-15,2025-04-15"
+    a(10) = "2025-02-28,P03,RET_TX,EUR,550.00,0.0050,0,2021-07-01,"
+    a(11) = "2025-02-28,P04,RET_TX,EUR,420.00,0.0050,0,2022-02-01,"
+    a(12) = "2025-02-28,P06,WHS_NFC,EUR,5100.00,0.0150,1,2017-01-10,2025-08-31"
+    a(13) = "2025-03-31,P01,RET_TX,EUR,1050.00,0.0050,0,2019-05-01,"
+    a(14) = "2025-03-31,P02,RET_TX,EUR,500.00,0.0050,0,2018-03-15,2025-04-15"
+    a(15) = "2025-03-31,P06,WHS_NFC,EUR,5200.00,0.0150,1,2017-01-10,2025-08-31"
+    a(16) = "2025-03-31,P07,RET_TX,EUR,200.00,0.0050,0,2025-03-10,"
+    a(17) = "2025-04-30,P01,RET_NTX,EUR,1100.00,0.0100,0,2019-05-01,"
+    a(18) = "2025-04-30,P04,RET_TX,EUR,450.00,0.0050,0,2022-02-01,"
+    a(19) = "2025-04-30,P06,WHS_NFC,EUR,5150.00,0.0150,1,2017-01-10,2025-08-31"
+    a(20) = "2025-04-30,P07,RET_TX,EUR,250.00,0.0050,0,2025-03-10,"
+    a(21) = "2025-05-31,P01,RET_NTX,EUR,1080.00,0.0100,0,2019-05-01,"
+    a(22) = "2025-05-31,P04,RET_TX,EUR,460.00,0.0050,0,2022-02-01,"
+    a(23) = "2025-05-31,P06,WHS_NFC,EUR,5300.00,0.0150,1,2017-01-10,2025-08-31"
+    a(24) = "2025-05-31,P07,RET_TX,EUR,260.00,0.0050,0,2025-03-10,"
+    a(25) = "2025-06-30,P01,RET_NTX,EUR,1090.00,0.0100,0,2019-05-01,"
+    a(26) = "2025-06-30,P04,RET_TX,EUR,470.00,0.0050,0,2022-02-01,"
+    a(27) = "2025-06-30,P06,WHS_NFC,EUR,5250.00,0.0150,1,2017-01-10,2025-08-31"
+    a(28) = "2025-06-30,P07,RET_TX,EUR,270.00,0.0050,0,2025-03-10,"
+    Data_AvailabilityCsv = a
+End Function
+
+
 Private Function Data_AccountsSummaryWindow() As Variant
     Dim a(1 To 2) As String
     a(1) = "2025-01-31"
@@ -227,4 +268,86 @@ Private Function Data_AccountsInvalidFindingsErrors() As Variant
     a(11) = "14|E04"
     a(12) = "15|E04"
     Data_AccountsInvalidFindingsErrors = a
+End Function
+
+
+Private Function Data_AvailabilityOutcomesWindow() As Variant
+    Dim a(1 To 2) As String
+    a(1) = "2025-01-31"
+    a(2) = "2025-06-30"
+    Data_AvailabilityOutcomesWindow = a
+End Function
+
+
+Private Function Data_AvailabilityOutcomesCounts() As Variant
+    Dim a(1 To 1) As String
+    a(1) = "27"
+    Data_AvailabilityOutcomesCounts = a
+End Function
+
+
+Private Function Data_AvailabilityOutcomesOutcomes() As Variant
+    Dim a(1 To 27) As String
+    a(1) = "P01|2025-01-31|RET_TX|observed"
+    a(2) = "P01|2025-02-28|RET_TX|observed"
+    a(3) = "P01|2025-03-31|RET_TX|observed"
+    a(4) = "P01|2025-04-30|RET_NTX|observed"
+    a(5) = "P01|2025-05-31|RET_NTX|observed"
+    a(6) = "P01|2025-06-30|RET_NTX|end_of_sample"
+    a(7) = "P02|2025-01-31|RET_TX|observed"
+    a(8) = "P02|2025-02-28|RET_TX|observed"
+    a(9) = "P02|2025-03-31|RET_TX|closure"
+    a(10) = "P03|2025-01-31|RET_TX|observed"
+    a(11) = "P03|2025-02-28|RET_TX|censored"
+    a(12) = "P04|2025-01-31|RET_TX|observed"
+    a(13) = "P04|2025-02-28|RET_TX|gap"
+    a(14) = "P04|2025-04-30|RET_TX|observed"
+    a(15) = "P04|2025-05-31|RET_TX|observed"
+    a(16) = "P04|2025-06-30|RET_TX|end_of_sample"
+    a(17) = "P05|2025-01-31|RET_NTX|censored"
+    a(18) = "P06|2025-01-31|WHS_NFC|observed"
+    a(19) = "P06|2025-02-28|WHS_NFC|observed"
+    a(20) = "P06|2025-03-31|WHS_NFC|observed"
+    a(21) = "P06|2025-04-30|WHS_NFC|observed"
+    a(22) = "P06|2025-05-31|WHS_NFC|observed"
+    a(23) = "P06|2025-06-30|WHS_NFC|end_of_sample"
+    a(24) = "P07|2025-03-31|RET_TX|observed"
+    a(25) = "P07|2025-04-30|RET_TX|observed"
+    a(26) = "P07|2025-05-31|RET_TX|observed"
+    a(27) = "P07|2025-06-30|RET_TX|end_of_sample"
+    Data_AvailabilityOutcomesOutcomes = a
+End Function
+
+
+Private Function Data_AvailabilityOutcomesWarnings() As Variant
+    Dim a(1 To 4) As String
+    a(1) = "W01|P04|2025-03-31"
+    a(2) = "W03|P01|2025-04-30"
+    a(3) = "W05|P03|2025-02-28"
+    a(4) = "W05|P05|2025-01-31"
+    Data_AvailabilityOutcomesWarnings = a
+End Function
+
+
+Private Function Data_AvailabilityOutcomesVisible() As Variant
+    Dim a(1 To 6) As String
+    a(1) = "2025-04-30|P02|2025-04-15"
+    a(2) = "2025-04-30|P05|2025-04-30"
+    a(3) = "2025-05-31|P02|2025-04-15"
+    a(4) = "2025-05-31|P05|2025-04-30"
+    a(5) = "2025-06-30|P02|2025-04-15"
+    a(6) = "2025-06-30|P05|2025-04-30"
+    Data_AvailabilityOutcomesVisible = a
+End Function
+
+
+Private Function Data_AvailabilityOutcomesOrigins() As Variant
+    Dim a(1 To 6) As String
+    a(1) = "2025-01-31"
+    a(2) = "2025-02-28"
+    a(3) = "2025-03-31"
+    a(4) = "2025-04-30"
+    a(5) = "2025-05-31"
+    a(6) = "2025-06-30"
+    Data_AvailabilityOutcomesOrigins = a
 End Function

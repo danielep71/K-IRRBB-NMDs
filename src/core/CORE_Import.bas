@@ -18,8 +18,16 @@ Attribute VB_Name = "CORE_Import"
 '                                  W01-W06, totals per date, segment and
 '                                  currency, and missing extracts (E12);
 '                                  returns the number of E12 findings.
-'   Results are read through the CORE_Account*, CORE_Warning*, CORE_Total*
-'   and CORE_MissingExtract* accessors (1-based, in the contract's order).
+'                                  It also assigns the transition outcome of
+'                                  every observed month (CORE_Outcome*).
+'   CORE_ViewBuild origin          point-in-time view at a forecast origin
+'                                  inside the window, after an accepted import
+'                                  (no finding, no E12): rows of the window
+'                                  dated on or before it, with any close_date
+'                                  after it masked (CORE_View*).
+'   Results are read through the CORE_Account*, CORE_Warning*, CORE_Total*,
+'   CORE_MissingExtract*, CORE_Outcome* and CORE_View* accessors (1-based, in
+'   the contract's order).
 '
 ' MARKET RATES
 '   CORE_RatesBegin, CORE_RatesAddLine, CORE_RatesEnd and CORE_RateFinding*,
@@ -32,6 +40,14 @@ Attribute VB_Name = "CORE_Import"
 '   opening or closure dates disagree), E10, E05 and E08. Findings are sorted
 '   by line. The import is all-or-nothing: the caller keeps no dataset when
 '   any finding exists. Warnings never stop the import.
+'
+' OUTCOMES AND POINT-IN-TIME VIEW (DATA_CONTRACT.md, outcomes and look-ahead)
+'   The transition from an observed month end t is, first that applies:
+'   end_of_sample (t is the window end), observed (a row at t+1), closure (the
+'   account's close_date lies in (t, t+1]), gap (a later row exists), censored.
+'   Only a recorded close_date is a closure. The view at an origin keeps every
+'   field as given except close_date, shown only when it is on or before the
+'   origin; nothing learned later can change it.
 '
 ' TOTALS
 '   Balances are summed with compensated (Neumaier) summation, in currency
@@ -72,6 +88,9 @@ Private mRowCurrency() As String
 Private mRowBalance() As Double
 Private mRowOpen() As String
 Private mRowClose() As String
+Private mRowBalanceText() As String
+Private mRowRate() As String
+Private mRowIndexed() As String
 Private mRowAccepted() As Boolean
 Private mRowCount As Long
 Private mFindLine() As Long
@@ -83,6 +102,8 @@ Private mAccounts As Long
 
 ' Summary state.
 Private mSummarized As Boolean
+Private mWindowFirst As Date
+Private mWindowLast As Date
 Private mWarnCode() As String
 Private mWarnAccount() As String
 Private mWarnDate() As String
@@ -98,6 +119,14 @@ Private mTotCount As Long
 Private mTotOrder() As Long
 Private mGaps() As String
 Private mGapCount As Long
+
+' Outcome and view state.
+Private mOutRow() As Long
+Private mOutCode() As String
+Private mOutCount As Long
+Private mViewRow() As Long
+Private mViewCount As Long
+Private mViewOrigin As Date
 
 ' Market rate state.
 Private mRateState As Long
@@ -173,6 +202,9 @@ Public Sub CORE_AccountsAddLine(ByVal text As String)
     mRowBalance(mRowCount) = balance
     mRowOpen(mRowCount) = fields(7)
     mRowClose(mRowCount) = fields(8)
+    mRowBalanceText(mRowCount) = fields(4)
+    mRowRate(mRowCount) = fields(5)
+    mRowIndexed(mRowCount) = fields(6)
     mRowAccepted(mRowCount) = False
 End Sub
 
@@ -378,6 +410,8 @@ Public Function CORE_AccountsSummarize(ByVal firstMonthEnd As Date, ByVal lastMo
         End If
     Next j
 
+    AssignOutcomes inWindow, order, n, lastMonthEnd
+
     ' By month index, so a window ending in December 9999 never builds a later date.
     For k = MonthIndex(firstMonthEnd) To MonthIndex(lastMonthEnd)
         monthEndText = IsoText(MonthEnd(k))
@@ -394,6 +428,8 @@ Public Function CORE_AccountsSummarize(ByVal firstMonthEnd As Date, ByVal lastMo
         keys(j) = mTotDate(j) & vbTab & mTotSegment(j) & vbTab & mTotCurrency(j)
     Next j
     SortOrder keys, mTotCount, mTotOrder
+    mWindowFirst = firstMonthEnd
+    mWindowLast = lastMonthEnd
     mSummarized = True
     CORE_AccountsSummarize = mGapCount
 End Function
@@ -460,6 +496,124 @@ End Function
 
 Public Function CORE_MissingExtract(ByVal index As Long) As String
     CORE_MissingExtract = mGaps(index)
+End Function
+
+
+'------------------------------------------------------------------------------
+' Transition outcomes of the last CORE_AccountsSummarize, one per observed
+' month end in the window, ordered by account then origin. Codes:
+' "observed", "closure", "gap", "censored", "end_of_sample".
+'------------------------------------------------------------------------------
+Public Function CORE_OutcomeCount() As Long
+    CORE_OutcomeCount = mOutCount
+End Function
+
+
+Public Function CORE_OutcomeAccount(ByVal index As Long) As String
+    CORE_OutcomeAccount = mRowAccount(mOutRow(index))
+End Function
+
+
+Public Function CORE_OutcomeOrigin(ByVal index As Long) As String
+    CORE_OutcomeOrigin = mRowAsOfText(mOutRow(index))
+End Function
+
+
+Public Function CORE_OutcomeSegment(ByVal index As Long) As String
+    CORE_OutcomeSegment = mRowSegment(mOutRow(index))
+End Function
+
+
+Public Function CORE_OutcomeCode(ByVal index As Long) As String
+    CORE_OutcomeCode = mOutCode(index)
+End Function
+
+
+'------------------------------------------------------------------------------
+' CORE_ViewBuild: the point-in-time view at a forecast origin (a month end
+' inside the data window): the rows of the window dated on or before the
+' origin, ordered by account then date. Returns the number of rows. Every
+' predictor, backtest and forecast at the origin may use only this view.
+' The import is all-or-nothing, so the view exists only after an import with
+' no finding and a summary with no missing extract; otherwise error 5.
+'------------------------------------------------------------------------------
+Public Function CORE_ViewBuild(ByVal origin As Date) As Long
+    Dim keys() As String, order() As Long, candidates() As Long, i As Long, n As Long
+    RequireState mState, STATE_ENDED, "CORE_Import.CORE_ViewBuild"
+    If mFindCount > 0 Or Not mSummarized Then
+        Err.Raise 5, "CORE_Import.CORE_ViewBuild", "No view: the import has findings or no data window."
+    End If
+    If mGapCount > 0 Then
+        Err.Raise 5, "CORE_Import.CORE_ViewBuild", "No view: a month end of the window has no rows (E12)."
+    End If
+    If Not CORE_IsMonthEnd(origin) Or origin < mWindowFirst Or origin > mWindowLast Then
+        Err.Raise 5, "CORE_Import.CORE_ViewBuild", "The forecast origin must be a month end inside the data window."
+    End If
+    ReDim candidates(1 To mRowCount + 1)
+    For i = 1 To mRowCount
+        If mRowAccepted(i) And mRowAsOf(i) >= mWindowFirst And mRowAsOf(i) <= origin Then
+            n = n + 1
+            candidates(n) = i
+        End If
+    Next i
+    ReDim keys(1 To n + 1)
+    For i = 1 To n
+        keys(i) = mRowAccount(candidates(i)) & vbTab & mRowAsOfText(candidates(i))
+    Next i
+    SortOrder keys, n, order
+    ReDim mViewRow(1 To n + 1)
+    For i = 1 To n
+        mViewRow(i) = candidates(order(i))
+    Next i
+    mViewCount = n
+    mViewOrigin = origin
+    CORE_ViewBuild = n
+End Function
+
+
+Public Function CORE_ViewCount() As Long
+    CORE_ViewCount = mViewCount
+End Function
+
+
+Public Function CORE_ViewAccount(ByVal index As Long) As String
+    CORE_ViewAccount = mRowAccount(mViewRow(index))
+End Function
+
+
+Public Function CORE_ViewAsOf(ByVal index As Long) As String
+    CORE_ViewAsOf = mRowAsOfText(mViewRow(index))
+End Function
+
+
+'------------------------------------------------------------------------------
+' CORE_ViewCloseDate: the row's close_date as known at the view's origin: as
+' given when on or before the origin, otherwise "" (masked).
+'------------------------------------------------------------------------------
+Public Function CORE_ViewCloseDate(ByVal index As Long) As String
+    Dim closed As Date, text As String
+    text = mRowClose(mViewRow(index))
+    If Len(text) > 0 Then
+        If CORE_ParseIsoDate(text, closed) <> CORE_PARSE_OK Then
+            text = vbNullString
+        ElseIf closed > mViewOrigin Then
+            text = vbNullString
+        End If
+    End If
+    CORE_ViewCloseDate = text
+End Function
+
+
+'------------------------------------------------------------------------------
+' CORE_ViewRecord: the view row as a contract line (fields as given, close_date
+' as known at the origin).
+'------------------------------------------------------------------------------
+Public Function CORE_ViewRecord(ByVal index As Long) As String
+    Dim r As Long
+    r = mViewRow(index)
+    CORE_ViewRecord = mRowAsOfText(r) & "," & mRowAccount(r) & "," & mRowSegment(r) & "," & mRowCurrency(r) & _
+                      "," & mRowBalanceText(r) & "," & mRowRate(r) & "," & mRowIndexed(r) & "," & mRowOpen(r) & _
+                      "," & CORE_ViewCloseDate(index)
 End Function
 
 
@@ -625,6 +779,63 @@ Private Function AccountRowError(ByRef fields() As String, ByRef asOf As Date, B
 End Function
 
 
+' Outcome of every in-window row; rows are visited per account in date order.
+Private Sub AssignOutcomes(ByRef inWindow() As Long, ByRef order() As Long, ByVal n As Long, _
+                           ByVal lastMonthEnd As Date)
+    Dim j As Long, groupEnd As Long, k As Long, i As Long, closeText As String, closed As Date
+    Dim hasClose As Boolean, following As Date, code As String
+    mOutCount = 0
+    ReDim mOutRow(1 To n + 1)
+    ReDim mOutCode(1 To n + 1)
+    j = 1
+    Do While j <= n
+        ' The account's rows are order(j..groupEnd); its known closure is the
+        ' earliest close_date on any of them (E11 makes them agree).
+        groupEnd = j
+        Do While groupEnd < n
+            If mRowAccount(inWindow(order(groupEnd + 1))) <> mRowAccount(inWindow(order(j))) Then Exit Do
+            groupEnd = groupEnd + 1
+        Loop
+        closeText = vbNullString
+        For k = j To groupEnd
+            i = inWindow(order(k))
+            If Len(mRowClose(i)) > 0 Then
+                If Len(closeText) = 0 Or mRowClose(i) < closeText Then closeText = mRowClose(i)
+            End If
+        Next k
+        hasClose = False
+        If Len(closeText) > 0 Then hasClose = (CORE_ParseIsoDate(closeText, closed) = CORE_PARSE_OK)
+
+        For k = j To groupEnd
+            i = inWindow(order(k))
+            If mRowAsOf(i) >= lastMonthEnd Then
+                code = "end_of_sample"
+            Else
+                following = MonthEnd(MonthIndex(mRowAsOf(i)) + 1)
+                code = vbNullString
+                If k < groupEnd Then
+                    If mRowAsOf(inWindow(order(k + 1))) = following Then code = "observed"
+                End If
+                If Len(code) = 0 And hasClose Then
+                    If mRowAsOf(i) < closed And closed <= following Then code = "closure"
+                End If
+                If Len(code) = 0 Then
+                    If k < groupEnd Then
+                        code = "gap"
+                    Else
+                        code = "censored"
+                    End If
+                End If
+            End If
+            mOutCount = mOutCount + 1
+            mOutRow(mOutCount) = i
+            mOutCode(mOutCount) = code
+        Next k
+        j = groupEnd + 1
+    Loop
+End Sub
+
+
 ' W05 for the account whose last in-window row is row i.
 Private Sub CheckDisappearance(ByVal i As Long, ByVal closeText As String, ByVal lastMonthEnd As Date)
     Dim closed As Date, verified As Boolean
@@ -652,6 +863,9 @@ Private Sub GrowRows(ByVal size As Long)
         ReDim mRowBalance(1 To size)
         ReDim mRowOpen(1 To size)
         ReDim mRowClose(1 To size)
+        ReDim mRowBalanceText(1 To size)
+        ReDim mRowRate(1 To size)
+        ReDim mRowIndexed(1 To size)
         ReDim mRowAccepted(1 To size)
         Exit Sub
     End If
@@ -664,6 +878,9 @@ Private Sub GrowRows(ByVal size As Long)
     ReDim Preserve mRowBalance(1 To size)
     ReDim Preserve mRowOpen(1 To size)
     ReDim Preserve mRowClose(1 To size)
+    ReDim Preserve mRowBalanceText(1 To size)
+    ReDim Preserve mRowRate(1 To size)
+    ReDim Preserve mRowIndexed(1 To size)
     ReDim Preserve mRowAccepted(1 To size)
 End Sub
 

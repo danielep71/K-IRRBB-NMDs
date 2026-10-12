@@ -273,11 +273,12 @@ def transition_outcomes(rows, first: date, last: date) -> list[dict]:
     return outcomes
 
 
-def point_in_time_view(rows, origin: date) -> list[dict[str, str]]:
-    """Rows dated on or before the origin, with any close_date learned later masked."""
+def point_in_time_view(rows, origin: date, first: date | None = None) -> list[dict[str, str]]:
+    """Rows dated on or before the origin (and from the window start, if given), with any
+    close_date learned later masked."""
     view = []
     for _, row in rows:
-        if parse_date(row["as_of_date"]) <= origin:
+        if parse_date(row["as_of_date"]) <= origin and (first is None or parse_date(row["as_of_date"]) >= first):
             visible = dict(row)
             if visible["close_date"] and parse_date(visible["close_date"]) > origin:
                 visible["close_date"] = ""

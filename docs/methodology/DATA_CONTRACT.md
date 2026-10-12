@@ -245,7 +245,8 @@ row's `as_of_date`.
 The **point-in-time view at a forecast origin** $t$ is what every predictor,
 backtest and forecast at $t$ may use:
 
-1. only rows with `as_of_date` $\le t$;
+1. only rows of an accepted import (no error, including `E12`) inside the data
+   window with `as_of_date` $\le t$, for an origin $t$ inside the window;
 2. on those rows, `close_date` is shown only if it is $\le t$; a later
    `close_date` is **masked** (treated as empty) in the view.
 
@@ -330,9 +331,9 @@ fails if fixtures, expectations and rules disagree. It also runs the
 leakage tests: altering, adding or removing information learned after an
 origin leaves every predictor at that origin unchanged, and dropping a month
 end from the window gives `E12`. The VBA import core (`CORE_Import`, #71)
-reproduces the same expected files in `DATA-VALID-01` and `DATA-INVALID-01`;
-transition outcomes, the point-in-time view, file input and lineage follow in
-later stages of #71.
+reproduces the same expected files in `DATA-VALID-01`, `DATA-INVALID-01` and
+`DATA-PIT-01`, and runs the leakage test in `DATA-PIT-02` on its own
+point-in-time view; file input and lineage follow in later stages of #71.
 
 <a id="decisions"></a>
 
