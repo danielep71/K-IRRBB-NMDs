@@ -11,8 +11,9 @@ Attribute VB_Name = "TEST_ImportCases"
 '   back. The settings on Config and Segments are restored afterwards.
 '
 ' FILES
-'   Only in the system temporary folder, deleted after the case. The import
-'   itself never writes a file.
+'   Only in a new folder created for the run inside the system temporary
+'   folder; the case deletes the files it wrote and the folder, and nothing
+'   else. The import itself never writes a file.
 '==============================================================================
 Option Explicit
 Option Private Module
@@ -23,6 +24,7 @@ Private Const ACCEPTED As String = "COMPLETE - IMPORT ACCEPTED"
 
 Private mSaved As Collection
 Private mFiles As Collection
+Private mRunFolder As String
 
 
 Public Sub TEST_RunImportCase(ByVal caseId As String)
@@ -55,6 +57,10 @@ Private Sub CaseImport()
     TEST_AssertText C, "LF files: warnings W04", LineageValue("Warnings W04"), "2"
     TEST_AssertText C, "LF files: warnings W05", LineageValue("Warnings W05"), "1"
     TEST_AssertText C, "LF files: rows outside the window", LineageValue("Rows outside the window (W06)"), "0"
+    TEST_AssertText C, "LF files: window in lineage", LineageValue("Data window start") & "|" & _
+                    LineageValue("Data window end"), window(1) & "|" & window(2)
+    TEST_AssertText C, "LF files: settings in lineage", LineageValue("Rate series") & "|" & _
+                    LineageValue("Closures reported by the month end (attested)"), "EUR_1M|Yes"
     TEST_AssertText C, "LF files: file name only", CellText("DataSummary_Info", 3, 1), "irrbb_accounts.csv"
 
     ' The same files with CRLF endings give the same result.
@@ -207,8 +213,7 @@ End Function
 ' folder; returns its path.
 Private Function WriteFixture(ByVal fileName As String, ByVal text As String) As String
     Dim path As String, f As Integer
-    path = TempFolder() & Application.PathSeparator & fileName
-    If Len(Dir$(path)) > 0 Then Kill path
+    path = RunFolder() & Application.PathSeparator & fileName
     f = FreeFile
     Open path For Binary Access Write As #f
     If Len(text) > 0 Then Put #f, , text
@@ -221,12 +226,32 @@ End Function
 
 Private Sub DeleteFiles()
     Dim path As Variant
-    If mFiles Is Nothing Then Exit Sub
-    For Each path In mFiles
-        If Len(Dir$(CStr(path))) > 0 Then Kill CStr(path)
-    Next path
+    If Not mFiles Is Nothing Then
+        For Each path In mFiles
+            If Len(Dir$(CStr(path))) > 0 Then Kill CStr(path)
+        Next path
+    End If
     Set mFiles = Nothing
+    If Len(mRunFolder) > 0 Then RmDir mRunFolder
+    mRunFolder = vbNullString
 End Sub
+
+
+' A folder of this run's own inside the temporary folder, so no existing file
+' is ever overwritten or deleted.
+Private Function RunFolder() As String
+    Dim attempt As Long, candidate As String
+    If Len(mRunFolder) = 0 Then
+        Do
+            attempt = attempt + 1
+            candidate = TempFolder() & Application.PathSeparator & "irrbb_test_" & Format$(Now, "yyyymmddhhnnss") & _
+                        "_" & attempt
+        Loop While Len(Dir$(candidate, vbDirectory)) > 0
+        MkDir candidate
+        mRunFolder = candidate
+    End If
+    RunFolder = mRunFolder
+End Function
 
 
 Private Function TempFolder() As String

@@ -9,9 +9,11 @@ Attribute VB_Name = "IRRBB_Import"
 '   module reads the files and checks the run settings at the public boundary.
 '
 ' FILE ACCESS (SECURITY.md, security scope)
-'   Read only. Each file is opened for binary read with shared access,
-'   streamed in 64 KB chunks and closed; nothing is written next to it and no
-'   other file is touched. Lines end in LF or CRLF. A file must be below 2 GB
+'   Read only. Each file is opened for binary read with writing by others
+'   denied while it is open (a file another process is writing cannot be
+'   opened: error 70), streamed in 64 KB chunks and closed, so the import
+'   reads one snapshot; nothing is written next to it and no other file is
+'   touched. Lines end in LF or CRLF. A file must be below 2 GB
 '   (the VBA file length is a Long). Bytes outside ASCII are reported as E01
 '   by the validation.
 '
@@ -42,6 +44,10 @@ Private mRateErrors As Long
 Private mAccepted As Boolean
 Private mImported As Boolean
 Private mHeaderAccepted As Boolean
+Private mFirstMonthEnd As Date
+Private mLastMonthEnd As Date
+Private mRateSeriesSetting As String
+Private mAttested As Boolean
 
 
 '------------------------------------------------------------------------------
@@ -74,6 +80,10 @@ Public Function IRRBB_ImportData(ByVal accountsPath As String, ByVal ratesPath A
     RequireFile accountsPath
     RequireFile ratesPath
 
+    mFirstMonthEnd = firstMonthEnd
+    mLastMonthEnd = lastMonthEnd
+    mRateSeriesSetting = rateSeries
+    mAttested = closuresAttested
     mAccountsFile = FileNameOf(accountsPath)
     mRatesFile = FileNameOf(ratesPath)
     mAccountsBytes = StreamFile(accountsPath, True)
@@ -166,8 +176,8 @@ End Function
 '------------------------------------------------------------------------------
 ' IRRBB_ImportLineage: (0 To n, 1 To 2) Item, Value: file names (no directory)
 ' and sizes in bytes, rows read and accepted, rows outside the window (W06),
-' accounts, warnings by code and market-rate rows read (DATA_CONTRACT.md,
-' lineage). The SHA-256 fingerprint and the toolkit commit follow in #71
+' accounts, warnings by code, market-rate rows read, and the run settings
+' (data window, rate series, attestation) (DATA_CONTRACT.md, lineage). The SHA-256 fingerprint and the toolkit commit follow in #71
 ' stage 4.
 '------------------------------------------------------------------------------
 Public Function IRRBB_ImportLineage() As Variant
@@ -181,7 +191,7 @@ Public Function IRRBB_ImportLineage() As Variant
             Next k
         Next i
     End If
-    ReDim out(0 To 14, 1 To 2)
+    ReDim out(0 To 18, 1 To 2)
     out(0, 1) = "Item": out(0, 2) = "Value"
     out(1, 1) = "Account panel file": out(1, 2) = mAccountsFile
     out(2, 1) = "Account panel bytes": out(2, 2) = mAccountsBytes
@@ -195,6 +205,10 @@ Public Function IRRBB_ImportLineage() As Variant
         out(8 + k, 1) = "Warnings " & codes(k - 1): out(8 + k, 2) = counts(k)
     Next k
     out(14, 1) = "Rows outside the window (W06)": out(14, 2) = counts(6)
+    out(15, 1) = "Data window start": out(15, 2) = IsoText(mFirstMonthEnd)
+    out(16, 1) = "Data window end": out(16, 2) = IsoText(mLastMonthEnd)
+    out(17, 1) = "Rate series": out(17, 2) = mRateSeriesSetting
+    out(18, 1) = "Closures reported by the month end (attested)": out(18, 2) = IIf(mAttested, "Yes", "No")
     IRRBB_ImportLineage = out
 End Function
 
@@ -209,7 +223,7 @@ Private Function StreamFile(ByVal path As String, ByVal accounts As Boolean) As 
     Dim lineStart As Long, lf As Long, started As Boolean, opened As Boolean
 
     f = FreeFile
-    Open path For Binary Access Read Shared As #f
+    Open path For Binary Access Read Lock Write As #f
     opened = True
     On Error GoTo Failed
     size = LOF(f)
@@ -291,6 +305,11 @@ End Sub
 Private Sub RequireImport()
     If Not mImported Then Err.Raise 5, "IRRBB_Import", "No import has completed."
 End Sub
+
+
+Private Function IsoText(ByVal d As Date) As String
+    IsoText = Format$(Year(d), "0000") & "-" & Format$(Month(d), "00") & "-" & Format$(Day(d), "00")
+End Function
 
 
 ' File name without its directory (lineage records no path).
