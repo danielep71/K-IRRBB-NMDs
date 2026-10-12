@@ -98,6 +98,10 @@ Private Sub CaseImport()
     NamedRange("Segments_Include").Cells(2, 1).Value = "Yes"
     RunImport accounts, rates, window(1), window(2), "GBP_1M", "Yes"
     TEST_AssertTrue C, "unknown rate series: reason", InStr(1, CellText("DataSummary_Info", 8, 1), "GBP_1M") > 0
+    NamedRange("Readme_SourceCommit").Value = "None: template without a VBA project"
+    RunImport accounts, rates, window(1), window(2), "", "Yes"
+    TEST_AssertTrue C, "no commit stamp: refused", InStr(1, CellText("DataSummary_Info", 8, 1), "commit stamp") > 0
+    NamedRange("Readme_SourceCommit").Value = mSaved.Item(1)
 
     ' File reading: more than one 64 KB chunk without a final line ending; a
     ' byte outside ASCII; an empty file.
@@ -277,9 +281,11 @@ Private Function TempFolder() As String
 End Function
 
 
+' Item 1 is the build stamp; the settings follow.
 Private Sub SaveSettings()
     Dim cell As Range
     Set mSaved = New Collection
+    mSaved.Add NamedRange("Readme_SourceCommit").Value
     For Each cell In SettingCells()
         mSaved.Add cell.Value
     Next cell
@@ -288,6 +294,8 @@ End Sub
 
 Private Sub RestoreSettings()
     Dim cell As Range, i As Long
+    NamedRange("Readme_SourceCommit").Value = mSaved.Item(1)
+    i = 1
     For Each cell In SettingCells()
         i = i + 1
         cell.Value = mSaved.Item(i)

@@ -26,7 +26,8 @@ Attribute VB_Name = "IRRBB_Import"
 '
 ' ERRORS
 '   Error 5 for invalid settings (window not two month ends in order, empty
-'   path, closure reporting not attested, rate series not in the file);
+'   path, closure reporting not attested, no commit stamp, rate series not in
+'   the file);
 '   error 53 when a file does not exist; file-system errors pass through.
 '==============================================================================
 Option Explicit
@@ -65,7 +66,9 @@ Private mRatesSha As String
 '                          by the month end in which they occur (timely closure
 '                          reporting); the import refuses to run otherwise
 '   toolkitCommit    [in]  commit of the toolkit code running the import, as
-'                          stamped on the workbook; recorded in the lineage
+'                          stamped on the workbook: 40 hex digits, optionally
+'                          followed by the builder's " (dirty working tree:
+'                          NOT evidence-grade)"; recorded in the lineage
 '   Returns the number of errors; 0 means the panel is accepted.
 '------------------------------------------------------------------------------
 Public Function IRRBB_ImportData(ByVal accountsPath As String, ByVal ratesPath As String, _
@@ -76,6 +79,10 @@ Public Function IRRBB_ImportData(ByVal accountsPath As String, ByVal ratesPath A
     mAccepted = False
     If Not closuresAttested Then
         Err.Raise 5, SOURCE, "Timely closure reporting is not attested; the import does not run."
+    End If
+    If Not IsCommitStamp(toolkitCommit) Then
+        Err.Raise 5, SOURCE, "The workbook has no source commit stamp (Readme_SourceCommit): build it with " & _
+                  "tools/devbuild, or enter the 40-digit commit of the imported source."
     End If
     If Len(accountsPath) = 0 Or Len(ratesPath) = 0 Then
         Err.Raise 5, SOURCE, "Both the account panel file and the market-rate file are required."
@@ -322,6 +329,18 @@ End Sub
 Private Sub RequireImport()
     If Not mImported Then Err.Raise 5, "IRRBB_Import", "No import has completed."
 End Sub
+
+
+' 40 lower-case hex digits, alone or followed by the builder's dirty-tree note.
+Private Function IsCommitStamp(ByVal stamp As String) As Boolean
+    Dim i As Long, ch As String
+    If Len(stamp) < 40 Then Exit Function
+    For i = 1 To 40
+        ch = Mid$(stamp, i, 1)
+        If Not ((ch >= "0" And ch <= "9") Or (ch >= "a" And ch <= "f")) Then Exit Function
+    Next i
+    IsCommitStamp = (Len(stamp) = 40 Or Mid$(stamp, 41) = " (dirty working tree: NOT evidence-grade)")
+End Function
 
 
 Private Function IsoText(ByVal d As Date) As String

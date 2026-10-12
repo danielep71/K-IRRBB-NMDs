@@ -210,6 +210,9 @@ Use these steps when the builder cannot be used. Components at present:
 5. Paste document-module code (`ThisWorkbook`, sheet modules) into the existing
    module instead of importing it, which would create a duplicate class.
 6. Run **Debug → Compile VBAProject**; it must complete with no error.
+   Enter the 40-digit commit of the imported source in `Readme` cell `B5`
+   (`Readme_SourceCommit`); the data import refuses to run without it, since
+   the lineage must name the code version.
 7. Run the synthetic regression harness and the specific scenario under test,
    then record the result as described under
    [validation record](#validation-record).
