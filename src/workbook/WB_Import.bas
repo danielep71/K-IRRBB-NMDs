@@ -21,8 +21,8 @@ Attribute VB_Name = "WB_Import"
 '   Config_RateSeries: rate_id, may be empty.
 '   Config_ClosureAttested: "Yes" to attest timely closure reporting.
 '   Readme_SourceCommit: the build stamp, passed on as the toolkit commit.
-'   Segments_Include: every segment must be "Yes"; what excluding a segment
-'   means for an import is not yet defined (#71), so the run refuses.
+'   Segments_Codes, Segments_Include: the segments marked "Yes" form the run's
+'   segment list; "Yes" or "No" only. Every segment is still imported.
 '==============================================================================
 Option Explicit
 
@@ -44,7 +44,7 @@ Private Const INFO_CLEANUP As Long = 9
 Public Sub WB_ImportData()
     Dim primary As String, cleanup As String, started As Date, errors As Long, cut As Boolean
     Dim accountsPath As String, ratesPath As String, first As Date, last As Date
-    Dim rateSeries As String, attested As Boolean
+    Dim rateSeries As String, attested As Boolean, segments As String
 
     On Error GoTo Fail
     started = Now
@@ -56,7 +56,7 @@ Public Sub WB_ImportData()
     last = DateSetting("Config_WindowEnd", "Data window end")
     rateSeries = CStr(Setting("Config_RateSeries"))
     attested = (CStr(Setting("Config_ClosureAttested")) = "Yes")
-    RequireAllSegments
+    segments = SelectedSegments()
 
     Info INFO_ACCOUNTS, FileNameOf(accountsPath)
     Info INFO_RATES, FileNameOf(ratesPath)
@@ -64,7 +64,7 @@ Public Sub WB_ImportData()
     Info INFO_SERIES, rateSeries
     Info INFO_ATTESTED, IIf(attested, "Yes", "No")
 
-    errors = IRRBB_ImportData(accountsPath, ratesPath, first, last, rateSeries, attested, _
+    errors = IRRBB_ImportData(accountsPath, ratesPath, first, last, rateSeries, segments, attested, _
                               CStr(Setting("Readme_SourceCommit")))
 
     cut = WriteTable("DataSummary_Findings", IRRBB_ImportFindings(), Array(1, 3, 4))
@@ -169,15 +169,22 @@ Private Function WriteTable(ByVal areaName As String, ByVal table As Variant, By
 End Function
 
 
-Private Sub RequireAllSegments()
-    Dim cell As Range
-    For Each cell In NamedRange("Segments_Include").Cells
-        If CStr(cell.Value) <> "Yes" Then
-            Err.Raise 5, SOURCE, "Excluding a segment is not defined for the import yet (#71): set Include to " & _
-                      "Yes for every segment."
+' The codes marked "Yes" on Segments, in sheet order, comma-separated.
+Private Function SelectedSegments() As String
+    Dim codes As Range, include As Range, i As Long, list As String, choice As String
+    Set codes = NamedRange("Segments_Codes")
+    Set include = NamedRange("Segments_Include")
+    For i = 1 To codes.Rows.Count
+        choice = CStr(include.Cells(i, 1).Value)
+        If choice = "Yes" Then
+            If Len(list) > 0 Then list = list & ","
+            list = list & CStr(codes.Cells(i, 1).Value)
+        ElseIf choice <> "No" Then
+            Err.Raise 5, SOURCE, "Include for " & CStr(codes.Cells(i, 1).Value) & " must be Yes or No."
         End If
-    Next cell
-End Sub
+    Next i
+    SelectedSegments = list
+End Function
 
 
 Private Function Setting(ByVal settingName As String) As Variant

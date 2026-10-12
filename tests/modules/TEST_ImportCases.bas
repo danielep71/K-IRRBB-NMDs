@@ -86,16 +86,25 @@ Private Sub CaseImport()
     TEST_AssertText C, "invalid panel: totals withdrawn", CellText("DataSummary_Totals", 1, 1), ""
     TEST_AssertText C, "invalid panel: findings", FindingText(), JoinExpected("accounts_invalid_findings.errors")
 
-    ' Settings the import refuses: no attestation, a missing file, a segment excluded.
+    ' Settings the import refuses: no attestation, a missing file, no segment.
     RunImport accounts, rates, window(1), window(2), "", "No"
     TEST_AssertText C, "not attested: status", StatusText(), "FAILED"
     TEST_AssertTrue C, "not attested: reason", InStr(1, CellText("DataSummary_Info", 8, 1), "attested") > 0
     RunImport accounts & ".missing", rates, window(1), window(2), "", "Yes"
     TEST_AssertTrue C, "missing file: error 53", InStr(1, CellText("DataSummary_Info", 8, 1), "error 53") > 0
+    NamedRange("Segments_Include").Value = "No"
+    RunImport accounts, rates, window(1), window(2), "", "Yes"
+    TEST_AssertTrue C, "no segment selected: refused", InStr(1, CellText("DataSummary_Info", 8, 1), "No segment") > 0
+
+    ' A segment left out of the run is still imported and reconciled; only the
+    ' lineage's segment list changes.
+    NamedRange("Segments_Include").Value = "Yes"
     NamedRange("Segments_Include").Cells(2, 1).Value = "No"
     RunImport accounts, rates, window(1), window(2), "", "Yes"
-    TEST_AssertText C, "segment excluded: status", StatusText(), "FAILED"
-    NamedRange("Segments_Include").Cells(2, 1).Value = "Yes"
+    TEST_AssertText C, "segment left out: status", StatusText(), ACCEPTED
+    CheckTotals C, "segment left out"
+    TEST_AssertText C, "segment left out: lineage", LineageValue("Segments selected"), "RET_TX,WHS_NFC"
+    NamedRange("Segments_Include").Value = "Yes"
     RunImport accounts, rates, window(1), window(2), "GBP_1M", "Yes"
     TEST_AssertTrue C, "unknown rate series: reason", InStr(1, CellText("DataSummary_Info", 8, 1), "GBP_1M") > 0
     NamedRange("Readme_SourceCommit").Value = "None: template without a VBA project"

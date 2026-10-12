@@ -3,7 +3,7 @@
 # published IRRBB_* entry points; a change here is a public API change.
 
 IRRBB_Import	Function	IRRBB_ImportData
-# SIG	IRRBB_Import	Function	IRRBB_ImportData	Public Function IRRBB_ImportData(ByVal accountsPath As String, ByVal ratesPath As String, ByVal firstMonthEnd As Date, ByVal lastMonthEnd As Date, ByVal rateSeries As String, ByVal closuresAttested As Boolean, ByVal toolkitCommit As String) As Long
+# SIG	IRRBB_Import	Function	IRRBB_ImportData	Public Function IRRBB_ImportData(ByVal accountsPath As String, ByVal ratesPath As String, ByVal firstMonthEnd As Date, ByVal lastMonthEnd As Date, ByVal rateSeries As String, ByVal includedSegments As String, ByVal closuresAttested As Boolean, ByVal toolkitCommit As String) As Long
 IRRBB_Import	Function	IRRBB_ImportTotals
 # SIG	IRRBB_Import	Function	IRRBB_ImportTotals	Public Function IRRBB_ImportTotals() As Variant
 IRRBB_Import	Function	IRRBB_ImportFindings

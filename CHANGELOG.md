@@ -99,6 +99,14 @@ Use only the categories needed by a release.
 
 ### Added
 
+- Segment selection (#71): the segments marked `Yes` on `Segments` form the
+  run's segment list, recorded in the lineage. The import still validates and
+  reconciles every segment, so leaving one out never turns a migration into a
+  gap or a disappearance; the contract applies the selection when a model
+  builds its sample (a transition enters only when its origin segment is
+  selected). `IRRBB_ImportData` takes the list as a new argument; a run with
+  no segment is refused. `tools/devbuild/make_large_panel.py` writes a 47 MB
+  synthetic panel for timing the import in Excel.
 - Data fingerprint (#71, stage 4): `CORE_Sha256` computes SHA-256 in VBA
   (DATA_CONTRACT.md decision 5) while the import reads each file, and the
   lineage records both fingerprints and the toolkit commit, taken from the
