@@ -124,6 +124,7 @@ Private Function Registry() As Variant
     c.Add Array("DATA-PIT-01", True, "")
     c.Add Array("DATA-PIT-02", True, "")
     c.Add Array("DATA-IMPORT-01", True, "")
+    c.Add Array("DATA-SHA-01", True, "")
     c.Add Array("DATA-PARSE-01", True, "")
     c.Add Array("DATA-PARSE-02", True, "")
     c.Add Array("DATA-CODES-01", True, "")
@@ -201,6 +202,8 @@ Private Sub DispatchCase(ByVal caseId As String)
             TEST_DataCases.TEST_RunDataCase caseId
         Case "DATA-IMPORT-01"
             TEST_ImportCases.TEST_RunImportCase caseId
+        Case "DATA-SHA-01"
+            TEST_HashCases.TEST_RunHashCase caseId
         Case Else
             Err.Raise TEST_ERR_NO_CASE, "TEST_Harness.DispatchCase", "No VBA implementation for " & caseId & "."
     End Select

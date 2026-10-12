@@ -61,6 +61,12 @@ Private Sub CaseImport()
                     LineageValue("Data window end"), window(1) & "|" & window(2)
     TEST_AssertText C, "LF files: settings in lineage", LineageValue("Rate series") & "|" & _
                     LineageValue("Closures reported by the month end (attested)"), "EUR_1M|Yes"
+    TEST_AssertText C, "LF files: account panel SHA-256", LineageValue("Account panel SHA-256"), _
+                    FirstExpected("sha256.accounts.csv")
+    TEST_AssertText C, "LF files: market-rate SHA-256", LineageValue("Market-rate SHA-256"), _
+                    FirstExpected("sha256.market_rates.csv")
+    TEST_AssertText C, "LF files: toolkit commit", LineageValue("Toolkit commit"), _
+                    CStr(NamedRange("Readme_SourceCommit").Value)
     TEST_AssertText C, "LF files: file name only", CellText("DataSummary_Info", 3, 1), "irrbb_accounts.csv"
 
     ' The same files with CRLF endings give the same result.
@@ -69,6 +75,8 @@ Private Sub CaseImport()
     RunImport accounts, rates, window(1), window(2), "", "Yes"
     TEST_AssertText C, "CRLF files: status", StatusText(), ACCEPTED
     CheckTotals C, "CRLF files"
+    TEST_AssertTrue C, "CRLF files: other bytes, other fingerprint", _
+                    LineageValue("Account panel SHA-256") <> FirstExpected("sha256.accounts.csv")
 
     ' Rejected panel: findings listed, earlier totals withdrawn, no new totals.
     NamedRange("DataSummary_Totals").Cells(1, 1).Value = "STALE"
@@ -185,6 +193,13 @@ Private Function FindingText() As String
         i = i + 1
     Loop
     FindingText = text
+End Function
+
+
+Private Function FirstExpected(ByVal name As String) As String
+    Dim lines As Variant
+    lines = TEST_ExpectedLines(name)
+    FirstExpected = lines(LBound(lines))
 End Function
 
 

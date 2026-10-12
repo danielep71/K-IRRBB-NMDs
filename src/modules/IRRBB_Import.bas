@@ -48,6 +48,10 @@ Private mFirstMonthEnd As Date
 Private mLastMonthEnd As Date
 Private mRateSeriesSetting As String
 Private mAttested As Boolean
+Private mToolkitCommit As String
+Private mImportTime As Date
+Private mAccountsSha As String
+Private mRatesSha As String
 
 
 '------------------------------------------------------------------------------
@@ -60,11 +64,14 @@ Private mAttested As Boolean
 '   closuresAttested [in]  True when the user attests that closures are reported
 '                          by the month end in which they occur (timely closure
 '                          reporting); the import refuses to run otherwise
+'   toolkitCommit    [in]  commit of the toolkit code running the import, as
+'                          stamped on the workbook; recorded in the lineage
 '   Returns the number of errors; 0 means the panel is accepted.
 '------------------------------------------------------------------------------
 Public Function IRRBB_ImportData(ByVal accountsPath As String, ByVal ratesPath As String, _
                                  ByVal firstMonthEnd As Date, ByVal lastMonthEnd As Date, _
-                                 ByVal rateSeries As String, ByVal closuresAttested As Boolean) As Long
+                                 ByVal rateSeries As String, ByVal closuresAttested As Boolean, _
+                                 ByVal toolkitCommit As String) As Long
     mImported = False
     mAccepted = False
     If Not closuresAttested Then
@@ -84,13 +91,15 @@ Public Function IRRBB_ImportData(ByVal accountsPath As String, ByVal ratesPath A
     mLastMonthEnd = lastMonthEnd
     mRateSeriesSetting = rateSeries
     mAttested = closuresAttested
+    mToolkitCommit = toolkitCommit
+    mImportTime = Now
     mAccountsFile = FileNameOf(accountsPath)
     mRatesFile = FileNameOf(ratesPath)
-    mAccountsBytes = StreamFile(accountsPath, True)
+    mAccountsBytes = StreamFile(accountsPath, True, mAccountsSha)
     mAccountErrors = CORE_AccountFindingCount()
     mMissingExtracts = 0
     If mAccountErrors = 0 Then mMissingExtracts = CORE_AccountsSummarize(firstMonthEnd, lastMonthEnd)
-    mRatesBytes = StreamFile(ratesPath, False)
+    mRatesBytes = StreamFile(ratesPath, False, mRatesSha)
     mRateErrors = CORE_RateFindingCount()
 
     If Len(rateSeries) > 0 And mRateErrors = 0 Then
@@ -176,9 +185,9 @@ End Function
 '------------------------------------------------------------------------------
 ' IRRBB_ImportLineage: (0 To n, 1 To 2) Item, Value: file names (no directory)
 ' and sizes in bytes, rows read and accepted, rows outside the window (W06),
-' accounts, warnings by code, market-rate rows read, and the run settings
-' (data window, rate series, attestation) (DATA_CONTRACT.md, lineage). The SHA-256 fingerprint and the toolkit commit follow in #71
-' stage 4.
+' accounts, warnings by code, market-rate rows read, the run settings (data
+' window, rate series, attestation), the SHA-256 of each file's bytes, the
+' toolkit commit and the local import time (DATA_CONTRACT.md, lineage).
 '------------------------------------------------------------------------------
 Public Function IRRBB_ImportLineage() As Variant
     Dim out() As Variant, codes As Variant, i As Long, k As Long, counts(1 To 6) As Long
@@ -191,7 +200,7 @@ Public Function IRRBB_ImportLineage() As Variant
             Next k
         Next i
     End If
-    ReDim out(0 To 18, 1 To 2)
+    ReDim out(0 To 22, 1 To 2)
     out(0, 1) = "Item": out(0, 2) = "Value"
     out(1, 1) = "Account panel file": out(1, 2) = mAccountsFile
     out(2, 1) = "Account panel bytes": out(2, 2) = mAccountsBytes
@@ -209,6 +218,10 @@ Public Function IRRBB_ImportLineage() As Variant
     out(16, 1) = "Data window end": out(16, 2) = IsoText(mLastMonthEnd)
     out(17, 1) = "Rate series": out(17, 2) = mRateSeriesSetting
     out(18, 1) = "Closures reported by the month end (attested)": out(18, 2) = IIf(mAttested, "Yes", "No")
+    out(19, 1) = "Account panel SHA-256": out(19, 2) = mAccountsSha
+    out(20, 1) = "Market-rate SHA-256": out(20, 2) = mRatesSha
+    out(21, 1) = "Toolkit commit": out(21, 2) = mToolkitCommit
+    out(22, 1) = "Import time (local; UTC offset not recorded)": out(22, 2) = Format$(mImportTime, "yyyy-mm-dd hh:nn:ss")
     IRRBB_ImportLineage = out
 End Function
 
@@ -217,8 +230,9 @@ End Function
 ' File input
 '==============================================================================
 
-' Stream one file into CORE_Import, line by line; returns its size in bytes.
-Private Function StreamFile(ByVal path As String, ByVal accounts As Boolean) As Double
+' Stream one file into CORE_Import, line by line, and its bytes into the
+' SHA-256 fingerprint (one pass); returns its size in bytes.
+Private Function StreamFile(ByVal path As String, ByVal accounts As Boolean, ByRef sha As String) As Double
     Dim f As Integer, size As Double, remaining As Double, want As Long, bytes() As Byte, carry As String
     Dim lineStart As Long, lf As Long, started As Boolean, opened As Boolean
 
@@ -228,6 +242,7 @@ Private Function StreamFile(ByVal path As String, ByVal accounts As Boolean) As 
     On Error GoTo Failed
     size = LOF(f)
     remaining = size
+    CORE_Sha256Begin
     Do While remaining > 0
         ' Progress is counted in bytes requested, never in what a read returned,
         ' so the loop ends on every host.
@@ -239,6 +254,7 @@ Private Function StreamFile(ByVal path As String, ByVal accounts As Boolean) As 
         ReDim bytes(0 To want - 1)
         Get #f, , bytes
         remaining = remaining - want
+        CORE_Sha256Update bytes, want
         ' One character per byte; ASCII bytes map to themselves under every code
         ' page, and any other byte becomes a character above 127 (E01).
         carry = carry & StrConv(bytes, vbUnicode)
@@ -253,6 +269,7 @@ Private Function StreamFile(ByVal path As String, ByVal accounts As Boolean) As 
     Loop
     Close #f
     opened = False
+    sha = CORE_Sha256End()
 
     ' A last line without a line ending still counts; an empty file is a
     ' missing header (E01).

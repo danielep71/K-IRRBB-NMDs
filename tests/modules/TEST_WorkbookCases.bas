@@ -31,7 +31,7 @@ End Sub
 '------------------------------------------------------------------------------
 Private Sub CaseLayout()
     Const C As String = "WB-LAYOUT-01"
-    ExpectCounts C, 10, 22
+    ExpectCounts C, 10, 23
 
     ExpectSheet C, 1, "Readme", "shReadme"
     ExpectSheet C, 2, "Config", "shConfig"
@@ -62,6 +62,7 @@ Private Sub CaseLayout()
     ExpectName C, "DataSummary_Totals", "DataSummary", "$A$14:$E$20013"
     ExpectName C, "DataSummary_Warnings", "DataSummary", "$L$14:$N$20013"
     ExpectName C, "ModelParams_Status", "ModelParams", "$B$3"
+    ExpectName C, "Readme_SourceCommit", "Readme", "$B$5"
     ExpectName C, "Results_Status", "Results", "$B$3"
     ExpectName C, "Scenarios_Status", "Scenarios", "$B$3"
     ExpectName C, "Segments_Codes", "Segments", "$A$6:$A$8"

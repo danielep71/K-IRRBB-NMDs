@@ -63,7 +63,7 @@ SHEETS = [
           "Input area defined; read by the data importer (v0.2.0, not built)",
           "Segments", "Segments of the data contract; choose which ones a run includes."),
     Sheet("DataSummary", "shDataSummary", "Output", "VBA",
-          "Implemented: import totals, findings, warnings and lineage (#71; lineage fingerprint pending)",
+          "Implemented: import totals, findings, warnings and lineage (#71)",
           "Data summary", "Import counts, reconciliation, warnings and lineage of the loaded data."),
     Sheet("ModelParams", "shModelParams", "Output", "VBA", "Placeholder: parameter sets (v0.3.0 to v0.5.0)",
           "Model parameters", "Versioned parameter sets of the decay, rate and stable-amount models."),
@@ -82,6 +82,7 @@ SHEETS = [
 
 # Workbook-scoped defined names: VBA addresses areas by name, never by literal address.
 NAMES = {
+    "Readme_SourceCommit": ("Readme", "$B$5"),
     "Config_AccountsFile": ("Config", "$B$6"),
     "Config_RatesFile": ("Config", "$B$7"),
     "Config_WindowStart": ("Config", "$B$8"),

@@ -38,7 +38,7 @@ no function.
 | `Readme` | `shReadme` | Documentation | Builder | Implemented: sheet map and build stamp |
 | `Config` | `shConfig` | Input | User | Input area defined; read by the data importer (v0.2.0, not built) |
 | `Segments` | `shSegments` | Input | User | Input area defined; read by the data importer (v0.2.0, not built) |
-| `DataSummary` | `shDataSummary` | Output | VBA | Implemented: import totals, findings, warnings and lineage (#71; lineage fingerprint pending) |
+| `DataSummary` | `shDataSummary` | Output | VBA | Implemented: import totals, findings, warnings and lineage (#71) |
 | `ModelParams` | `shModelParams` | Output | VBA | Placeholder: parameter sets (v0.3.0 to v0.5.0) |
 | `Calibration` | `shCalibration` | Output | VBA | Placeholder: estimation diagnostics (v0.3.0 to v0.5.0) |
 | `Backtesting` | `shBacktesting` | Output | VBA | Placeholder: out-of-sample backtests (v0.6.0) |
@@ -62,6 +62,7 @@ addresses, so a layout change is one change here and in the generator.
 
 | Name | Refers to | Owner | Content |
 | --- | --- | --- | --- |
+| `Readme_SourceCommit` | `Readme!$B$5` | Builder | Commit of the source the workbook was built from; recorded in the import lineage |
 | `Config_AccountsFile` | `Config!$B$6` | User | Account panel CSV path |
 | `Config_RatesFile` | `Config!$B$7` | User | Market rate CSV path |
 | `Config_WindowStart` | `Config!$B$8` | User | First month end of the data window |

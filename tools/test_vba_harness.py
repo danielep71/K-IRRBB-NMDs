@@ -31,6 +31,7 @@ HARNESS = ROOT / "tests" / "modules" / "TEST_Harness.bas"
 CORE_CASES = ROOT / "tests" / "modules" / "TEST_CoreCases.bas"
 WORKBOOK_CASES = ROOT / "tests" / "modules" / "TEST_WorkbookCases.bas"
 DATA_CASES = ROOT / "tests" / "modules" / "TEST_DataCases.bas"
+HASH_CASES = ROOT / "tests" / "modules" / "TEST_HashCases.bas"
 FIXTURE_MODULE = ROOT / "tests" / "modules" / "TEST_Fixtures.bas"
 CORE_PARSE = ROOT / "src" / "core" / "CORE_Parse.bas"
 CORE_CODES = ROOT / "src" / "core" / "CORE_Codes.bas"
@@ -246,6 +247,38 @@ class Registry(unittest.TestCase):
         declared = set(re.findall(r'Const C As String = "([A-Z0-9-]+)"',
                                   "".join(read(p) for p in HARNESS.parent.glob("TEST_*Cases.bas"))))
         self.assertEqual(declared, built)
+
+
+class HashCases(unittest.TestCase):
+    """Every SHA-256 literal in TEST_HashCases agrees with Python's hashlib."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.calls = expectations(HASH_CASES)
+
+    def test_every_expect_line_is_read(self) -> None:
+        lines = [line for line in read(HASH_CASES).splitlines() if line.strip().startswith("Expect")]
+        self.assertEqual(len(self.calls), len(lines))
+        self.assertEqual({name for _, name, _ in self.calls}, {"ExpectSha", "ExpectShaRepeated", "ExpectShaPieces"})
+
+    def test_digests(self) -> None:
+        import hashlib
+        for _, helper, args in self.calls:
+            with self.subTest(helper=helper, args=str(args)[:60]):
+                if helper == "ExpectSha":
+                    message, expected = args
+                elif helper == "ExpectShaRepeated":
+                    unit, count, expected = args
+                    message = unit * count
+                else:
+                    message, _, expected = args
+                self.assertEqual(hashlib.sha256(message.encode("latin-1")).hexdigest(), expected)
+
+    def test_published_examples_are_present(self) -> None:
+        published = {"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+                     "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1",
+                     "cf5b16a778af8380036ce59e7b0492370b249b11e8f07a51afac45037afee9d1"}
+        self.assertTrue(published <= {args[-1] for _, _, args in self.calls})
 
 
 class DataCases(unittest.TestCase):
