@@ -103,6 +103,8 @@ Use only the categories needed by a release.
   summary assigns every observed month its outcome (observed, verified
   closure, gap, censored disappearance, end of sample), and `CORE_ViewBuild`
   gives the rows known at a forecast origin with later close dates masked.
+  The view exists only after an accepted import (no finding, no `E12`) and
+  keeps to the data window.
   `DATA-PIT-01` and `DATA-PIT-02` now run in VBA: the hand-assigned outcomes
   and visible closures, and a leakage test showing that changing everything
   learned after an origin leaves the view at that origin unchanged. Not run

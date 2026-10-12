@@ -20,9 +20,11 @@ Attribute VB_Name = "CORE_Import"
 '                                  returns the number of E12 findings.
 '                                  It also assigns the transition outcome of
 '                                  every observed month (CORE_Outcome*).
-'   CORE_ViewBuild origin          point-in-time view at a forecast origin:
-'                                  accepted rows dated on or before it, with
-'                                  any close_date after it masked (CORE_View*).
+'   CORE_ViewBuild origin          point-in-time view at a forecast origin
+'                                  inside the window, after an accepted import
+'                                  (no finding, no E12): rows of the window
+'                                  dated on or before it, with any close_date
+'                                  after it masked (CORE_View*).
 '   Results are read through the CORE_Account*, CORE_Warning*, CORE_Total*,
 '   CORE_MissingExtract*, CORE_Outcome* and CORE_View* accessors (1-based, in
 '   the contract's order).
@@ -100,6 +102,8 @@ Private mAccounts As Long
 
 ' Summary state.
 Private mSummarized As Boolean
+Private mWindowFirst As Date
+Private mWindowLast As Date
 Private mWarnCode() As String
 Private mWarnAccount() As String
 Private mWarnDate() As String
@@ -424,6 +428,8 @@ Public Function CORE_AccountsSummarize(ByVal firstMonthEnd As Date, ByVal lastMo
         keys(j) = mTotDate(j) & vbTab & mTotSegment(j) & vbTab & mTotCurrency(j)
     Next j
     SortOrder keys, mTotCount, mTotOrder
+    mWindowFirst = firstMonthEnd
+    mWindowLast = lastMonthEnd
     mSummarized = True
     CORE_AccountsSummarize = mGapCount
 End Function
@@ -524,20 +530,28 @@ End Function
 
 
 '------------------------------------------------------------------------------
-' CORE_ViewBuild: the point-in-time view at a forecast origin (a month end):
-' accepted rows dated on or before the origin, ordered by account then date.
-' Returns the number of rows. Every predictor, backtest and forecast at the
-' origin may use only this view.
+' CORE_ViewBuild: the point-in-time view at a forecast origin (a month end
+' inside the data window): the rows of the window dated on or before the
+' origin, ordered by account then date. Returns the number of rows. Every
+' predictor, backtest and forecast at the origin may use only this view.
+' The import is all-or-nothing, so the view exists only after an import with
+' no finding and a summary with no missing extract; otherwise error 5.
 '------------------------------------------------------------------------------
 Public Function CORE_ViewBuild(ByVal origin As Date) As Long
     Dim keys() As String, order() As Long, candidates() As Long, i As Long, n As Long
     RequireState mState, STATE_ENDED, "CORE_Import.CORE_ViewBuild"
-    If Not CORE_IsMonthEnd(origin) Then
-        Err.Raise 5, "CORE_Import.CORE_ViewBuild", "The forecast origin must be a month end."
+    If mFindCount > 0 Or Not mSummarized Then
+        Err.Raise 5, "CORE_Import.CORE_ViewBuild", "No view: the import has findings or no data window."
+    End If
+    If mGapCount > 0 Then
+        Err.Raise 5, "CORE_Import.CORE_ViewBuild", "No view: a month end of the window has no rows (E12)."
+    End If
+    If Not CORE_IsMonthEnd(origin) Or origin < mWindowFirst Or origin > mWindowLast Then
+        Err.Raise 5, "CORE_Import.CORE_ViewBuild", "The forecast origin must be a month end inside the data window."
     End If
     ReDim candidates(1 To mRowCount + 1)
     For i = 1 To mRowCount
-        If mRowAccepted(i) And mRowAsOf(i) <= origin Then
+        If mRowAccepted(i) And mRowAsOf(i) >= mWindowFirst And mRowAsOf(i) <= origin Then
             n = n + 1
             candidates(n) = i
         End If

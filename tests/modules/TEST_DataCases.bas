@@ -129,6 +129,7 @@ Private Sub CasePitLeakage()
     CheckNoLookAhead C, "availability.csv", "availability_outcomes.window"
     CheckNoLookAhead C, "accounts.csv", "accounts_summary.window"
     ExpectMissingExtract C, "availability.csv", "2025-03-31"
+    CheckViewScope C
 End Sub
 
 
@@ -204,6 +205,7 @@ Private Sub CheckNoLookAhead(ByVal caseId As String, ByVal fixture As String, By
     Do
         label = fixture & " at " & IsoText(origin)
         ImportAccounts source
+        CORE_AccountsSummarize IsoDate(window(1)), last
         n = CORE_ViewBuild(origin)
         before = ViewText()
         TEST_AssertTrue caseId, label & ": view not empty", n > 0
@@ -214,6 +216,7 @@ Private Sub CheckNoLookAhead(ByVal caseId As String, ByVal fixture As String, By
                                               Join(altered, "|") <> Join(source, "|")
         ImportAccounts altered
         TEST_AssertText caseId, label & ": altered panel findings", AccountFindingText(), ""
+        CORE_AccountsSummarize IsoDate(window(1)), last
         CORE_ViewBuild origin
         after = ViewText()
         TEST_AssertText caseId, label & ": view unchanged", after, before
@@ -221,6 +224,35 @@ Private Sub CheckNoLookAhead(ByVal caseId As String, ByVal fixture As String, By
         origin = IsoDate(NextMonthEndText(IsoText(origin)))
     Loop
 End Sub
+
+
+' The view needs an accepted import and keeps to the data window: refused after
+' a finding or a missing extract, and rows before the window are not in it.
+Private Sub CheckViewScope(ByVal caseId As String)
+    Const HEADER As String = "as_of_date,account_id,segment,currency,balance,customer_rate,indexed,open_date,close_date"
+    ImportAccounts Split(HEADER & "|2025-01-31,V001,RET_TX,EUR,1.00,,0,,|2025-02-28,V001,RET_TX,EUR,-1.00,,0,,", "|")
+    CORE_AccountsSummarize DateSerial(2025, 1, 31), DateSerial(2025, 1, 31)
+    TEST_AssertText caseId, "view after a finding", CStr(ViewError(DateSerial(2025, 1, 31))), "5"
+
+    ImportAccounts Split(HEADER & "|2025-01-31,V001,RET_TX,EUR,1.00,,0,,|2025-03-31,V001,RET_TX,EUR,1.00,,0,,", "|")
+    CORE_AccountsSummarize DateSerial(2025, 1, 31), DateSerial(2025, 3, 31)
+    TEST_AssertText caseId, "view after a missing extract", CStr(ViewError(DateSerial(2025, 3, 31))), "5"
+
+    ImportAccounts Split(HEADER & "|2024-12-31,V001,RET_TX,EUR,1.00,,0,,|2025-01-31,V001,RET_TX,EUR,1.00,,0,,", "|")
+    CORE_AccountsSummarize DateSerial(2025, 1, 31), DateSerial(2025, 1, 31)
+    TEST_AssertText caseId, "view of a window with an earlier row", CStr(CORE_ViewBuild(DateSerial(2025, 1, 31))), "1"
+    TEST_AssertText caseId, "view origin after the window", CStr(ViewError(DateSerial(2025, 2, 28))), "5"
+End Sub
+
+
+' Error number raised by CORE_ViewBuild at the origin, or 0.
+Private Function ViewError(ByVal origin As Date) As Long
+    On Error GoTo Failed
+    CORE_ViewBuild origin
+    Exit Function
+Failed:
+    ViewError = Err.Number
+End Function
 
 
 ' The panel with everything after originText changed: later rows of accounts

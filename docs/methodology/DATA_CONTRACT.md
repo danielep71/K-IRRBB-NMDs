@@ -245,7 +245,8 @@ row's `as_of_date`.
 The **point-in-time view at a forecast origin** $t$ is what every predictor,
 backtest and forecast at $t$ may use:
 
-1. only rows with `as_of_date` $\le t$;
+1. only rows of an accepted import (no error, including `E12`) inside the data
+   window with `as_of_date` $\le t$, for an origin $t$ inside the window;
 2. on those rows, `close_date` is shown only if it is $\le t$; a later
    `close_date` is **masked** (treated as empty) in the view.
 
