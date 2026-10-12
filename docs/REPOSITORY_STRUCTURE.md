@@ -194,7 +194,7 @@ dictionary is fixed in issue #4; the boundary rules below hold regardless.
 | --- | --- | --- |
 | Interest rates and spreads | Decimal per annum (`0.0125` = 1.25 %) | Workbook adapter, when a sheet shows percent or basis points |
 | Rate shocks | Decimal, signed: positive = rates up | Workbook adapter |
-| Dates | VBA `Date` values, observation dates at month end | Workbook adapter; the core never parses date strings |
+| Dates | VBA `Date` values, observation dates at month end | Workbook adapter; the core parses only the ISO dates of the data files (`CORE_Parse`), never locale-dependent text |
 | Balances | Currency units as `Double`, with the ISO currency code carried alongside | No FX conversion in the core |
 | Shares and probabilities | Decimal in `[0, 1]` | Workbook adapter, when shown as percent |
 | Horizons and maturities | Whole months | Workbook adapter, for other display units |

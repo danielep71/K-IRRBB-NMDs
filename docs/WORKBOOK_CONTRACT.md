@@ -38,7 +38,7 @@ no function.
 | `Readme` | `shReadme` | Documentation | Builder | Implemented: sheet map and build stamp |
 | `Config` | `shConfig` | Input | User | Input area defined; read by the data importer (v0.2.0, not built) |
 | `Segments` | `shSegments` | Input | User | Input area defined; read by the data importer (v0.2.0, not built) |
-| `DataSummary` | `shDataSummary` | Output | VBA | Placeholder: import summary and lineage (v0.2.0, not built) |
+| `DataSummary` | `shDataSummary` | Output | VBA | Implemented: import totals, findings, warnings and lineage (#71; lineage fingerprint pending) |
 | `ModelParams` | `shModelParams` | Output | VBA | Placeholder: parameter sets (v0.3.0 to v0.5.0) |
 | `Calibration` | `shCalibration` | Output | VBA | Placeholder: estimation diagnostics (v0.3.0 to v0.5.0) |
 | `Backtesting` | `shBacktesting` | Output | VBA | Placeholder: out-of-sample backtests (v0.6.0) |
@@ -70,6 +70,11 @@ addresses, so a layout change is one change here and in the generator.
 | `Config_ClosureAttested` | `Config!$B$11` | User | `Yes` when closures are reported by the month end in which they occur |
 | `Segments_Codes` | `Segments!$A$6:$A$8` | Contract | The segment codes of the data contract |
 | `Segments_Include` | `Segments!$C$6:$C$8` | User | `Yes` or `No` per segment |
+| `DataSummary_Info` | `DataSummary!$B$4:$B$12` | VBA | Run information: start, finish, file names, window, rate series, attestation, primary and cleanup error |
+| `DataSummary_Totals` | `DataSummary!$A$14:$E$20013` | VBA | Accounts and balance per date, segment and currency; only for an accepted import |
+| `DataSummary_Findings` | `DataSummary!$G$14:$J$20013` | VBA | Errors of the last import: file, line, code, month end (`E12`) |
+| `DataSummary_Warnings` | `DataSummary!$L$14:$N$20013` | VBA | Warnings `W01`–`W06`: code, account, month end |
+| `DataSummary_Lineage` | `DataSummary!$P$14:$Q$63` | VBA | Lineage items and values |
 | `Checks_Cases` | `Checks!$A$14:$F$514` | VBA | Harness case table |
 | `Checks_Assertions` | `Checks!$H$14:$N$20014` | VBA | Harness assertion table |
 | `<Sheet>_Status` | `<Sheet>!$B$3` | VBA | Run status of each output sheet: `DataSummary`, `ModelParams`, `Calibration`, `Backtesting`, `Scenarios`, `Results`, `Checks` |
@@ -96,6 +101,7 @@ beginning `COMPLETE` marks that sheet's results as current.**
 | `COMPLETE - ...` | The run finished; the results are current | Green |
 | `COMPLETE - FAILURES` | The run finished and found failures (harness) | Red |
 | `FAILED` | The run stopped; partial results, if any, are not current | Red |
+| `FAILED - IMPORT REJECTED` | The data files break the contract; findings are listed, no totals | Red |
 
 A run that writes a sheet:
 
@@ -106,8 +112,10 @@ A run that writes a sheet:
    cleanup error, never one in place of the other.
 
 Invalid input therefore leaves no earlier result looking current. The harness
-follows this protocol on `Checks` (#8); each later writer adopts it with the
-function that writes its sheet.
+follows this protocol on `Checks` (#8) and the import on `DataSummary`
+(`WB_ImportData`, #71); each later writer adopts it with the function that
+writes its sheet. A table longer than its named area is cut at the area's
+last row and the cut is stated in the status block.
 
 <a id="rules"></a>
 

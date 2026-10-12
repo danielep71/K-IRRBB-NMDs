@@ -31,6 +31,9 @@ from vba_project import Module, build_vba_project, document_module  # noqa: E402
 ROOT = Path(__file__).resolve().parents[2]
 COMPONENT_DIRS = ["src/core", "src/modules", "src/workbook", "tests/modules", "examples/modules"]
 BUTTONS = {
+    "Config": [("Choose account file", "WB_ChooseAccountsFile", 0, 13, "1F3A5F"),
+               ("Choose rate file", "WB_ChooseRatesFile", 0, 16, "1F3A5F"),
+               ("Import data", "WB_ImportData", 0, 19, "2E7D7A")],
     "Checks": [("Run tests", "RunTests", 1, 3, "2E7D7A")],
 }
 EVIDENCE_STEPS = [

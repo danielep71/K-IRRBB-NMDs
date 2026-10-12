@@ -62,7 +62,8 @@ SHEETS = [
     Sheet("Segments", "shSegments", "Input", "User",
           "Input area defined; read by the data importer (v0.2.0, not built)",
           "Segments", "Segments of the data contract; choose which ones a run includes."),
-    Sheet("DataSummary", "shDataSummary", "Output", "VBA", "Placeholder: import summary and lineage (v0.2.0, not built)",
+    Sheet("DataSummary", "shDataSummary", "Output", "VBA",
+          "Implemented: import totals, findings, warnings and lineage (#71; lineage fingerprint pending)",
           "Data summary", "Import counts, reconciliation, warnings and lineage of the loaded data."),
     Sheet("ModelParams", "shModelParams", "Output", "VBA", "Placeholder: parameter sets (v0.3.0 to v0.5.0)",
           "Model parameters", "Versioned parameter sets of the decay, rate and stable-amount models."),
@@ -89,6 +90,11 @@ NAMES = {
     "Config_ClosureAttested": ("Config", "$B$11"),
     "Segments_Codes": ("Segments", "$A$6:$A$8"),
     "Segments_Include": ("Segments", "$C$6:$C$8"),
+    "DataSummary_Info": ("DataSummary", "$B$4:$B$12"),
+    "DataSummary_Totals": ("DataSummary", "$A$14:$E$20013"),
+    "DataSummary_Findings": ("DataSummary", "$G$14:$J$20013"),
+    "DataSummary_Warnings": ("DataSummary", "$L$14:$N$20013"),
+    "DataSummary_Lineage": ("DataSummary", "$P$14:$Q$63"),
     "Checks_Cases": ("Checks", "$A$14:$F$514"),
     "Checks_Assertions": ("Checks", "$H$14:$N$20014"),
     **{f"{s.name}_Status": (s.name, "$B$3") for s in SHEETS if s.role == "Output"},
@@ -164,6 +170,24 @@ def _layout() -> None:
         segments.cells[f"B{row}"] = (description, TEXT)
         segments.cells[f"C{row}"] = ("Yes", INPUT)
     segments.widths = {"A": 12, "B": 40, "C": 10}
+
+    summary = sheets["DataSummary"]
+    for row, label in enumerate(["Status", "Started", "Finished", "Account panel file", "Market-rate file",
+                                 "Data window", "Rate series", "Closures attested", "Primary error",
+                                 "Cleanup error"], 3):
+        summary.cells[f"A{row}"] = (label, LABEL)
+        if row > 3:
+            summary.cells[f"B{row}"] = ("", STATUS_TIME if row in (4, 5) else STATUS)
+    for col, text in zip("ABCDE", ("Date", "Segment", "Currency", "Accounts", "Balance")):
+        summary.cells[f"{col}13"] = (text, HEADER)
+    for col, text in zip("GHIJ", ("File", "Line", "Code", "Date")):
+        summary.cells[f"{col}13"] = (text, HEADER)
+    for col, text in zip("LMN", ("Code", "Account", "Date")):
+        summary.cells[f"{col}13"] = (text, HEADER)
+    for col, text in zip("PQ", ("Item", "Value")):
+        summary.cells[f"{col}13"] = (text, HEADER)
+    summary.widths = dict(zip("ABCDEFGHIJKLMNOPQ", (26, 40, 10, 10, 16, 3, 22, 8, 7, 12, 3, 7, 14, 12, 3, 30, 22)))
+    summary.freeze_row = 13
 
     checks = sheets["Checks"]
     checks.cells["B3"] = ("NOT RUN", STATUS)
