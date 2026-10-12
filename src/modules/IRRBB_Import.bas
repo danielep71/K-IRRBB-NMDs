@@ -26,8 +26,8 @@ Attribute VB_Name = "IRRBB_Import"
 '
 ' ERRORS
 '   Error 5 for invalid settings (window not two month ends in order, empty
-'   path, closure reporting not attested, no commit stamp, rate series not in
-'   the file);
+'   path, closure reporting not attested, no commit stamp, no or an unknown or
+'   repeated segment selected, rate series not in the file);
 '   error 53 when a file does not exist; file-system errors pass through.
 '==============================================================================
 Option Explicit
@@ -50,6 +50,7 @@ Private mLastMonthEnd As Date
 Private mRateSeriesSetting As String
 Private mAttested As Boolean
 Private mToolkitCommit As String
+Private mSegments As String
 Private mImportTime As Date
 Private mAccountsSha As String
 Private mRatesSha As String
@@ -62,6 +63,12 @@ Private mRatesSha As String
 '   firstMonthEnd    [in]  first month end of the data window
 '   lastMonthEnd     [in]  last month end of the data window
 '   rateSeries       [in]  rate_id the rate model uses; "" when none is chosen
+'   includedSegments [in]  segment codes selected for the run, comma-separated
+'                          (e.g. "RET_TX,WHS_NFC"); at least one, no repeats.
+'                          The import still validates and reconciles every
+'                          segment; the list is recorded in the lineage and
+'                          decides which transitions enter model samples
+'                          (DATA_CONTRACT.md, segment selection)
 '   closuresAttested [in]  True when the user attests that closures are reported
 '                          by the month end in which they occur (timely closure
 '                          reporting); the import refuses to run otherwise
@@ -73,8 +80,8 @@ Private mRatesSha As String
 '------------------------------------------------------------------------------
 Public Function IRRBB_ImportData(ByVal accountsPath As String, ByVal ratesPath As String, _
                                  ByVal firstMonthEnd As Date, ByVal lastMonthEnd As Date, _
-                                 ByVal rateSeries As String, ByVal closuresAttested As Boolean, _
-                                 ByVal toolkitCommit As String) As Long
+                                 ByVal rateSeries As String, ByVal includedSegments As String, _
+                                 ByVal closuresAttested As Boolean, ByVal toolkitCommit As String) As Long
     mImported = False
     mAccepted = False
     If Not closuresAttested Then
@@ -84,6 +91,7 @@ Public Function IRRBB_ImportData(ByVal accountsPath As String, ByVal ratesPath A
         Err.Raise 5, SOURCE, "The workbook has no source commit stamp (Readme_SourceCommit): build it with " & _
                   "tools/devbuild, or enter the 40-digit commit of the imported source."
     End If
+    RequireSegmentList includedSegments
     If Len(accountsPath) = 0 Or Len(ratesPath) = 0 Then
         Err.Raise 5, SOURCE, "Both the account panel file and the market-rate file are required."
     End If
@@ -99,6 +107,7 @@ Public Function IRRBB_ImportData(ByVal accountsPath As String, ByVal ratesPath A
     mRateSeriesSetting = rateSeries
     mAttested = closuresAttested
     mToolkitCommit = toolkitCommit
+    mSegments = includedSegments
     mImportTime = Now
     mAccountsFile = FileNameOf(accountsPath)
     mRatesFile = FileNameOf(ratesPath)
@@ -193,7 +202,7 @@ End Function
 ' IRRBB_ImportLineage: (0 To n, 1 To 2) Item, Value: file names (no directory)
 ' and sizes in bytes, rows read and accepted, rows outside the window (W06),
 ' accounts, warnings by code, market-rate rows read, the run settings (data
-' window, rate series, attestation), the SHA-256 of each file's bytes, the
+' window, rate series, selected segments, attestation), the SHA-256 of each file's bytes, the
 ' toolkit commit and the local import time (DATA_CONTRACT.md, lineage).
 '------------------------------------------------------------------------------
 Public Function IRRBB_ImportLineage() As Variant
@@ -207,7 +216,7 @@ Public Function IRRBB_ImportLineage() As Variant
             Next k
         Next i
     End If
-    ReDim out(0 To 22, 1 To 2)
+    ReDim out(0 To 23, 1 To 2)
     out(0, 1) = "Item": out(0, 2) = "Value"
     out(1, 1) = "Account panel file": out(1, 2) = mAccountsFile
     out(2, 1) = "Account panel bytes": out(2, 2) = mAccountsBytes
@@ -229,6 +238,7 @@ Public Function IRRBB_ImportLineage() As Variant
     out(20, 1) = "Market-rate SHA-256": out(20, 2) = mRatesSha
     out(21, 1) = "Toolkit commit": out(21, 2) = mToolkitCommit
     out(22, 1) = "Import time (local; UTC offset not recorded)": out(22, 2) = Format$(mImportTime, "yyyy-mm-dd hh:nn:ss")
+    out(23, 1) = "Segments selected": out(23, 2) = mSegments
     IRRBB_ImportLineage = out
 End Function
 
@@ -328,6 +338,22 @@ End Sub
 
 Private Sub RequireImport()
     If Not mImported Then Err.Raise 5, "IRRBB_Import", "No import has completed."
+End Sub
+
+
+' A comma-separated list of known segment codes, at least one, none repeated.
+Private Sub RequireSegmentList(ByVal list As String)
+    Dim codes() As String, i As Long, j As Long
+    If Len(list) = 0 Then Err.Raise 5, SOURCE, "No segment is selected for the run."
+    codes = Split(list, ",")
+    For i = LBound(codes) To UBound(codes)
+        If Not CORE_IsSegmentCode(codes(i)) Then
+            Err.Raise 5, SOURCE, "Unknown segment in the selection: " & codes(i) & "."
+        End If
+        For j = LBound(codes) To i - 1
+            If codes(j) = codes(i) Then Err.Raise 5, SOURCE, "Segment selected twice: " & codes(i) & "."
+        Next j
+    Next i
 End Sub
 
 

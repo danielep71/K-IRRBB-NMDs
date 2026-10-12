@@ -209,6 +209,24 @@ class ProjectStorage(unittest.TestCase):
         self.assertNotEqual(first, vba_project.build_vba_project(sample_modules(), "{" + "1" * 8 + "-0000-0000-0000-" + "0" * 12 + "}"))
 
 
+class LargePanel(unittest.TestCase):
+    def test_generated_panel_follows_the_contract(self) -> None:
+        import tempfile
+        import make_large_panel
+        sys.path.insert(0, str(ROOT / "tools"))
+        import test_data_contract as reference
+        with tempfile.TemporaryDirectory() as directory:
+            panel, rates, first, last = make_large_panel.write(40, 3, Path(directory))
+            again = make_large_panel.write(40, 3, Path(directory) / "again")
+            rows, errors = reference.read_accounts(panel)
+            self.assertEqual(errors, [])
+            self.assertEqual(len(rows), 120)
+            self.assertEqual(reference.read_market_rates(rates), [])
+            self.assertEqual(reference.missing_extracts(rows, reference.parse_date(first),
+                                                        reference.parse_date(last)), [])
+            self.assertEqual(panel.read_bytes(), again[0].read_bytes())
+
+
 class DevelopmentWorkbook(unittest.TestCase):
     def test_workbook_embeds_every_component(self) -> None:
         import tempfile

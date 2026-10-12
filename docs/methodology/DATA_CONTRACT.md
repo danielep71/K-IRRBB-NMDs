@@ -135,6 +135,13 @@ segment changes between months is a **migration** (warning `W03`): each month
 counts in the segment stated for that month, and the model specification
 (issue #9) decides how a transition across segments enters estimation.
 
+**Segment selection.** A run selects the segments it models (the segment
+list of the [lineage](#lineage)). The import still validates and reconciles
+every segment, so leaving a segment out never turns a migration into a gap or
+a disappearance. The selection applies when a model builds its sample: a
+transition enters only when the segment stated at its origin month is
+selected.
+
 <a id="reconciliation"></a>
 
 ## ⚖️ Reconciliation
@@ -213,7 +220,8 @@ month end $t+1$. Its **outcome** is the first of these that applies:
 - A **migration** (`W03`) does not change the outcome: the transition belongs to
   the segment stated at $t$, which is known at $t$.
 - **Eligibility:** a transition enters an account-level estimation sample only
-  with outcome *observed* or *verified closure*. Model-specific conditions (for
+  with outcome *observed* or *verified closure*, and only when the segment at
+  its origin is [selected](#segmentation) for the run. Model-specific conditions (for
   example a positive balance at $t$) are set in
   [`MODEL_CONTRACTS.md`](MODEL_CONTRACTS.md).
 - **Lineage** records, per month end, segment and currency, the number of
@@ -286,8 +294,9 @@ Reading a user-selected input file is a file-system access that
 issue: read-only, the file the user picks, nothing written next to it. This
 issue (#4) is that agreement; `SECURITY.md` is updated in the same change as
 the importer.
-Memory use and import time for large panels are measured when the importer
-exists; nothing about performance is claimed here.
+Memory use and import time for large panels are measured with the importer
+and the synthetic panel of `tools/devbuild/make_large_panel.py`; nothing about
+performance is claimed here.
 
 <a id="lineage"></a>
 

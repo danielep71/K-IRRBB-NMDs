@@ -70,7 +70,7 @@ addresses, so a layout change is one change here and in the generator.
 | `Config_RateSeries` | `Config!$B$10` | User | `rate_id` of the market rate series used by the rate model |
 | `Config_ClosureAttested` | `Config!$B$11` | User | `Yes` when closures are reported by the month end in which they occur |
 | `Segments_Codes` | `Segments!$A$6:$A$8` | Contract | The segment codes of the data contract |
-| `Segments_Include` | `Segments!$C$6:$C$8` | User | `Yes` or `No` per segment |
+| `Segments_Include` | `Segments!$C$6:$C$8` | User | `Yes` or `No` per segment: the run's segment list (lineage) and the segments model samples use; every segment is still imported |
 | `DataSummary_Info` | `DataSummary!$B$4:$B$12` | VBA | Run information: start, finish, file names, window, rate series, attestation, primary and cleanup error |
 | `DataSummary_Totals` | `DataSummary!$A$14:$E$20013` | VBA | Accounts and balance per date, segment and currency; only for an accepted import |
 | `DataSummary_Findings` | `DataSummary!$G$14:$J$20013` | VBA | Errors of the last import: file, line, code, month end (`E12`) |
