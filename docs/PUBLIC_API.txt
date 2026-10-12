@@ -1,3 +1,14 @@
-# Supported public VBA API declarations.
-# Only src/modules/ may declare published IRRBB_* entry points.
-# At v0.1.0 there is no implemented public API.
+# Supported public VBA API declarations: <component><TAB><kind><TAB><name>,
+# each followed by its normalized signature. Only src/modules/ may declare
+# published IRRBB_* entry points; a change here is a public API change.
+
+IRRBB_Import	Function	IRRBB_ImportData
+# SIG	IRRBB_Import	Function	IRRBB_ImportData	Public Function IRRBB_ImportData(ByVal accountsPath As String, ByVal ratesPath As String, ByVal firstMonthEnd As Date, ByVal lastMonthEnd As Date, ByVal rateSeries As String, ByVal closuresAttested As Boolean) As Long
+IRRBB_Import	Function	IRRBB_ImportTotals
+# SIG	IRRBB_Import	Function	IRRBB_ImportTotals	Public Function IRRBB_ImportTotals() As Variant
+IRRBB_Import	Function	IRRBB_ImportFindings
+# SIG	IRRBB_Import	Function	IRRBB_ImportFindings	Public Function IRRBB_ImportFindings() As Variant
+IRRBB_Import	Function	IRRBB_ImportWarnings
+# SIG	IRRBB_Import	Function	IRRBB_ImportWarnings	Public Function IRRBB_ImportWarnings() As Variant
+IRRBB_Import	Function	IRRBB_ImportLineage
+# SIG	IRRBB_Import	Function	IRRBB_ImportLineage	Public Function IRRBB_ImportLineage() As Variant

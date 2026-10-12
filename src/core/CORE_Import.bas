@@ -319,6 +319,12 @@ Public Function CORE_AccountCount() As Long
 End Function
 
 
+' Data lines given to CORE_AccountsAddLine since the last CORE_AccountsBegin.
+Public Function CORE_AccountLinesRead() As Long
+    CORE_AccountLinesRead = mLine - 1
+End Function
+
+
 '------------------------------------------------------------------------------
 ' CORE_AccountsSummarize: warnings, totals and missing extracts of the accepted
 ' rows for the data window firstMonthEnd..lastMonthEnd (both month ends).
@@ -700,6 +706,22 @@ Public Function CORE_RatesEnd() As Long
     RequireState mRateState, STATE_READING, "CORE_Import.CORE_RatesEnd"
     mRateState = STATE_ENDED
     CORE_RatesEnd = mRateFindCount
+End Function
+
+
+' Data lines given to CORE_RatesAddLine since the last CORE_RatesBegin.
+Public Function CORE_RateLinesRead() As Long
+    CORE_RateLinesRead = mRateLine - 1
+End Function
+
+
+'------------------------------------------------------------------------------
+' CORE_RateSeriesExists: True when an accepted market-rate row has this
+' rate_id (exact, case-sensitive).
+'------------------------------------------------------------------------------
+Public Function CORE_RateSeriesExists(ByVal rateId As String) As Boolean
+    If mRateSeries Is Nothing Then Exit Function
+    CORE_RateSeriesExists = HasKey(mRateSeries, CaseKey(rateId))
 End Function
 
 

@@ -333,7 +333,9 @@ origin leaves every predictor at that origin unchanged, and dropping a month
 end from the window gives `E12`. The VBA import core (`CORE_Import`, #71)
 reproduces the same expected files in `DATA-VALID-01`, `DATA-INVALID-01` and
 `DATA-PIT-01`, and runs the leakage test in `DATA-PIT-02` on its own
-point-in-time view; file input and lineage follow in later stages of #71.
+point-in-time view. `IRRBB_ImportData` reads the files and `DataSummary`
+shows the result (`DATA-IMPORT-01`); the lineage lacks only the SHA-256
+fingerprint and the toolkit commit, which follow in #71 stage 4.
 
 <a id="decisions"></a>
 

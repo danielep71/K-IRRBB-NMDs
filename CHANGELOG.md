@@ -99,6 +99,15 @@ Use only the categories needed by a release.
 
 ### Added
 
+- Import from files (#71, stage 3): `IRRBB_ImportData`, the first public
+  entry point, reads the account panel and market-rate CSV files (read only,
+  streamed in 64 KB chunks, LF or CRLF), refuses to run without the timely
+  closure reporting attestation, and returns totals, findings, warnings and
+  lineage as tables. **Import data** on `Config` writes them to `DataSummary`
+  under the status protocol: earlier results withdrawn first, totals only
+  for an accepted import, primary and cleanup errors kept. Excluding a
+  segment is refused until its meaning is defined. `DATA-IMPORT-01` runs it
+  end to end. `SECURITY.md` records the file access. Not run in Excel.
 - Transition outcomes and point-in-time view (#71, stage 2): the import
   summary assigns every observed month its outcome (observed, verified
   closure, gap, censored disappearance, end of sample), and `CORE_ViewBuild`
