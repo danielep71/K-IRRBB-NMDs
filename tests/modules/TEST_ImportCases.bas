@@ -61,6 +61,12 @@ Private Sub CaseImport()
                     LineageValue("Data window end"), window(1) & "|" & window(2)
     TEST_AssertText C, "LF files: settings in lineage", LineageValue("Rate series") & "|" & _
                     LineageValue("Closures reported by the month end (attested)"), "EUR_1M|Yes"
+    TEST_AssertText C, "LF files: account panel SHA-256", LineageValue("Account panel SHA-256"), _
+                    FirstExpected("sha256.accounts.csv")
+    TEST_AssertText C, "LF files: market-rate SHA-256", LineageValue("Market-rate SHA-256"), _
+                    FirstExpected("sha256.market_rates.csv")
+    TEST_AssertText C, "LF files: toolkit commit", LineageValue("Toolkit commit"), _
+                    CStr(NamedRange("Readme_SourceCommit").Value)
     TEST_AssertText C, "LF files: file name only", CellText("DataSummary_Info", 3, 1), "irrbb_accounts.csv"
 
     ' The same files with CRLF endings give the same result.
@@ -69,6 +75,8 @@ Private Sub CaseImport()
     RunImport accounts, rates, window(1), window(2), "", "Yes"
     TEST_AssertText C, "CRLF files: status", StatusText(), ACCEPTED
     CheckTotals C, "CRLF files"
+    TEST_AssertTrue C, "CRLF files: other bytes, other fingerprint", _
+                    LineageValue("Account panel SHA-256") <> FirstExpected("sha256.accounts.csv")
 
     ' Rejected panel: findings listed, earlier totals withdrawn, no new totals.
     NamedRange("DataSummary_Totals").Cells(1, 1).Value = "STALE"
@@ -90,6 +98,10 @@ Private Sub CaseImport()
     NamedRange("Segments_Include").Cells(2, 1).Value = "Yes"
     RunImport accounts, rates, window(1), window(2), "GBP_1M", "Yes"
     TEST_AssertTrue C, "unknown rate series: reason", InStr(1, CellText("DataSummary_Info", 8, 1), "GBP_1M") > 0
+    NamedRange("Readme_SourceCommit").Value = "None: template without a VBA project"
+    RunImport accounts, rates, window(1), window(2), "", "Yes"
+    TEST_AssertTrue C, "no commit stamp: refused", InStr(1, CellText("DataSummary_Info", 8, 1), "commit stamp") > 0
+    NamedRange("Readme_SourceCommit").Value = mSaved.Item(1)
 
     ' File reading: more than one 64 KB chunk without a final line ending; a
     ' byte outside ASCII; an empty file.
@@ -188,6 +200,13 @@ Private Function FindingText() As String
 End Function
 
 
+Private Function FirstExpected(ByVal name As String) As String
+    Dim lines As Variant
+    lines = TEST_ExpectedLines(name)
+    FirstExpected = lines(LBound(lines))
+End Function
+
+
 Private Function JoinExpected(ByVal name As String) As String
     Dim lines As Variant, i As Long, text As String
     lines = TEST_ExpectedLines(name)
@@ -262,9 +281,11 @@ Private Function TempFolder() As String
 End Function
 
 
+' Item 1 is the build stamp; the settings follow.
 Private Sub SaveSettings()
     Dim cell As Range
     Set mSaved = New Collection
+    mSaved.Add NamedRange("Readme_SourceCommit").Value
     For Each cell In SettingCells()
         mSaved.Add cell.Value
     Next cell
@@ -273,6 +294,8 @@ End Sub
 
 Private Sub RestoreSettings()
     Dim cell As Range, i As Long
+    NamedRange("Readme_SourceCommit").Value = mSaved.Item(1)
+    i = 1
     For Each cell In SettingCells()
         i = i + 1
         cell.Value = mSaved.Item(i)

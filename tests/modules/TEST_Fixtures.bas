@@ -41,6 +41,8 @@ Public Function TEST_ExpectedLines(ByVal name As String) As Variant
         Case "availability_outcomes.warnings": TEST_ExpectedLines = Data_AvailabilityOutcomesWarnings()
         Case "availability_outcomes.visible": TEST_ExpectedLines = Data_AvailabilityOutcomesVisible()
         Case "availability_outcomes.origins": TEST_ExpectedLines = Data_AvailabilityOutcomesOrigins()
+        Case "sha256.accounts.csv": TEST_ExpectedLines = Data_Sha256AccountsCsv()
+        Case "sha256.market_rates.csv": TEST_ExpectedLines = Data_Sha256MarketRatesCsv()
         Case Else
             Err.Raise 5, "TEST_Fixtures.TEST_ExpectedLines", "No fixture data named " & name & "."
     End Select
@@ -350,4 +352,18 @@ Private Function Data_AvailabilityOutcomesOrigins() As Variant
     a(5) = "2025-05-31"
     a(6) = "2025-06-30"
     Data_AvailabilityOutcomesOrigins = a
+End Function
+
+
+Private Function Data_Sha256AccountsCsv() As Variant
+    Dim a(1 To 1) As String
+    a(1) = "fa1382f858ba2555e05df992a1db457ec6edded56d871efaf05b56f706d71adc"
+    Data_Sha256AccountsCsv = a
+End Function
+
+
+Private Function Data_Sha256MarketRatesCsv() As Variant
+    Dim a(1 To 1) As String
+    a(1) = "5ae226a3acdba8e73e20a7d1cd142a9b37f148e4475a87522f26629bb7917520"
+    Data_Sha256MarketRatesCsv = a
 End Function

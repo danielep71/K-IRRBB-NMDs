@@ -42,7 +42,7 @@ parsing modules and the regression harness.
 | VBA source layout | Defined in [`docs/REPOSITORY_STRUCTURE.md`](docs/REPOSITORY_STRUCTURE.md) |
 | VBA conventions | Defined in [`docs/VBA_HOUSE_STYLE.md`](docs/VBA_HOUSE_STYLE.md) |
 | Static checks | Available: `python tools/check.py` |
-| VBA source | `src/core/`: CORE_Parse (dates, decimals, rates), CORE_Codes (segments, currency allowlist, identifiers) and CORE_Import (validation, summary, outcomes and point-in-time view of the data files); `src/modules/IRRBB_Import` (public import from files) and `src/workbook/WB_Import` (runs the import from `Config` into `DataSummary`), #71; no model yet |
+| VBA source | `src/core/`: CORE_Parse (dates, decimals, rates), CORE_Codes (segments, currency allowlist, identifiers), CORE_Sha256 (data fingerprint) and CORE_Import (validation, summary, outcomes and point-in-time view of the data files); `src/modules/IRRBB_Import` (public import from files) and `src/workbook/WB_Import` (runs the import from `Config` into `DataSummary`), #71; no model yet |
 | Workbook template | [`src/workbook/IRRBB_Template.xlsx`](src/workbook/IRRBB_Template.xlsx), macro-free, generated from source; layout in [`docs/WORKBOOK_CONTRACT.md`](docs/WORKBOOK_CONTRACT.md) (#5); not yet opened in Excel |
 | Regression harness | `tests/modules/` (#8): runs from a [development workbook](#development-workbook); no Excel run recorded yet |
 | Supported hosts and references | Decided in issue #3; see [supported hosts](#supported-hosts) |
@@ -187,11 +187,11 @@ LibreOffice early-warning run are in
 
 Use these steps when the builder cannot be used. Components at present:
 `src/core/CORE_Codes.bas`, `src/core/CORE_Parse.bas`,
-`src/core/CORE_Import.bas`, `src/modules/IRRBB_Import.bas`,
+`src/core/CORE_Import.bas`, `src/core/CORE_Sha256.bas`, `src/modules/IRRBB_Import.bas`,
 `src/workbook/WB_Import.bas`; development only: `tests/modules/TEST_Harness.bas`,
 `tests/modules/TEST_CoreCases.bas`, `tests/modules/TEST_WorkbookCases.bas`,
 `tests/modules/TEST_DataCases.bas`, `tests/modules/TEST_Fixtures.bas`,
-`tests/modules/TEST_ImportCases.bas`.
+`tests/modules/TEST_ImportCases.bas`, `tests/modules/TEST_HashCases.bas`.
 
 1. Start from **one exact commit** in a Git checkout, so `.bas`, `.cls` and
    `.frm` files have CRLF line endings. Never mix components from different
@@ -210,6 +210,9 @@ Use these steps when the builder cannot be used. Components at present:
 5. Paste document-module code (`ThisWorkbook`, sheet modules) into the existing
    module instead of importing it, which would create a duplicate class.
 6. Run **Debug → Compile VBAProject**; it must complete with no error.
+   Enter the 40-digit commit of the imported source in `Readme` cell `B5`
+   (`Readme_SourceCommit`); the data import refuses to run without it, since
+   the lineage must name the code version.
 7. Run the synthetic regression harness and the specific scenario under test,
    then record the result as described under
    [validation record](#validation-record).

@@ -20,6 +20,7 @@ Attribute VB_Name = "WB_Import"
 '   Config_WindowStart, Config_WindowEnd: month-end dates.
 '   Config_RateSeries: rate_id, may be empty.
 '   Config_ClosureAttested: "Yes" to attest timely closure reporting.
+'   Readme_SourceCommit: the build stamp, passed on as the toolkit commit.
 '   Segments_Include: every segment must be "Yes"; what excluding a segment
 '   means for an import is not yet defined (#71), so the run refuses.
 '==============================================================================
@@ -63,7 +64,8 @@ Public Sub WB_ImportData()
     Info INFO_SERIES, rateSeries
     Info INFO_ATTESTED, IIf(attested, "Yes", "No")
 
-    errors = IRRBB_ImportData(accountsPath, ratesPath, first, last, rateSeries, attested)
+    errors = IRRBB_ImportData(accountsPath, ratesPath, first, last, rateSeries, attested, _
+                              CStr(Setting("Readme_SourceCommit")))
 
     cut = WriteTable("DataSummary_Findings", IRRBB_ImportFindings(), Array(1, 3, 4))
     cut = WriteTable("DataSummary_Warnings", IRRBB_ImportWarnings(), Array(1, 2, 3)) Or cut
