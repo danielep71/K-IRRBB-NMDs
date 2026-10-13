@@ -29,7 +29,9 @@ model definitions are in [`README.md`](README.md); validation obligations in
 > [acceptance record](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/4#issuecomment-6068526038).
 > The point-in-time, closure and censoring amendment was decided by the owner
 > on 2026-10-09 in [#32](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/32)
-> ([decisions 6–8](#decisions)). Other audit amendments remain tracked in
+> ([decisions 6–8](#decisions)); the import time zone on 2026-10-13 in
+> [#71](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/71)
+> ([decision 9](#decisions)). Other audit amendments remain tracked in
 > [#26](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/26). Only synthetic data is ever
 > committed or attached. Real data is loaded locally
 > and never enters Git, issues or pull requests.
@@ -312,7 +314,7 @@ built from it:
 | Settings | Data window, segment list, rate series selected |
 | Attestation | Closure dates reported by the month end of the closure ([timely closure reporting](#look-ahead)) |
 | Code | Toolkit commit SHA |
-| Time | Import timestamp with UTC offset |
+| Time | Import timestamp in the host's local time, without UTC offset ([decision 9](#decisions)) |
 
 **Reproducibility:** the same file, settings and commit give the same dataset,
 the same findings in the same order and the same fingerprint, on any supported
@@ -345,15 +347,17 @@ reproduces the same expected files in `DATA-VALID-01`, `DATA-INVALID-01` and
 point-in-time view. `IRRBB_ImportData` reads the files and `DataSummary`
 shows the result (`DATA-IMPORT-01`), with the SHA-256 of each file computed by
 `CORE_Sha256` (`DATA-SHA-01`) and the toolkit commit in the lineage. The import
-time is recorded in local time: VBA has no time-zone function, and reading the
-UTC offset from the host needs a reviewed system call (`SECURITY.md`).
+time is recorded in local time ([decision 9](#decisions)): VBA has no time-zone
+function, and reading the UTC offset from the host would need a reviewed system
+call (`SECURITY.md`).
 
 <a id="decisions"></a>
 
 ## ✅ Decisions
 
 Decisions 1–5 were accepted by the owner on 2026-10-08 in issue #4;
-decisions 6–8 on 2026-10-09 in issue #32.
+decisions 6–8 on 2026-10-09 in issue #32; decision 9 on 2026-10-13 in
+issue #71.
 
 | # | Decision | Outcome |
 | ---: | --- | --- |
@@ -365,6 +369,7 @@ decisions 6–8 on 2026-10-09 in issue #32.
 | 6 | Back-filled `close_date` (#32, 2026-10-09) | Accepted as supplied; masked in the point-in-time view at origins before it; closures assumed reported by the month end in which they occur, attested per import |
 | 7 | Disappearance without a verified closure (#32, 2026-10-09) | Right-censored (`W05`), never cash-out |
 | 8 | Month end with no rows inside the window (#32, 2026-10-09) | Import rejected (`E12`) |
+| 9 | Import timestamp time zone (#71, 2026-10-13) | Host local time, without UTC offset; no system call is added to read it |
 
 ---
 
