@@ -38,7 +38,7 @@ no function.
 | `Readme` | `shReadme` | Documentation | Builder | Implemented: sheet map and build stamp |
 | `Config` | `shConfig` | Input | User | Input area defined; read by the data importer (v0.2.0, not built) |
 | `Segments` | `shSegments` | Input | User | Input area defined; read by the data importer (v0.2.0, not built) |
-| `DataSummary` | `shDataSummary` | Output | VBA | Implemented: import totals, findings, warnings and lineage (#71) |
+| `DataSummary` | `shDataSummary` | Output | VBA | Implemented: import totals, outcomes, findings, warnings and lineage (#71) |
 | `ModelParams` | `shModelParams` | Output | VBA | Placeholder: parameter sets (v0.3.0 to v0.5.0) |
 | `Calibration` | `shCalibration` | Output | VBA | Placeholder: estimation diagnostics (v0.3.0 to v0.5.0) |
 | `Backtesting` | `shBacktesting` | Output | VBA | Placeholder: out-of-sample backtests (v0.6.0) |
@@ -76,6 +76,7 @@ addresses, so a layout change is one change here and in the generator.
 | `DataSummary_Findings` | `DataSummary!$G$14:$J$20013` | VBA | Errors of the last import: file, line, code, month end (`E12`) |
 | `DataSummary_Warnings` | `DataSummary!$L$14:$N$20013` | VBA | Warnings `W01`–`W06`: code, account, month end |
 | `DataSummary_Lineage` | `DataSummary!$P$14:$Q$63` | VBA | Lineage items and values |
+| `DataSummary_Outcomes` | `DataSummary!$S$14:$AB$20013` | VBA | Per-period lineage: transition outcomes, the last balance of censored disappearances and the masked close dates per month end, segment and currency; only for an accepted import |
 | `Checks_Cases` | `Checks!$A$14:$F$514` | VBA | Harness case table |
 | `Checks_Assertions` | `Checks!$H$14:$N$20014` | VBA | Harness assertion table |
 | `<Sheet>_Status` | `<Sheet>!$B$3` | VBA | Run status of each output sheet: `DataSummary`, `ModelParams`, `Calibration`, `Backtesting`, `Scenarios`, `Results`, `Checks` |
@@ -102,7 +103,7 @@ beginning `COMPLETE` marks that sheet's results as current.**
 | `COMPLETE - ...` | The run finished; the results are current | Green |
 | `COMPLETE - FAILURES` | The run finished and found failures (harness) | Red |
 | `FAILED` | The run stopped; partial results, if any, are not current | Red |
-| `FAILED - IMPORT REJECTED` | The data files break the contract; findings are listed, no totals | Red |
+| `FAILED - IMPORT REJECTED` | The data files break the contract; findings are listed, no totals or outcomes | Red |
 
 A run that writes a sheet:
 

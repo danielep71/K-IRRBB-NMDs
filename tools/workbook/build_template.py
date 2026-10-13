@@ -63,7 +63,7 @@ SHEETS = [
           "Input area defined; read by the data importer (v0.2.0, not built)",
           "Segments", "Segments of the data contract; choose which ones a run includes."),
     Sheet("DataSummary", "shDataSummary", "Output", "VBA",
-          "Implemented: import totals, findings, warnings and lineage (#71)",
+          "Implemented: import totals, outcomes, findings, warnings and lineage (#71)",
           "Data summary", "Import counts, reconciliation, warnings and lineage of the loaded data."),
     Sheet("ModelParams", "shModelParams", "Output", "VBA", "Placeholder: parameter sets (v0.3.0 to v0.5.0)",
           "Model parameters", "Versioned parameter sets of the decay, rate and stable-amount models."),
@@ -96,6 +96,7 @@ NAMES = {
     "DataSummary_Findings": ("DataSummary", "$G$14:$J$20013"),
     "DataSummary_Warnings": ("DataSummary", "$L$14:$N$20013"),
     "DataSummary_Lineage": ("DataSummary", "$P$14:$Q$63"),
+    "DataSummary_Outcomes": ("DataSummary", "$S$14:$AB$20013"),
     "Checks_Cases": ("Checks", "$A$14:$F$514"),
     "Checks_Assertions": ("Checks", "$H$14:$N$20014"),
     **{f"{s.name}_Status": (s.name, "$B$3") for s in SHEETS if s.role == "Output"},
@@ -187,7 +188,14 @@ def _layout() -> None:
         summary.cells[f"{col}13"] = (text, HEADER)
     for col, text in zip("PQ", ("Item", "Value")):
         summary.cells[f"{col}13"] = (text, HEADER)
-    summary.widths = dict(zip("ABCDEFGHIJKLMNOPQ", (26, 40, 10, 10, 16, 3, 22, 8, 7, 12, 3, 7, 14, 12, 3, 30, 22)))
+    outcome_columns = ("S", "T", "U", "V", "W", "X", "Y", "Z", "AA", "AB")
+    for col, text in zip(outcome_columns, ("Month end", "Segment", "Currency", "Observed", "Verified closures", "Gaps",
+                                           "Censored", "Censored last balance", "End of sample",
+                                           "Close dates masked")):
+        summary.cells[f"{col}13"] = (text, HEADER)
+    summary.widths = dict(zip("ABCDEFGHIJKLMNOPQR", (26, 40, 10, 10, 16, 3, 22, 8, 7, 12, 3, 7, 14, 12, 3, 30, 22,
+                                                     3)))
+    summary.widths.update(zip(outcome_columns, (12, 10, 9, 10, 16, 7, 9, 20, 13, 18)))
     summary.freeze_row = 13
 
     checks = sheets["Checks"]
@@ -215,6 +223,14 @@ def _cell_key(ref: str) -> tuple[int, int]:
     for ch in letters:
         col = col * 26 + ord(ch) - 64
     return int(ref[len(letters):]), col
+
+
+def _column_letters(col: int) -> str:
+    letters = ""
+    while col:
+        col, rest = divmod(col - 1, 26)
+        letters = chr(65 + rest) + letters
+    return letters
 
 
 def _xml(body: str) -> bytes:
@@ -245,7 +261,7 @@ def _sheet_xml(sheet: Sheet, strings: dict[str, int], selected: bool) -> bytes:
             rows.setdefault(row, []).append(f'<c r="{ref}" s="{style}"/>')
     last_row = max(_cell_key(ref)[0] for ref in sheet.cells)
     last_col = max(_cell_key(ref)[1] for ref in sheet.cells)
-    dimension = f"A1:{chr(64 + last_col)}{last_row}"
+    dimension = f"A1:{_column_letters(last_col)}{last_row}"
 
     tab = ' tabSelected="1"' if selected else ""
     view = f'<sheetView showGridLines="0"{tab} workbookViewId="0">'
