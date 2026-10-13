@@ -226,10 +226,15 @@ month end $t+1$. Its **outcome** is the first of these that applies:
   its origin is [selected](#segmentation) for the run. Model-specific conditions (for
   example a positive balance at $t$) are set in
   [`MODEL_CONTRACTS.md`](MODEL_CONTRACTS.md).
-- **Lineage** records, per month end, segment and currency, the number of
-  verified closures, censored disappearances with their last balance, gaps and
-  end-of-sample accounts, and the number of `close_date` values masked at each
-  forecast origin ([point-in-time availability](#look-ahead)).
+- **Lineage** records, per month end, segment and currency, the transitions
+  from that month end by outcome (observed, verified closures, gaps, censored
+  disappearances with the sum of their last balances, end of sample), and the
+  number of accounts whose `close_date` the point-in-time view at that month
+  end as forecast origin masks
+  ([point-in-time availability](#look-ahead)). A masked account is counted
+  under the segment and currency of its latest row on or before the origin, so
+  a month end can list a segment with no row of its own; the outcome counts of
+  a month end, segment and currency add up to its accounts in the totals.
 
 ### Structural breaks and outliers
 
@@ -311,6 +316,7 @@ built from it:
 | --- | --- |
 | Source | File name (no directory path), size in bytes, SHA-256 of the file bytes |
 | Counts | Rows read, accepted, excluded by window; accounts; warnings by code |
+| Outcomes | Per month end, segment and currency: transitions by outcome, censored last balances and masked closure dates ([above](#outcomes)) |
 | Settings | Data window, segment list, rate series selected |
 | Attestation | Closure dates reported by the month end of the closure ([timely closure reporting](#look-ahead)) |
 | Code | Toolkit commit SHA |
@@ -331,7 +337,7 @@ or reference may be used at runtime.
 | [`tests/fixtures/data_contract/accounts_invalid.csv`](../../tests/fixtures/data_contract/accounts_invalid.csv) | One invalid row per error rule `E02`–`E11` |
 | [`tests/fixtures/data_contract/market_rates.csv`](../../tests/fixtures/data_contract/market_rates.csv) | `EUR_1M` and `USD_1M`, 6 month ends |
 | [`tests/fixtures/data_contract/availability.csv`](../../tests/fixtures/data_contract/availability.csv) | 7 accounts, Jan–Jun 2025: every [transition outcome](#outcomes), back-filled closure dates before and after the window end, and a migration |
-| [`tests/expected/data_contract/availability_outcomes.json`](../../tests/expected/data_contract/availability_outcomes.json) | Hand-assigned outcome for every transition, warnings, and the `close_date` values visible at each origin |
+| [`tests/expected/data_contract/availability_outcomes.json`](../../tests/expected/data_contract/availability_outcomes.json) | Hand-assigned outcome for every transition, warnings, the `close_date` values visible at each origin, and the per-period lineage |
 | [`tests/expected/data_contract/accounts_summary.json`](../../tests/expected/data_contract/accounts_summary.json) | Hand-computed totals per date, segment and currency, and every expected warning |
 | [`tests/expected/data_contract/accounts_invalid_findings.json`](../../tests/expected/data_contract/accounts_invalid_findings.json) | Expected first error per invalid line |
 
@@ -345,7 +351,7 @@ end from the window gives `E12`. The VBA import core (`CORE_Import`, #71)
 reproduces the same expected files in `DATA-VALID-01`, `DATA-INVALID-01` and
 `DATA-PIT-01`, and runs the leakage test in `DATA-PIT-02` on its own
 point-in-time view. `IRRBB_ImportData` reads the files and `DataSummary`
-shows the result (`DATA-IMPORT-01`), with the SHA-256 of each file computed by
+shows the result (`DATA-IMPORT-01`), including the per-period lineage, with the SHA-256 of each file computed by
 `CORE_Sha256` (`DATA-SHA-01`) and the toolkit commit in the lineage. The import
 time is recorded in local time ([decision 9](#decisions)): VBA has no time-zone
 function, and reading the UTC offset from the host would need a reviewed system

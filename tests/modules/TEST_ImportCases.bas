@@ -68,6 +68,7 @@ Private Sub CaseImport()
     TEST_AssertText C, "LF files: toolkit commit", LineageValue("Toolkit commit"), _
                     CStr(NamedRange("Readme_SourceCommit").Value)
     TEST_AssertText C, "LF files: file name only", CellText("DataSummary_Info", 3, 1), "irrbb_accounts.csv"
+    TEST_AssertText C, "LF files: outcomes written", KeyText("DataSummary_Outcomes", 1), KeyText("DataSummary_Totals", 1)
 
     ' The same files with CRLF endings give the same result.
     accounts = WriteFixture("irrbb_accounts_crlf.csv", JoinFixture("accounts.csv", vbCrLf))
@@ -80,10 +81,12 @@ Private Sub CaseImport()
 
     ' Rejected panel: findings listed, earlier totals withdrawn, no new totals.
     NamedRange("DataSummary_Totals").Cells(1, 1).Value = "STALE"
+    NamedRange("DataSummary_Outcomes").Cells(1, 1).Value = "STALE"
     invalid = WriteFixture("irrbb_invalid.csv", JoinFixture("accounts_invalid.csv", vbLf))
     RunImport invalid, rates, window(1), window(2), "", "Yes"
     TEST_AssertTrue C, "invalid panel: status rejected", Left$(StatusText(), 24) = "FAILED - IMPORT REJECTED"
     TEST_AssertText C, "invalid panel: totals withdrawn", CellText("DataSummary_Totals", 1, 1), ""
+    TEST_AssertText C, "invalid panel: outcomes withdrawn", CellText("DataSummary_Outcomes", 1, 1), ""
     TEST_AssertText C, "invalid panel: findings", FindingText(), JoinExpected("accounts_invalid_findings.errors")
 
     ' Settings the import refuses: no attestation, a missing file, no segment.
@@ -115,6 +118,13 @@ Private Sub CaseImport()
     WB_ImportData
     TEST_AssertTrue C, "window start with a time of day: refused", _
                     InStr(1, CellText("DataSummary_Info", 8, 1), "time of day") > 0
+
+    ' Per-period lineage of an accepted import, as hand-assigned for availability.csv.
+    accounts = WriteFixture("irrbb_availability.csv", JoinFixture("availability.csv", vbLf))
+    window = TEST_ExpectedLines("availability_outcomes.window")
+    RunImport accounts, rates, window(1), window(2), "", "Yes"
+    TEST_AssertText C, "availability: status", StatusText(), ACCEPTED
+    CheckOutcomes C
 
     ' File reading: more than one 64 KB chunk without a final line ending; a
     ' byte outside ASCII; an empty file.
@@ -163,6 +173,28 @@ Private Sub CheckTotals(ByVal caseId As String, ByVal label As String)
 End Sub
 
 
+' DataSummary_Outcomes against availability_outcomes.lineage: every field as
+' text except the censored balance, compared numerically.
+Private Sub CheckOutcomes(ByVal caseId As String)
+    Dim expected As Variant, fields() As String, i As Long, j As Long, text As String, area As Range
+    expected = TEST_ExpectedLines("availability_outcomes.lineage")
+    Set area = NamedRange("DataSummary_Outcomes")
+    For i = 1 To UBound(expected)
+        fields = Split(expected(i), "|")
+        text = vbNullString
+        For j = 1 To 10
+            If j <> 8 Then text = text & "|" & CellText("DataSummary_Outcomes", i, j)
+        Next j
+        TEST_AssertText caseId, "availability: outcomes " & i, Mid$(text, 2), fields(0) & "|" & fields(1) & "|" & _
+                        fields(2) & "|" & fields(3) & "|" & fields(4) & "|" & fields(5) & "|" & fields(6) & "|" & _
+                        fields(8) & "|" & fields(9)
+        TEST_AssertNear caseId, "availability: outcomes " & i & " censored balance", CDbl(area.Cells(i, 8).Value), _
+                        DecimalValue(fields(7)), "abs", 0.005
+    Next i
+    TEST_AssertText caseId, "availability: no extra outcome row", CellText("DataSummary_Outcomes", UBound(expected) + 1, 1), ""
+End Sub
+
+
 '==============================================================================
 ' Helpers
 '==============================================================================
@@ -176,6 +208,12 @@ Private Sub RunImport(ByVal accounts As String, ByVal rates As String, ByVal fir
     NamedRange("Config_ClosureAttested").Value = attested
     WB_ImportData
 End Sub
+
+
+' "date|segment|currency" of row r of a table that starts with those columns.
+Private Function KeyText(ByVal areaName As String, ByVal row As Long) As String
+    KeyText = CellText(areaName, row, 1) & "|" & CellText(areaName, row, 2) & "|" & CellText(areaName, row, 3)
+End Function
 
 
 Private Function StatusText() As String

@@ -99,6 +99,16 @@ Use only the categories needed by a release.
 
 ### Added
 
+- Per-period outcome lineage (#71): an accepted import now writes, per month
+  end, segment and currency, the transitions from that month end by outcome
+  (observed, verified closures, gaps, censored disappearances with the sum of
+  their last balances, end of sample) and the accounts whose `close_date` the
+  point-in-time view at that month end masks, to the new `DataSummary_Outcomes`
+  area (`DataSummary!S14:AB20013`) through the new `IRRBB_ImportOutcomes`.
+  The data contract now says how a masked account is counted (under its
+  latest segment and currency on or before the origin). `DATA-PIT-01` and
+  `DATA-IMPORT-01` check it against hand-assigned values for
+  `availability.csv`. Not run in Excel.
 - Segment selection (#71): the segments marked `Yes` on `Segments` form the
   run's segment list, recorded in the lineage. The import still validates and
   reconciles every segment, so leaving one out never turns a migration into a

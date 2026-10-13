@@ -10,7 +10,8 @@ Attribute VB_Name = "WB_Import"
 '
 ' STATUS (DataSummary_Status)
 '   RUNNING - previous results withdrawn   set first; every result area cleared
-'   COMPLETE - IMPORT ACCEPTED              totals, warnings and lineage current
+'   COMPLETE - IMPORT ACCEPTED              totals, outcomes, warnings and
+'                                           lineage current
 '   FAILED - IMPORT REJECTED (n errors)     findings listed; no totals
 '   FAILED                                  the run stopped; primary error and
 '                                           any cleanup error in the info block
@@ -72,6 +73,7 @@ Public Sub WB_ImportData()
     cut = WriteTable("DataSummary_Lineage", IRRBB_ImportLineage(), Array(1, 2)) Or cut
     If errors = 0 Then
         cut = WriteTable("DataSummary_Totals", IRRBB_ImportTotals(), Array(1, 2, 3)) Or cut
+        cut = WriteTable("DataSummary_Outcomes", IRRBB_ImportOutcomes(), Array(1, 2, 3)) Or cut
         Status "COMPLETE - IMPORT ACCEPTED" & IIf(cut, " (a table is cut at its last row)", "")
     Else
         Status "FAILED - IMPORT REJECTED (" & errors & " errors)" & IIf(cut, " (a table is cut at its last row)", "")
@@ -136,6 +138,7 @@ End Sub
 
 Private Sub ClearResults()
     NamedRange("DataSummary_Totals").ClearContents
+    NamedRange("DataSummary_Outcomes").ClearContents
     NamedRange("DataSummary_Findings").ClearContents
     NamedRange("DataSummary_Warnings").ClearContents
     NamedRange("DataSummary_Lineage").ClearContents

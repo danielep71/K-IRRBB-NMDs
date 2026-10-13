@@ -19,15 +19,17 @@ Attribute VB_Name = "CORE_Import"
 '                                  currency, and missing extracts (E12);
 '                                  returns the number of E12 findings.
 '                                  It also assigns the transition outcome of
-'                                  every observed month (CORE_Outcome*).
+'                                  every observed month (CORE_Outcome*) and
+'                                  counts them per month end, segment and
+'                                  currency for the lineage (CORE_Period*).
 '   CORE_ViewBuild origin          point-in-time view at a forecast origin
 '                                  inside the window, after an accepted import
 '                                  (no finding, no E12): rows of the window
 '                                  dated on or before it, with any close_date
 '                                  after it masked (CORE_View*).
 '   Results are read through the CORE_Account*, CORE_Warning*, CORE_Total*,
-'   CORE_MissingExtract*, CORE_Outcome* and CORE_View* accessors (1-based, in
-'   the contract's order).
+'   CORE_MissingExtract*, CORE_Outcome*, CORE_Period* and CORE_View*
+'   accessors (1-based, in the contract's order).
 '
 ' MARKET RATES
 '   CORE_RatesBegin, CORE_RatesAddLine, CORE_RatesEnd and CORE_RateFinding*,
@@ -48,6 +50,11 @@ Attribute VB_Name = "CORE_Import"
 '   Only a recorded close_date is a closure. The view at an origin keeps every
 '   field as given except close_date, shown only when it is on or before the
 '   origin; nothing learned later can change it.
+'   The lineage counts, per month end, segment and currency, the outcomes from
+'   that month end, the last balance of the censored disappearances, and the
+'   accounts whose close_date the view at that origin masks; an account is
+'   counted under the segment and currency of its latest row on or before the
+'   origin, so a month end can list a segment with no row of its own.
 '
 ' TOTALS
 '   Balances are summed with compensated (Neumaier) summation, in currency
@@ -125,6 +132,20 @@ Private mOutRow() As Long
 Private mOutCode() As String
 Private mOutCount As Long
 Private mViewRow() As Long
+' Per-period lineage (month end, segment, currency).
+Private mPerDate() As String
+Private mPerSegment() As String
+Private mPerCurrency() As String
+Private mPerObserved() As Long
+Private mPerClosures() As Long
+Private mPerGaps() As Long
+Private mPerCensored() As Long
+Private mPerEnd() As Long
+Private mPerMasked() As Long
+Private mPerCenSum() As Double
+Private mPerCenComp() As Double
+Private mPerCount As Long
+Private mPerOrder() As Long
 Private mViewCount As Long
 Private mViewOrigin As Date
 
@@ -417,6 +438,7 @@ Public Function CORE_AccountsSummarize(ByVal firstMonthEnd As Date, ByVal lastMo
     Next j
 
     AssignOutcomes inWindow, order, n, lastMonthEnd
+    SummarizePeriods inWindow, order, n, lastMonthEnd
 
     ' By month index, so a window ending in December 9999 never builds a later date.
     For k = MonthIndex(firstMonthEnd) To MonthIndex(lastMonthEnd)
@@ -532,6 +554,68 @@ End Function
 
 Public Function CORE_OutcomeCode(ByVal index As Long) As String
     CORE_OutcomeCode = mOutCode(index)
+End Function
+
+
+'------------------------------------------------------------------------------
+' Per-period lineage of the last CORE_AccountsSummarize, ordered by month end,
+' segment and currency: outcomes from the month end (observed, verified
+' closures, gaps, censored disappearances and their last balance in currency
+' units, end of sample) and the accounts whose close_date the point-in-time
+' view at that origin masks.
+'------------------------------------------------------------------------------
+Public Function CORE_PeriodCount() As Long
+    CORE_PeriodCount = mPerCount
+End Function
+
+
+Public Function CORE_PeriodDate(ByVal index As Long) As String
+    CORE_PeriodDate = mPerDate(mPerOrder(index))
+End Function
+
+
+Public Function CORE_PeriodSegment(ByVal index As Long) As String
+    CORE_PeriodSegment = mPerSegment(mPerOrder(index))
+End Function
+
+
+Public Function CORE_PeriodCurrency(ByVal index As Long) As String
+    CORE_PeriodCurrency = mPerCurrency(mPerOrder(index))
+End Function
+
+
+Public Function CORE_PeriodObserved(ByVal index As Long) As Long
+    CORE_PeriodObserved = mPerObserved(mPerOrder(index))
+End Function
+
+
+Public Function CORE_PeriodClosures(ByVal index As Long) As Long
+    CORE_PeriodClosures = mPerClosures(mPerOrder(index))
+End Function
+
+
+Public Function CORE_PeriodGaps(ByVal index As Long) As Long
+    CORE_PeriodGaps = mPerGaps(mPerOrder(index))
+End Function
+
+
+Public Function CORE_PeriodCensored(ByVal index As Long) As Long
+    CORE_PeriodCensored = mPerCensored(mPerOrder(index))
+End Function
+
+
+Public Function CORE_PeriodCensoredBalance(ByVal index As Long) As Double
+    CORE_PeriodCensoredBalance = mPerCenSum(mPerOrder(index)) + mPerCenComp(mPerOrder(index))
+End Function
+
+
+Public Function CORE_PeriodEndOfSample(ByVal index As Long) As Long
+    CORE_PeriodEndOfSample = mPerEnd(mPerOrder(index))
+End Function
+
+
+Public Function CORE_PeriodMasked(ByVal index As Long) As Long
+    CORE_PeriodMasked = mPerMasked(mPerOrder(index))
 End Function
 
 
@@ -858,6 +942,98 @@ Private Sub AssignOutcomes(ByRef inWindow() As Long, ByRef order() As Long, ByVa
 End Sub
 
 
+' Per-period lineage from the outcomes of AssignOutcomes and the close_date
+' values the view at each origin masks. Rows are order(1..n) of inWindow, by
+' account then date.
+Private Sub SummarizePeriods(ByRef inWindow() As Long, ByRef order() As Long, ByVal n As Long, _
+                             ByVal lastMonthEnd As Date)
+    Dim periods As New Collection, keys() As String, closed As Date
+    Dim j As Long, k As Long, i As Long, p As Long, m As Long, groupEnd As Long, first As Long, latest As Long
+    Dim s As Double, total As Double, x As Double
+
+    mPerCount = 0
+    ReDim mPerDate(1 To 16)
+    ReDim mPerSegment(1 To 16)
+    ReDim mPerCurrency(1 To 16)
+    ReDim mPerObserved(1 To 16)
+    ReDim mPerClosures(1 To 16)
+    ReDim mPerGaps(1 To 16)
+    ReDim mPerCensored(1 To 16)
+    ReDim mPerEnd(1 To 16)
+    ReDim mPerMasked(1 To 16)
+    ReDim mPerCenSum(1 To 16)
+    ReDim mPerCenComp(1 To 16)
+
+    For k = 1 To mOutCount
+        i = mOutRow(k)
+        p = IndexOfPeriod(periods, mRowAsOfText(i), mRowSegment(i), mRowCurrency(i))
+        Select Case mOutCode(k)
+            Case "observed"
+                mPerObserved(p) = mPerObserved(p) + 1
+            Case "closure"
+                mPerClosures(p) = mPerClosures(p) + 1
+            Case "gap"
+                mPerGaps(p) = mPerGaps(p) + 1
+            Case "censored"
+                mPerCensored(p) = mPerCensored(p) + 1
+                ' Neumaier summation; bounded by the total of the same cell.
+                x = mRowBalance(i)
+                s = mPerCenSum(p)
+                total = s + x
+                If Abs(s) >= Abs(x) Then
+                    mPerCenComp(p) = mPerCenComp(p) + ((s - total) + x)
+                Else
+                    mPerCenComp(p) = mPerCenComp(p) + ((x - total) + s)
+                End If
+                mPerCenSum(p) = total
+            Case Else
+                mPerEnd(p) = mPerEnd(p) + 1
+        End Select
+    Next k
+
+    ' Masked close dates: an account's close_date is masked at every origin from
+    ' its first row carrying it up to the month end before the closure (E10 puts
+    ' every row before its closure, E11 makes the values agree).
+    j = 1
+    Do While j <= n
+        groupEnd = j
+        Do While groupEnd < n
+            If mRowAccount(inWindow(order(groupEnd + 1))) <> mRowAccount(inWindow(order(j))) Then Exit Do
+            groupEnd = groupEnd + 1
+        Loop
+        first = 0
+        For k = j To groupEnd
+            If Len(mRowClose(inWindow(order(k)))) > 0 Then
+                first = k
+                Exit For
+            End If
+        Next k
+        If first > 0 Then
+            If CORE_ParseIsoDate(mRowClose(inWindow(order(first))), closed) = CORE_PARSE_OK Then
+                latest = first
+                For m = MonthIndex(mRowAsOf(inWindow(order(first)))) To MonthIndex(lastMonthEnd)
+                    If MonthEnd(m) >= closed Then Exit For
+                    Do While latest < groupEnd
+                        If MonthIndex(mRowAsOf(inWindow(order(latest + 1)))) > m Then Exit Do
+                        latest = latest + 1
+                    Loop
+                    i = inWindow(order(latest))
+                    p = IndexOfPeriod(periods, IsoText(MonthEnd(m)), mRowSegment(i), mRowCurrency(i))
+                    mPerMasked(p) = mPerMasked(p) + 1
+                Next m
+            End If
+        End If
+        j = groupEnd + 1
+    Loop
+
+    ReDim keys(1 To mPerCount + 1)
+    For k = 1 To mPerCount
+        keys(k) = mPerDate(k) & vbTab & mPerSegment(k) & vbTab & mPerCurrency(k)
+    Next k
+    SortOrder keys, mPerCount, mPerOrder
+End Sub
+
+
 ' W05 for the account whose last in-window row is row i.
 Private Sub CheckDisappearance(ByVal i As Long, ByVal closeText As String, ByVal lastMonthEnd As Date)
     Dim closed As Date, verified As Boolean
@@ -979,6 +1155,37 @@ Private Function IndexOfTotal(ByVal totals As Collection, ByVal asOfText As Stri
     mTotCurrency(mTotCount) = currency
     totals.Add mTotCount, key
     IndexOfTotal = mTotCount
+End Function
+
+
+' Index of the (month end, segment, currency) lineage cell, created at zero.
+Private Function IndexOfPeriod(ByVal periods As Collection, ByVal monthEndText As String, ByVal segment As String, _
+                               ByVal currency As String) As Long
+    Dim key As String
+    key = monthEndText & "|" & segment & "|" & currency
+    If HasKey(periods, key) Then
+        IndexOfPeriod = periods.Item(key)
+        Exit Function
+    End If
+    mPerCount = mPerCount + 1
+    If mPerCount > UBound(mPerDate) Then
+        ReDim Preserve mPerDate(1 To 2 * UBound(mPerDate))
+        ReDim Preserve mPerSegment(1 To 2 * UBound(mPerSegment))
+        ReDim Preserve mPerCurrency(1 To 2 * UBound(mPerCurrency))
+        ReDim Preserve mPerObserved(1 To 2 * UBound(mPerObserved))
+        ReDim Preserve mPerClosures(1 To 2 * UBound(mPerClosures))
+        ReDim Preserve mPerGaps(1 To 2 * UBound(mPerGaps))
+        ReDim Preserve mPerCensored(1 To 2 * UBound(mPerCensored))
+        ReDim Preserve mPerEnd(1 To 2 * UBound(mPerEnd))
+        ReDim Preserve mPerMasked(1 To 2 * UBound(mPerMasked))
+        ReDim Preserve mPerCenSum(1 To 2 * UBound(mPerCenSum))
+        ReDim Preserve mPerCenComp(1 To 2 * UBound(mPerCenComp))
+    End If
+    mPerDate(mPerCount) = monthEndText
+    mPerSegment(mPerCount) = segment
+    mPerCurrency(mPerCount) = currency
+    periods.Add mPerCount, key
+    IndexOfPeriod = mPerCount
 End Function
 
 

@@ -41,6 +41,7 @@ Public Function TEST_ExpectedLines(ByVal name As String) As Variant
         Case "availability_outcomes.warnings": TEST_ExpectedLines = Data_AvailabilityOutcomesWarnings()
         Case "availability_outcomes.visible": TEST_ExpectedLines = Data_AvailabilityOutcomesVisible()
         Case "availability_outcomes.origins": TEST_ExpectedLines = Data_AvailabilityOutcomesOrigins()
+        Case "availability_outcomes.lineage": TEST_ExpectedLines = Data_AvailabilityOutcomesLineage()
         Case "sha256.accounts.csv": TEST_ExpectedLines = Data_Sha256AccountsCsv()
         Case "sha256.market_rates.csv": TEST_ExpectedLines = Data_Sha256MarketRatesCsv()
         Case Else
@@ -352,6 +353,30 @@ Private Function Data_AvailabilityOutcomesOrigins() As Variant
     a(5) = "2025-05-31"
     a(6) = "2025-06-30"
     Data_AvailabilityOutcomesOrigins = a
+End Function
+
+
+Private Function Data_AvailabilityOutcomesLineage() As Variant
+    Dim a(1 To 18) As String
+    a(1) = "2025-01-31|RET_NTX|EUR|0|0|0|1|300.0000|0|1"
+    a(2) = "2025-01-31|RET_TX|EUR|4|0|0|0|0.0000|0|1"
+    a(3) = "2025-01-31|WHS_NFC|EUR|1|0|0|0|0.0000|0|1"
+    a(4) = "2025-02-28|RET_NTX|EUR|0|0|0|0|0.0000|0|1"
+    a(5) = "2025-02-28|RET_TX|EUR|2|0|1|1|550.0000|0|1"
+    a(6) = "2025-02-28|WHS_NFC|EUR|1|0|0|0|0.0000|0|1"
+    a(7) = "2025-03-31|RET_NTX|EUR|0|0|0|0|0.0000|0|1"
+    a(8) = "2025-03-31|RET_TX|EUR|2|1|0|0|0.0000|0|1"
+    a(9) = "2025-03-31|WHS_NFC|EUR|1|0|0|0|0.0000|0|1"
+    a(10) = "2025-04-30|RET_NTX|EUR|1|0|0|0|0.0000|0|0"
+    a(11) = "2025-04-30|RET_TX|EUR|2|0|0|0|0.0000|0|0"
+    a(12) = "2025-04-30|WHS_NFC|EUR|1|0|0|0|0.0000|0|1"
+    a(13) = "2025-05-31|RET_NTX|EUR|1|0|0|0|0.0000|0|0"
+    a(14) = "2025-05-31|RET_TX|EUR|2|0|0|0|0.0000|0|0"
+    a(15) = "2025-05-31|WHS_NFC|EUR|1|0|0|0|0.0000|0|1"
+    a(16) = "2025-06-30|RET_NTX|EUR|0|0|0|0|0.0000|1|0"
+    a(17) = "2025-06-30|RET_TX|EUR|0|0|0|0|0.0000|2|0"
+    a(18) = "2025-06-30|WHS_NFC|EUR|0|0|0|0|0.0000|1|1"
+    Data_AvailabilityOutcomesLineage = a
 End Function
 
 

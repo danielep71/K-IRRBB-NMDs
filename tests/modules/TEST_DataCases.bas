@@ -94,9 +94,10 @@ End Sub
 
 
 '------------------------------------------------------------------------------
-' DATA-PIT-01: transition outcome of every observed month, warnings and the
-' close_date values visible at each origin equal the hand assignment in
-' availability_outcomes.json; a month-end closure has no row in its month.
+' DATA-PIT-01: transition outcome of every observed month, warnings, the
+' close_date values visible at each origin and the per-period lineage equal the
+' hand assignment in availability_outcomes.json; a month-end closure has no row
+' in its month.
 '------------------------------------------------------------------------------
 Private Sub CasePitOutcomes()
     Const C As String = "DATA-PIT-01"
@@ -111,6 +112,7 @@ Private Sub CasePitOutcomes()
     CompareList C, "warning", WarningLines(), TEST_ExpectedLines("availability_outcomes.warnings")
     CompareList C, "visible close_date", VisibleCloseLines(TEST_ExpectedLines("availability_outcomes.origins")), _
                 TEST_ExpectedLines("availability_outcomes.visible")
+    ComparePeriods C, TEST_ExpectedLines("availability_outcomes.lineage")
 
     ExpectAccountFindings C, "as_of_date,account_id,segment,currency,balance,customer_rate,indexed,open_date,close_date|2025-05-31,M001,RET_TX,EUR,10.00,,0,2020-01-01,2025-06-30|2025-06-30,M001,RET_TX,EUR,0.00,,0,2020-01-01,2025-06-30", "3:E10"
     ExpectOutcomes C, "as_of_date,account_id,segment,currency,balance,customer_rate,indexed,open_date,close_date|2025-05-31,M001,RET_TX,EUR,10.00,,0,2020-01-01,2025-06-30|2025-06-30,M001,RET_TX,EUR,0.00,,0,2020-01-01,2025-06-30", "2025-05-31", "2025-07-31", "M001|2025-05-31|RET_TX|closure"
@@ -336,6 +338,30 @@ Private Sub CompareList(ByVal caseId As String, ByVal label As String, ByVal act
         If i >= nExpected Then Exit For
         TEST_AssertText caseId, label & " " & (i + 1), CStr(actual(LBound(actual) + i)), _
                         CStr(expected(LBound(expected) + i))
+    Next i
+End Sub
+
+
+' Per-period lineage against "month|segment|currency|observed|closures|gaps|
+' censored|censored balance|end of sample|masked" lines; the balance is compared
+' numerically, the other fields as text.
+Private Sub ComparePeriods(ByVal caseId As String, ByVal expected As Variant)
+    Dim i As Long, n As Long, fields() As String, balance As Double
+    n = UBound(expected) - LBound(expected) + 1
+    TEST_AssertText caseId, "period count", CStr(CORE_PeriodCount()), CStr(n)
+    For i = 1 To CORE_PeriodCount()
+        If i > n Then Exit For
+        fields = Split(expected(LBound(expected) + i - 1), "|")
+        TEST_AssertText caseId, "period " & i, CORE_PeriodDate(i) & "|" & CORE_PeriodSegment(i) & "|" & _
+                        CORE_PeriodCurrency(i) & "|" & CORE_PeriodObserved(i) & "|" & CORE_PeriodClosures(i) & "|" & _
+                        CORE_PeriodGaps(i) & "|" & CORE_PeriodCensored(i) & "|" & CORE_PeriodEndOfSample(i) & "|" & _
+                        CORE_PeriodMasked(i), fields(0) & "|" & fields(1) & "|" & fields(2) & "|" & fields(3) & "|" & _
+                        fields(4) & "|" & fields(5) & "|" & fields(6) & "|" & fields(8) & "|" & fields(9)
+        If CORE_ParseDecimal(fields(7), 4, balance) <> CORE_PARSE_OK Then
+            Err.Raise 5, "TEST_DataCases.ComparePeriods", "Not a decimal: " & fields(7)
+        End If
+        TEST_AssertNear caseId, "period " & i & " censored balance", CORE_PeriodCensoredBalance(i), balance, _
+                        "abs", 0.005
     Next i
 End Sub
 

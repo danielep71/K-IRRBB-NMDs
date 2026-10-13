@@ -20,8 +20,8 @@ Attribute VB_Name = "IRRBB_Import"
 ' RESULTS
 '   IRRBB_ImportData returns the number of errors: account and market-rate
 '   findings plus missing extracts (E12). Zero means the panel is accepted.
-'   The import is all-or-nothing: totals are returned only for an accepted
-'   panel. Every IRRBB_Import* table is a Variant array (0 To n, 1 To k)
+'   The import is all-or-nothing: totals and the per-period outcome lineage
+'   are returned only for an accepted panel. Every IRRBB_Import* table is a Variant array (0 To n, 1 To k)
 '   whose row 0 holds the column names, so a table is never empty.
 '
 ' ERRORS
@@ -148,6 +148,39 @@ Public Function IRRBB_ImportTotals() As Variant
         out(i, 5) = CORE_TotalBalance(i)
     Next i
     IRRBB_ImportTotals = out
+End Function
+
+
+'------------------------------------------------------------------------------
+' IRRBB_ImportOutcomes: (0 To n, 1 To 10) Month end, Segment, Currency,
+' Observed, Verified closures, Gaps, Censored, Censored last balance (currency
+' units, at input precision), End of sample, Close dates masked: the
+' per-period lineage of DATA_CONTRACT.md (outcomes). The outcome columns count
+' the transitions from the month end under the segment at that month end; an
+' account whose close_date the point-in-time view at the month end masks is
+' counted under the segment and currency of its latest row on or before it.
+' n = 0 unless the last import was accepted.
+'------------------------------------------------------------------------------
+Public Function IRRBB_ImportOutcomes() As Variant
+    Dim out() As Variant, i As Long, n As Long
+    If mAccepted Then n = CORE_PeriodCount()
+    ReDim out(0 To n, 1 To 10)
+    out(0, 1) = "Month end": out(0, 2) = "Segment": out(0, 3) = "Currency": out(0, 4) = "Observed"
+    out(0, 5) = "Verified closures": out(0, 6) = "Gaps": out(0, 7) = "Censored"
+    out(0, 8) = "Censored last balance": out(0, 9) = "End of sample": out(0, 10) = "Close dates masked"
+    For i = 1 To n
+        out(i, 1) = CORE_PeriodDate(i)
+        out(i, 2) = CORE_PeriodSegment(i)
+        out(i, 3) = CORE_PeriodCurrency(i)
+        out(i, 4) = CORE_PeriodObserved(i)
+        out(i, 5) = CORE_PeriodClosures(i)
+        out(i, 6) = CORE_PeriodGaps(i)
+        out(i, 7) = CORE_PeriodCensored(i)
+        out(i, 8) = CORE_PeriodCensoredBalance(i)
+        out(i, 9) = CORE_PeriodEndOfSample(i)
+        out(i, 10) = CORE_PeriodMasked(i)
+    Next i
+    IRRBB_ImportOutcomes = out
 End Function
 
 
