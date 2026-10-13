@@ -76,9 +76,11 @@ End Function
 
 
 '------------------------------------------------------------------------------
-' CORE_IsMonthEnd: True when d is the last calendar day of its month.
+' CORE_IsMonthEnd: True when d is the last calendar day of its month and has
+' no time of day (a date with a time would fall after that day's rows).
 '------------------------------------------------------------------------------
 Public Function CORE_IsMonthEnd(ByVal d As Date) As Boolean
+    If CDbl(d) <> Fix(CDbl(d)) Then Exit Function
     CORE_IsMonthEnd = (Day(d) = DaysInMonth(Year(d), Month(d)))
 End Function
 

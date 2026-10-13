@@ -89,6 +89,8 @@ Private Sub CaseDates()
     ExpectMonthEnd C, 2025, 4, 30, True
     ExpectMonthEnd C, 2025, 6, 15, False
     ExpectMonthEnd C, 2025, 12, 31, True
+    TEST_AssertText C, "month end 2025-1-31 12:00", _
+                    CStr(CORE_IsMonthEnd(DateSerial(2025, 1, 31) + TimeSerial(12, 0, 0))), CStr(False)
 End Sub
 
 

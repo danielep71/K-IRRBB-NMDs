@@ -341,7 +341,7 @@ Public Function CORE_AccountsSummarize(ByVal firstMonthEnd As Date, ByVal lastMo
     RequireState mState, STATE_ENDED, "CORE_Import.CORE_AccountsSummarize"
     If Not CORE_IsMonthEnd(firstMonthEnd) Or Not CORE_IsMonthEnd(lastMonthEnd) _
             Or firstMonthEnd > lastMonthEnd Then
-        Err.Raise 5, "CORE_Import.CORE_AccountsSummarize", "The data window must be two month ends in order."
+        Err.Raise 5, "CORE_Import.CORE_AccountsSummarize", "The data window must be two month ends in order, without a time of day."
     End If
 
     mWarnCount = 0

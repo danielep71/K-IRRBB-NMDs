@@ -111,6 +111,10 @@ Private Sub CaseImport()
     RunImport accounts, rates, window(1), window(2), "", "Yes"
     TEST_AssertTrue C, "no commit stamp: refused", InStr(1, CellText("DataSummary_Info", 8, 1), "commit stamp") > 0
     NamedRange("Readme_SourceCommit").Value = mSaved.Item(1)
+    NamedRange("Config_WindowStart").Value = IsoDate(window(1)) + TimeSerial(12, 0, 0)
+    WB_ImportData
+    TEST_AssertTrue C, "window start with a time of day: refused", _
+                    InStr(1, CellText("DataSummary_Info", 8, 1), "time of day") > 0
 
     ' File reading: more than one 64 KB chunk without a final line ending; a
     ' byte outside ASCII; an empty file.
