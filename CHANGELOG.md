@@ -112,9 +112,9 @@ Use only the categories needed by a release.
   lineage records both fingerprints and the toolkit commit, taken from the
   workbook's build stamp (`Readme_SourceCommit`). `IRRBB_ImportData` takes the
   commit as a new last argument. `DATA-SHA-01` checks the published FIPS
-  180-2 examples and padding boundaries. The import time is local; the UTC
-  offset is not recorded yet. Not run in Excel; speed on large panels not
-  measured.
+  180-2 examples and padding boundaries. The import time is local, without
+  UTC offset (DATA_CONTRACT.md decision 9). Not run in Excel; speed on large
+  panels not measured.
 - Import from files (#71, stage 3): `IRRBB_ImportData`, the first public
   entry point, reads the account panel and market-rate CSV files (read only,
   other writers locked out while reading, streamed in 64 KB chunks, LF or
