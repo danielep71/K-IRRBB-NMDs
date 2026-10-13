@@ -273,6 +273,42 @@ def transition_outcomes(rows, first: date, last: date) -> list[dict]:
     return outcomes
 
 
+OUTCOME_COLUMNS = {"observed": "observed", "closure": "closures", "gap": "gaps", "censored": "censored",
+                   "end_of_sample": "end_of_sample"}
+
+
+def outcome_lineage(rows, first: date, last: date) -> list[dict]:
+    """Per month end, segment and currency: transition outcomes, the last balance of censored
+    disappearances, and the accounts whose close_date the point-in-time view at that origin masks,
+    counted under the segment and currency of their latest row in the view (DATA_CONTRACT.md#outcomes)."""
+    by_row = {(r["account_id"], r["as_of_date"]): r for _, r in rows}
+    cells: dict[tuple[str, str, str], dict] = {}
+
+    def cell(month: str, segment: str, currency: str) -> dict:
+        return cells.setdefault((month, segment, currency), {**{k: 0 for k in OUTCOME_COLUMNS.values()},
+                                                             "censored_balance": [], "close_dates_masked": 0})
+
+    for outcome in transition_outcomes(rows, first, last):
+        row = by_row[(outcome["account_id"], outcome["origin"])]
+        target = cell(outcome["origin"], row["segment"], row["currency"])
+        target[OUTCOME_COLUMNS[outcome["outcome"]]] += 1
+        if outcome["outcome"] == "censored":
+            target["censored_balance"].append(float(row["balance"]))
+    for index in range(month_index(first), month_index(last) + 1):
+        origin = month_end(index)
+        latest: dict[str, dict[str, str]] = {}
+        for row in sorted(point_in_time_view(rows, origin, first), key=lambda r: r["as_of_date"]):
+            latest[row["account_id"]] = row
+        masked = {r["account_id"] for _, r in rows
+                  if first <= parse_date(r["as_of_date"]) <= origin and r["close_date"]
+                  and parse_date(r["close_date"]) > origin}
+        for account in masked:
+            cell(origin.isoformat(), latest[account]["segment"], latest[account]["currency"])["close_dates_masked"] += 1
+    return [{"month_end": m, "segment": s, "currency": c, **{k: v for k, v in values.items() if k != "censored_balance"},
+             "censored_balance": math.fsum(values["censored_balance"])}
+            for (m, s, c), values in sorted(cells.items())]
+
+
 def point_in_time_view(rows, origin: date, first: date | None = None) -> list[dict[str, str]]:
     """Rows dated on or before the origin (and from the window start, if given), with any
     close_date learned later masked."""
@@ -344,6 +380,41 @@ class PointInTimeAvailability(unittest.TestCase):
         self.assertEqual(transition_outcomes(rows, self.first, self.last), self.expected["outcomes"])
         warnings, _ = warnings_and_totals(rows, self.first, self.last)
         self.assertEqual(warnings, self.expected["warnings"])
+
+    def test_per_period_lineage_matches_hand_assignment(self) -> None:
+        rows, _ = read_accounts(ROOT / self.expected["fixture"])
+        got = outcome_lineage(rows, self.first, self.last)
+        want = self.expected["lineage"]
+        self.assertEqual([{k: v for k, v in g.items() if k != "censored_balance"} for g in got],
+                         [{k: v for k, v in w.items() if k != "censored_balance"} for w in want])
+        for g, w in zip(got, want):
+            self.assertAlmostEqual(g["censored_balance"], w["censored_balance"], delta=0.005)
+
+    def test_per_period_lineage_reconciles_with_totals_and_the_view(self) -> None:
+        cases = {"availability": (ROOT / self.expected["fixture"], self.first, self.last),
+                 "accounts": (FIXTURES / "accounts.csv", date(2025, 1, 31), date(2025, 6, 30))}
+        for name, (path, first, last) in cases.items():
+            rows, _ = read_accounts(path)
+            _, totals = warnings_and_totals(rows, first, last)
+            accounts = {(t["as_of_date"], t["segment"], t["currency"]): t["accounts"] for t in totals}
+            lineage = outcome_lineage(rows, first, last)
+            for line in lineage:
+                key = (line["month_end"], line["segment"], line["currency"])
+                with self.subTest(case=name, key=key):
+                    outcomes = sum(line[k] for k in OUTCOME_COLUMNS.values())
+                    self.assertEqual(outcomes, accounts.get(key, 0))
+                    self.assertTrue(outcomes > 0 or line["close_dates_masked"] > 0)
+            self.assertEqual({k for k in accounts}, {(l["month_end"], l["segment"], l["currency"])
+                                                      for l in lineage if sum(l[k] for k in OUTCOME_COLUMNS.values())})
+            for index in range(month_index(first), month_index(last) + 1):
+                origin = month_end(index)
+                view = point_in_time_view(rows, origin, first)
+                original = {(r["account_id"], r["as_of_date"]): r["close_date"] for _, r in rows}
+                hidden = {r["account_id"] for r in view if original[(r["account_id"], r["as_of_date"])]
+                          and not r["close_date"]}
+                with self.subTest(case=name, origin=origin):
+                    self.assertEqual(sum(l["close_dates_masked"] for l in lineage
+                                         if l["month_end"] == origin.isoformat()), len(hidden))
 
     def test_later_closure_dates_are_masked_at_earlier_origins(self) -> None:
         rows, _ = read_accounts(ROOT / self.expected["fixture"])

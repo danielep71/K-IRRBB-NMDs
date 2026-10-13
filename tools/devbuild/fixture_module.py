@@ -51,6 +51,11 @@ def expected_lists() -> dict[str, list[str]]:
             availability["warnings"], key=lambda w: (w["code"], w["account_id"], w["as_of_date"]))],
         "availability_outcomes.visible": visible,
         "availability_outcomes.origins": sorted(availability["visible_close_dates"]),
+        "availability_outcomes.lineage": [
+            "|".join([p["month_end"], p["segment"], p["currency"]]
+                     + [str(p[k]) for k in ("observed", "closures", "gaps", "censored")]
+                     + [f'{p["censored_balance"]:.4f}', str(p["end_of_sample"]), str(p["close_dates_masked"])])
+            for p in sorted(availability["lineage"], key=lambda p: (p["month_end"], p["segment"], p["currency"]))],
         # Independent fingerprints (Python hashlib) of the fixture files as committed.
         "sha256.accounts.csv": [hashlib.sha256((FIXTURES / "accounts.csv").read_bytes()).hexdigest()],
         "sha256.market_rates.csv": [hashlib.sha256((FIXTURES / "market_rates.csv").read_bytes()).hexdigest()],
