@@ -4,7 +4,7 @@
 
 ### Set up, validate, and later import the IRRBB Toolkit into Excel
 
-[![Status](https://img.shields.io/badge/Status-Foundation_only-6e7781?style=flat-square)](#current-status)
+[![Status](https://img.shields.io/badge/Status-In_development-d97706?style=flat-square)](#current-status)
 [![Checks](https://img.shields.io/badge/Checks-python_tools%2Fcheck.py-0969da?style=flat-square)](#run-the-checks)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab?style=flat-square&logo=python&logoColor=white)](#prerequisites)
 [![Security](https://img.shields.io/badge/Security-Private_policy-d73a49?style=flat-square)](SECURITY.md)
@@ -33,16 +33,18 @@ and removal**. Contribution workflow is owned by
 
 Milestone **v0.2.0 – Workbook, data and Excel tests** is in progress;
 **v0.1.0 – Repository foundation** closed on 2026-10-09. There is **no
-IRRBB release** and **nothing to import into Excel yet**: the repository holds
-documentation, issue governance, CI and static source checks only.
+IRRBB release** and **no model to run in Excel yet**: the repository holds
+documentation, issue governance, CI, static source checks, the first core
+parsing modules and the regression harness.
 
 | Topic | Status |
 | --- | --- |
 | VBA source layout | Defined in [`docs/REPOSITORY_STRUCTURE.md`](docs/REPOSITORY_STRUCTURE.md) |
 | VBA conventions | Defined in [`docs/VBA_HOUSE_STYLE.md`](docs/VBA_HOUSE_STYLE.md) |
 | Static checks | Available: `python tools/check.py` |
-| VBA source, workbook template | Not yet present |
-| Regression harness | Not yet present |
+| VBA source | `src/core/`: CORE_Parse (dates, decimals, rates), CORE_Codes (segments, currency allowlist, identifiers), CORE_Sha256 (data fingerprint) and CORE_Import (validation, summary, outcomes and point-in-time view of the data files); `src/modules/IRRBB_Import` (public import from files) and `src/workbook/WB_Import` (runs the import from `Config` into `DataSummary`), #71; no model yet |
+| Workbook template | [`src/workbook/IRRBB_Template.xlsx`](src/workbook/IRRBB_Template.xlsx), macro-free, generated from source; layout in [`docs/WORKBOOK_CONTRACT.md`](docs/WORKBOOK_CONTRACT.md) (#5); not yet opened in Excel |
+| Regression harness | `tests/modules/` (#8): runs from a [development workbook](#development-workbook); no Excel run recorded yet |
 | Supported hosts and references | Decided in issue #3; see [supported hosts](#supported-hosts) |
 | Excel evidence | Requirements defined in [`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md); no record yet |
 | Released versions | None |
@@ -158,15 +160,45 @@ checks: they never compile VBA, run Excel or validate a model.
 
 ## 📂 Importing VBA into Excel
 
-> [!NOTE]
-> There is no VBA to import yet. This section fixes the contract that the first
-> source change must follow; the exact component list is added with it.
+<a id="development-workbook"></a>
+
+### Development workbook
+
+For compile and regression evidence, build the workbook from the checkout
+instead of importing by hand:
+
+```shell
+python tools/devbuild/build_dev_workbook.py   # writes build/IRRBB_Dev.xlsm
+```
+
+The workbook is the [template](docs/WORKBOOK_CONTRACT.md) with the VBA
+project added. The builder embeds every `.bas` under `src/core/`, `src/modules/`,
+`src/workbook/`, `tests/modules/` and `examples/modules/` unchanged and stamps
+the commit on the `Readme` sheet; a dirty checkout is stamped as not
+evidence-grade. Open the file, enable macros, run **Debug → Compile
+VBAProject**, then **Run tests** on the `Checks` sheet. To import data, fill
+the settings on `Config` (or use **Choose account file** and **Choose rate
+file**), attest timely closure reporting, and click **Import data**; the result
+appears on `DataSummary`. Details and the
+LibreOffice early-warning run are in
+[`tools/devbuild/README.md`](tools/devbuild/README.md).
+
+### Manual import
+
+Use these steps when the builder cannot be used. Components at present:
+`src/core/CORE_Codes.bas`, `src/core/CORE_Parse.bas`,
+`src/core/CORE_Import.bas`, `src/core/CORE_Sha256.bas`, `src/modules/IRRBB_Import.bas`,
+`src/workbook/WB_Import.bas`; development only: `tests/modules/TEST_Harness.bas`,
+`tests/modules/TEST_CoreCases.bas`, `tests/modules/TEST_WorkbookCases.bas`,
+`tests/modules/TEST_DataCases.bas`, `tests/modules/TEST_Fixtures.bas`,
+`tests/modules/TEST_ImportCases.bas`, `tests/modules/TEST_HashCases.bas`.
 
 1. Start from **one exact commit** in a Git checkout, so `.bas`, `.cls` and
    `.frm` files have CRLF line endings. Never mix components from different
    commits.
-2. Build the workbook from the macro-free template (planned path
-   `src/workbook/IRRBB_Template.xlsx`) and save it as a macro-enabled workbook
+2. Open the macro-free template `src/workbook/IRRBB_Template.xlsx` and save
+   it as a macro-enabled workbook (its sheets already carry the CodeNames of
+   [`docs/WORKBOOK_CONTRACT.md`](docs/WORKBOOK_CONTRACT.md))
    **outside** the checkout or in an ignored location. Built workbooks are never
    committed.
 3. Open the VBE (**Alt+F11**) and check that **Tools → References** lists only
@@ -178,6 +210,9 @@ checks: they never compile VBA, run Excel or validate a model.
 5. Paste document-module code (`ThisWorkbook`, sheet modules) into the existing
    module instead of importing it, which would create a duplicate class.
 6. Run **Debug → Compile VBAProject**; it must complete with no error.
+   Enter the 40-digit commit of the imported source in `Readme` cell `B5`
+   (`Readme_SourceCommit`); the data import refuses to run without it, since
+   the lineage must name the code version.
 7. Run the synthetic regression harness and the specific scenario under test,
    then record the result as described under
    [validation record](#validation-record).

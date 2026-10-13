@@ -29,7 +29,9 @@ model definitions are in [`README.md`](README.md); validation obligations in
 > [acceptance record](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/4#issuecomment-6068526038).
 > The point-in-time, closure and censoring amendment was decided by the owner
 > on 2026-10-09 in [#32](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/32)
-> ([decisions 6–8](#decisions)). Other audit amendments remain tracked in
+> ([decisions 6–8](#decisions)); the import time zone on 2026-10-13 in
+> [#71](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/71)
+> ([decision 9](#decisions)). Other audit amendments remain tracked in
 > [#26](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/26). Only synthetic data is ever
 > committed or attached. Real data is loaded locally
 > and never enters Git, issues or pull requests.
@@ -55,8 +57,9 @@ Both datasets use the same plain, locale-independent CSV subset:
 - ASCII text; LF or CRLF line endings; no byte-order mark;
 - comma separator, no quoting, no embedded commas or line breaks;
 - the first line is the exact header below, fields in the listed order;
-- dates as `YYYY-MM-DD`; decimals with `.` and no thousands separator or
-  exponent;
+- dates as `YYYY-MM-DD` with a year from 1900 to 9999 (the Excel date system);
+  decimals with `.` and no thousands separator or exponent, at least one digit
+  before the `.` and at least one after it;
 - an empty field means *missing*. No sentinel values (`0`, `-999`, `N/A`).
 
 Parsing never uses Excel's locale-dependent conversions (`CDate`, `CDbl` on
@@ -134,6 +137,13 @@ segment changes between months is a **migration** (warning `W03`): each month
 counts in the segment stated for that month, and the model specification
 (issue #9) decides how a transition across segments enters estimation.
 
+**Segment selection.** A run selects the segments it models (the segment
+list of the [lineage](#lineage)). The import still validates and reconciles
+every segment, so leaving a segment out never turns a migration into a gap or
+a disappearance. The selection applies when a model builds its sample: a
+transition enters only when the segment stated at its origin month is
+selected.
+
 <a id="reconciliation"></a>
 
 ## ⚖️ Reconciliation
@@ -163,7 +173,7 @@ same file always gives the same findings in the same order.
 
 | Code | Error | Rows checked |
 | --- | --- | --- |
-| `E01` | Header or number of fields does not match the contract | File, then each row |
+| `E01` | Header or number of fields does not match the contract, or a line holds a character outside ASCII | File, then each row |
 | `E03` | A required field is empty | Each row |
 | `E02` | A date is not a valid ISO date, or `as_of_date` is not a month end | Each row |
 | `E04` | A value cannot be parsed or is out of range (ID characters, balance or rate format, rate bounds, `indexed` not `0`/`1`) | Each row |
@@ -212,7 +222,8 @@ month end $t+1$. Its **outcome** is the first of these that applies:
 - A **migration** (`W03`) does not change the outcome: the transition belongs to
   the segment stated at $t$, which is known at $t$.
 - **Eligibility:** a transition enters an account-level estimation sample only
-  with outcome *observed* or *verified closure*. Model-specific conditions (for
+  with outcome *observed* or *verified closure*, and only when the segment at
+  its origin is [selected](#segmentation) for the run. Model-specific conditions (for
   example a positive balance at $t$) are set in
   [`MODEL_CONTRACTS.md`](MODEL_CONTRACTS.md).
 - **Lineage** records, per month end, segment and currency, the number of
@@ -244,7 +255,8 @@ row's `as_of_date`.
 The **point-in-time view at a forecast origin** $t$ is what every predictor,
 backtest and forecast at $t$ may use:
 
-1. only rows with `as_of_date` $\le t$;
+1. only rows of an accepted import (no error, including `E12`) inside the data
+   window with `as_of_date` $\le t$, for an origin $t$ inside the window;
 2. on those rows, `close_date` is shown only if it is $\le t$; a later
    `close_date` is **masked** (treated as empty) in the view.
 
@@ -284,8 +296,9 @@ Reading a user-selected input file is a file-system access that
 issue: read-only, the file the user picks, nothing written next to it. This
 issue (#4) is that agreement; `SECURITY.md` is updated in the same change as
 the importer.
-Memory use and import time for large panels are measured when the importer
-exists; nothing about performance is claimed here.
+Memory use and import time for large panels are measured with the importer
+and the synthetic panel of `tools/devbuild/make_large_panel.py`; nothing about
+performance is claimed here.
 
 <a id="lineage"></a>
 
@@ -301,7 +314,7 @@ built from it:
 | Settings | Data window, segment list, rate series selected |
 | Attestation | Closure dates reported by the month end of the closure ([timely closure reporting](#look-ahead)) |
 | Code | Toolkit commit SHA |
-| Time | Import timestamp with UTC offset |
+| Time | Import timestamp in the host's local time, without UTC offset ([decision 9](#decisions)) |
 
 **Reproducibility:** the same file, settings and commit give the same dataset,
 the same findings in the same order and the same fingerprint, on any supported
@@ -328,15 +341,23 @@ re-reads the fixtures with an independent Python reading of this contract and
 fails if fixtures, expectations and rules disagree. It also runs the
 leakage tests: altering, adding or removing information learned after an
 origin leaves every predictor at that origin unchanged, and dropping a month
-end from the window gives `E12`. The VBA importer, when it exists, must
-reproduce the same expected files.
+end from the window gives `E12`. The VBA import core (`CORE_Import`, #71)
+reproduces the same expected files in `DATA-VALID-01`, `DATA-INVALID-01` and
+`DATA-PIT-01`, and runs the leakage test in `DATA-PIT-02` on its own
+point-in-time view. `IRRBB_ImportData` reads the files and `DataSummary`
+shows the result (`DATA-IMPORT-01`), with the SHA-256 of each file computed by
+`CORE_Sha256` (`DATA-SHA-01`) and the toolkit commit in the lineage. The import
+time is recorded in local time ([decision 9](#decisions)): VBA has no time-zone
+function, and reading the UTC offset from the host would need a reviewed system
+call (`SECURITY.md`).
 
 <a id="decisions"></a>
 
 ## ✅ Decisions
 
 Decisions 1–5 were accepted by the owner on 2026-10-08 in issue #4;
-decisions 6–8 on 2026-10-09 in issue #32.
+decisions 6–8 on 2026-10-09 in issue #32; decision 9 on 2026-10-13 in
+issue #71.
 
 | # | Decision | Outcome |
 | ---: | --- | --- |
@@ -348,6 +369,7 @@ decisions 6–8 on 2026-10-09 in issue #32.
 | 6 | Back-filled `close_date` (#32, 2026-10-09) | Accepted as supplied; masked in the point-in-time view at origins before it; closures assumed reported by the month end in which they occur, attested per import |
 | 7 | Disappearance without a verified closure (#32, 2026-10-09) | Right-censored (`W05`), never cash-out |
 | 8 | Month end with no rows inside the window (#32, 2026-10-09) | Import rejected (`E12`) |
+| 9 | Import timestamp time zone (#71, 2026-10-13) | Host local time, without UTC offset; no system call is added to read it |
 
 ---
 

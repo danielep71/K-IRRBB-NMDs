@@ -133,10 +133,17 @@ impact.
 
 ### Current risk surfaces
 
-- **Runtime.** No VBA source exists yet, so there is no runtime surface. Future
-  code is expected to read and write only its own workbook; any use of files,
-  network, native code (`Declare`), `Shell` or `CreateObject` needs an issue and
-  explicit review.
+- **Runtime.** The VBA reads two CSV files the user chooses, the account panel
+  and the market rates (`IRRBB_ImportData`, agreed in #4 and built in #71):
+  opened for binary read with writing by others denied while open (so one
+  snapshot is read), streamed in 64 KB chunks and closed; nothing is written next to them and no other file is touched. The
+  file picker (`WB_ChooseAccountsFile`, `WB_ChooseRatesFile`) only stores the
+  chosen path on `Config`. Otherwise the code reads and writes only its own
+  workbook. The test modules, which exist only in the development workbook,
+  write temporary fixture files in a new folder of their own inside the system
+  temporary folder and delete exactly those files and that folder.
+  Any other use of files, and any network, native code (`Declare`), `Shell`
+  or `CreateObject`, needs an issue and explicit review.
 - **Automation.** Every workflow checkout that can run code under review sets
   `persist-credentials: false`, so that code never receives Git credentials.
   The static-check and label-drift jobs run with a read-only token. The

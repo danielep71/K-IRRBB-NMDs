@@ -37,8 +37,11 @@ def parse_date(text: str) -> date | None:
     match = ISO_DATE.match(text)
     if not match:
         return None
+    year, month, day = map(int, match.groups())
+    if not 1900 <= year <= 9999:
+        return None
     try:
-        return date(*map(int, match.groups()))
+        return date(year, month, day)
     except ValueError:
         return None
 
@@ -51,9 +54,14 @@ def month_index(day: date) -> int:
     return day.year * 12 + day.month - 1
 
 
-def next_month_end(day: date) -> date:
-    year, month = divmod(month_index(day) + 1, 12)
+def month_end(index: int) -> date:
+    """Last day of the month with the given index (year * 12 + month - 1)."""
+    year, month = divmod(index, 12)
     return date(year, month + 1, calendar.monthrange(year, month + 1)[1])
+
+
+def next_month_end(day: date) -> date:
+    return month_end(month_index(day) + 1)
 
 
 def known_closure(observed: list[dict[str, str]]) -> date | None:
@@ -228,11 +236,11 @@ def warnings_and_totals(rows, first: date, last: date) -> tuple[list[dict], list
 def missing_extracts(rows, first: date, last: date) -> list[dict]:
     """E12: every month end of the window must have at least one account row."""
     present = {parse_date(row["as_of_date"]) for _, row in rows}
-    missing, day = [], first
-    while day <= last:
+    missing = []
+    for index in range(month_index(first), month_index(last) + 1):
+        day = month_end(index)
         if day not in present:
             missing.append({"code": "E12", "as_of_date": day.isoformat()})
-        day = next_month_end(day)
     return missing
 
 
@@ -248,8 +256,8 @@ def transition_outcomes(rows, first: date, last: date) -> list[dict]:
         dates = [parse_date(r["as_of_date"]) for r in observed]
         closed = known_closure(observed)
         for index, (origin, row) in enumerate(zip(dates, observed)):
-            following = next_month_end(origin)
             later = index + 1 < len(dates)
+            following = next_month_end(origin) if origin < last else None  # no month after 9999-12
             if origin == last:
                 outcome = "end_of_sample"
             elif later and dates[index + 1] == following:
@@ -265,11 +273,12 @@ def transition_outcomes(rows, first: date, last: date) -> list[dict]:
     return outcomes
 
 
-def point_in_time_view(rows, origin: date) -> list[dict[str, str]]:
-    """Rows dated on or before the origin, with any close_date learned later masked."""
+def point_in_time_view(rows, origin: date, first: date | None = None) -> list[dict[str, str]]:
+    """Rows dated on or before the origin (and from the window start, if given), with any
+    close_date learned later masked."""
     view = []
     for _, row in rows:
-        if parse_date(row["as_of_date"]) <= origin:
+        if parse_date(row["as_of_date"]) <= origin and (first is None or parse_date(row["as_of_date"]) >= first):
             visible = dict(row)
             if visible["close_date"] and parse_date(visible["close_date"]) > origin:
                 visible["close_date"] = ""

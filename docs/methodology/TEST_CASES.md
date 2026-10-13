@@ -17,10 +17,14 @@ The models are specified in [`MODEL_CONTRACTS.md`](MODEL_CONTRACTS.md); the
 evidence protocol is in [`VALIDATION_PLAN.md`](VALIDATION_PLAN.md).
 
 > [!NOTE]
-> At v0.1.0 the cases below are **registered, not built**, except the data
-> contract cases, which exist and are checked on every run of
-> `python tools/check.py`. A case moves to *built* when its fixture and expected
-> file are committed with their provenance.
+> The model cases below are **registered, not built**. The data contract cases
+> are *built*: their fixtures and expected files exist and are checked on every
+> run of `python tools/check.py`. Cases marked *Built (VBA)* have a VBA
+> implementation run by `TEST_Harness.RunTests` in Excel; their literal
+> expectations are checked without Excel by `tools/test_vba_harness.py`. No
+> Excel run is recorded yet. A case moves to *built* when its fixture and
+> expected file are committed with their provenance; the harness registry in
+> `tests/modules/TEST_Harness.bas` lists every ID here, in this order.
 
 <a id="provenance"></a>
 
@@ -57,14 +61,31 @@ statistical check, not a tolerance test.
 
 ## 📋 Register
 
+### Harness
+
+| ID | Checks | Reference | Tolerance | Status |
+| --- | --- | --- | --- | --- |
+| `HARN-OUT-01` | Case outcome rules (`NOT RUN`, `ERROR`, `FAIL` with no assertion, `PASS` only when every assertion passes) and the `abs`, `rel` and `exact` tolerance kinds | Rules on this page; expectations re-derived by [`test_vba_harness.py`](../../tools/test_vba_harness.py) | `exact` | Built (VBA) |
+
+### Workbook
+
+| ID | Checks | Reference | Tolerance | Status |
+| --- | --- | --- | --- | --- |
+| `WB-LAYOUT-01` | Sheet order, names and CodeNames; every defined name refers to its address; no other names | [`WORKBOOK_CONTRACT.md`](../WORKBOOK_CONTRACT.md); literals checked against [`build_template.py`](../../tools/workbook/build_template.py) by [`test_vba_harness.py`](../../tools/test_vba_harness.py) | `exact` | Built (VBA) |
+
 ### Data contract
 
 | ID | Checks | Reference | Tolerance | Status |
 | --- | --- | --- | --- | --- |
-| `DATA-VALID-01` | Totals per date, segment and currency; warnings `W01`–`W05` | Hand computation, [`accounts_summary.json`](../../tests/expected/data_contract/accounts_summary.json) | `abs 0.005` balances; `exact` counts and codes | Built |
-| `DATA-INVALID-01` | First error per line, `E02`–`E11` | Hand construction, [`accounts_invalid_findings.json`](../../tests/expected/data_contract/accounts_invalid_findings.json) | `exact` | Built |
-| `DATA-PIT-01` | Transition outcome per account month (observed, verified closure, gap, censored, end of sample), `W05` censoring, `close_date` visible at each origin | Hand assignment, [`availability_outcomes.json`](../../tests/expected/data_contract/availability_outcomes.json) | `exact` | Built |
-| `DATA-PIT-02` | Leakage: altering, adding or removing information learned after an origin leaves every predictor at that origin unchanged; a missing month end gives `E12` | Property test on both panels at every origin, with an unmasked negative control | `exact` | Built |
+| `DATA-VALID-01` | Totals per date, segment and currency; warnings `W01`–`W05`; the market-rate fixture is accepted | Hand computation, [`accounts_summary.json`](../../tests/expected/data_contract/accounts_summary.json); in VBA through the generated `TEST_Fixtures` module | `abs 0.005` balances; `exact` counts and codes | Built (Python, VBA) |
+| `DATA-INVALID-01` | First error per line, `E02`–`E11`; in VBA also `E01` (header, field count), cross-row precedence, case-sensitive keys, market-rate rules and `E12` for a dropped month end | Hand construction, [`accounts_invalid_findings.json`](../../tests/expected/data_contract/accounts_invalid_findings.json); VBA literals re-derived by [`test_vba_harness.py`](../../tools/test_vba_harness.py) | `exact` | Built (Python, VBA) |
+| `DATA-PIT-01` | Transition outcome per account month (observed, verified closure, gap, censored, end of sample), `W05` censoring, `close_date` visible at each origin | Hand assignment, [`availability_outcomes.json`](../../tests/expected/data_contract/availability_outcomes.json) | `exact` | Built (Python, VBA) |
+| `DATA-PIT-02` | Leakage: altering, adding or removing information learned after an origin leaves every predictor at that origin unchanged; a missing month end gives `E12` | Property test on both panels at every origin, with an unmasked negative control | `exact` | Built (Python, VBA) |
+| `DATA-IMPORT-01` | Import from files to `DataSummary`: LF and CRLF files, a file longer than one read chunk, a non-ASCII byte and an empty file (`E01`), a rejected panel (findings listed, earlier totals withdrawn, none written), refused settings (no attestation, missing file, excluded segment, unknown rate series) | `accounts_summary.json` and `accounts_invalid_findings.json` through `TEST_Fixtures`; the long file is constructed with a known total | `abs 0.005` balances; `exact` otherwise | Built (VBA) |
+| `DATA-SHA-01` | SHA-256 of the data fingerprint (`CORE_Sha256`): the published FIPS 180-2 examples (`abc`, the 448- and 896-bit messages; one million `a` is left out for run time), the empty message, the padding boundaries (55, 56, 63, 64, 65, 119, 120 bytes) and one message fed in pieces of 1, 7, 64 and 65 bytes | FIPS 180-2 examples; every digest re-derived with Python `hashlib` by [`test_vba_harness.py`](../../tools/test_vba_harness.py) | `exact` | Built (VBA) |
+| `DATA-PARSE-01` | ISO dates (`CORE_ParseIsoDate`): missing versus invalid, calendar and leap-year validity, years 1900–9999, no time part; month ends (`CORE_IsMonthEnd`) | [File format](DATA_CONTRACT.md#file-format); expectations re-derived from the Python reading in [`test_data_contract.py`](../../tools/test_data_contract.py) | `exact` | Built (VBA) |
+| `DATA-PARSE-02` | Balances (4 places) and rates (8 places, −0.05 to 0.25) (`CORE_ParseDecimal`, `CORE_ParseRate`): missing versus invalid, locale-like forms rejected | As `DATA-PARSE-01` | `rel 1e-15` balances; `exact` rates and codes | Built (VBA) |
+| `DATA-CODES-01` | Segment codes and the currency allowlist reject every other value, including case and spacing variants | As `DATA-PARSE-01` | `exact` | Built (VBA) |
 
 ### Rate pass-through
 

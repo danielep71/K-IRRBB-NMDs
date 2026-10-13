@@ -99,6 +99,81 @@ Use only the categories needed by a release.
 
 ### Added
 
+- Segment selection (#71): the segments marked `Yes` on `Segments` form the
+  run's segment list, recorded in the lineage. The import still validates and
+  reconciles every segment, so leaving one out never turns a migration into a
+  gap or a disappearance; the contract applies the selection when a model
+  builds its sample (a transition enters only when its origin segment is
+  selected). `IRRBB_ImportData` takes the list as a new argument; a run with
+  no segment is refused. `tools/devbuild/make_large_panel.py` writes a 47 MB
+  synthetic panel for timing the import in Excel.
+- Data fingerprint (#71, stage 4): `CORE_Sha256` computes SHA-256 in VBA
+  (DATA_CONTRACT.md decision 5) while the import reads each file, and the
+  lineage records both fingerprints and the toolkit commit, taken from the
+  workbook's build stamp (`Readme_SourceCommit`). `IRRBB_ImportData` takes the
+  commit as a new last argument. `DATA-SHA-01` checks the published FIPS
+  180-2 examples and padding boundaries. The import time is local, without
+  UTC offset (DATA_CONTRACT.md decision 9). Not run in Excel; speed on large
+  panels not measured.
+- Import from files (#71, stage 3): `IRRBB_ImportData`, the first public
+  entry point, reads the account panel and market-rate CSV files (read only,
+  other writers locked out while reading, streamed in 64 KB chunks, LF or
+  CRLF), refuses a window whose dates are not month ends without a time of
+  day, refuses to run without the timely closure reporting attestation, and
+  returns totals, findings, warnings and
+  lineage as tables. **Import data** on `Config` writes them to `DataSummary`
+  under the status protocol: earlier results withdrawn first, totals only
+  for an accepted import, primary and cleanup errors kept. Excluding a
+  segment is refused until its meaning is defined. `DATA-IMPORT-01` runs it
+  end to end. `SECURITY.md` records the file access. Not run in Excel.
+- Transition outcomes and point-in-time view (#71, stage 2): the import
+  summary assigns every observed month its outcome (observed, verified
+  closure, gap, censored disappearance, end of sample), and `CORE_ViewBuild`
+  gives the rows known at a forecast origin with later close dates masked.
+  The view exists only after an accepted import (no finding, no `E12`) and
+  keeps to the data window.
+  `DATA-PIT-01` and `DATA-PIT-02` now run in VBA: the hand-assigned outcomes
+  and visible closures, and a leakage test showing that changing everything
+  learned after an origin leaves the view at that origin unchanged. Not run
+  in Excel.
+- VBA import core (#71, stage 1): `CORE_Import` validates the account panel
+  and the market-rate file line by line in the contract's rule order (`E01`–
+  `E11`, cross-row `E11`, `E10`, `E05`, `E08`), and for a data window reports
+  warnings `W01`–`W06`, totals per date, segment and currency (compensated
+  sums, never across currencies) and missing extracts (`E12`).
+  `DATA-VALID-01` and `DATA-INVALID-01` now run in VBA against the
+  hand-computed expected files. No file input, workbook output or lineage
+  yet; not run in Excel.
+- Workbook template (#5): `src/workbook/IRRBB_Template.xlsx`, macro-free and
+  sanitized, with ten sheets, their CodeNames, named input and output areas,
+  input validation and a status cell per output sheet that starts as not
+  current. `docs/WORKBOOK_CONTRACT.md` defines the layout and the result
+  status protocol; the template is generated from
+  `tools/workbook/build_template.py` and checked against it, the contract and
+  the harness by `tools/test_workbook_template.py`. Placeholder sheets are
+  marked as such. Not yet opened in Excel.
+- `WB-LAYOUT-01`: a harness case that checks the sheets, CodeNames and names of
+  the built workbook through Excel.
+- Regression harness for Excel (#8): `TEST_Harness.RunTests` runs every case
+  in `docs/methodology/TEST_CASES.md` in register order and writes per-case and
+  per-assertion results to the `Checks` sheet. Earlier results are withdrawn
+  before a run; a case with no assertion or an unexpected error never passes; an
+  unbuilt case is `NOT RUN`. If writing the results fails, the run ends
+  `FAILED` with both the primary and the cleanup error shown, and no earlier
+  result remains. First VBA cases: `HARN-OUT-01` (outcome and
+  tolerance rules), `DATA-PARSE-01`, `DATA-PARSE-02` and `DATA-CODES-01`.
+  `tools/test_vba_harness.py` checks their expectations against the contract
+  and the registry against the register without Excel. No Excel run is
+  recorded yet.
+- First core modules: `CORE_Parse` parses the data contract's dates,
+  decimals and rates without Excel's locale-dependent conversions, returning
+  missing and invalid separately; `CORE_Codes` holds the segment codes and the
+  currency allowlist.
+- Development workbook builder (`tools/devbuild/`, import route for #6):
+  writes `build/IRRBB_Dev.xlsm`, the workbook template with the VBA project
+  generated from source, so no VBA trust setting is needed; standard library
+  only; checked by `tools/test_devbuild.py` with an independent decoder.
+
 - Daily repository traffic export with history on a separate branch,
   main-only analytics access, and traffic alerts, following the SA-CCR
   repository setup.
@@ -121,6 +196,9 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- The data contract now states that dates have a year from 1900 to 9999 (the
+  Excel date system) and that a decimal has digits on both sides of any `.`
+  (#8).
 - The repository is now licensed under the Mozilla Public License 2.0
   (MPL-2.0) instead of MIT (#49). `LICENSE` holds the MPL-2.0 text and is the
   license notice for every file; contributions are accepted under MPL-2.0.
