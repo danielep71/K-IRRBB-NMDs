@@ -118,8 +118,9 @@ Use only the categories needed by a release.
 - Import from files (#71, stage 3): `IRRBB_ImportData`, the first public
   entry point, reads the account panel and market-rate CSV files (read only,
   other writers locked out while reading, streamed in 64 KB chunks, LF or
-  CRLF), refuses to run without the timely
-  closure reporting attestation, and returns totals, findings, warnings and
+  CRLF), refuses a window whose dates are not month ends without a time of
+  day, refuses to run without the timely closure reporting attestation, and
+  returns totals, findings, warnings and
   lineage as tables. **Import data** on `Config` writes them to `DataSummary`
   under the status protocol: earlier results withdrawn first, totals only
   for an accepted import, primary and cleanup errors kept. Excluding a

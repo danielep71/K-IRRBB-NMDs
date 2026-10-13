@@ -97,7 +97,7 @@ Public Function IRRBB_ImportData(ByVal accountsPath As String, ByVal ratesPath A
     End If
     If Not CORE_IsMonthEnd(firstMonthEnd) Or Not CORE_IsMonthEnd(lastMonthEnd) _
             Or firstMonthEnd > lastMonthEnd Then
-        Err.Raise 5, SOURCE, "The data window must be two month ends in order."
+        Err.Raise 5, SOURCE, "The data window must be two month ends in order, without a time of day."
     End If
     RequireFile accountsPath
     RequireFile ratesPath
