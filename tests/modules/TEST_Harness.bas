@@ -21,6 +21,12 @@ Attribute VB_Name = "TEST_Harness"
 '   status block (B10, B11) with status FAILED. TEST_RunTestsWithWriteFault
 '   exercises that path by making every results write fail.
 '
+' SHOWING THAT A RUN CAN FAIL
+'   TEST_RunTestsWithInjectedFailures runs every case as RunTests does, adds one
+'   failing assertion to HARN-OUT-01 and raises an unexpected error at the end of
+'   DATA-CODES-01: the run must end COMPLETE - FAILURES with those two cases FAIL
+'   and ERROR, and a following RunTests must withdraw them. Nothing else changes.
+'
 ' OUTPUT
 '   Sheet "Checks": status block (rows 3-11), case table (A13:F), assertion
 '   table (H13:N). Tolerances follow TEST_CASES.md: abs |x - r| <= eps,
@@ -39,6 +45,10 @@ Private Const CASE_ROW As Long = 14
 Private Const ASSERT_COL As Long = 8
 ' vbObjectError + 1001, a literal for the same reason as TEST_ERR_NO_CASE.
 Private Const ERR_INJECTED_WRITE As Long = -2147220503
+' vbObjectError + 1002, a literal for the same reason.
+Private Const ERR_INJECTED_CASE As Long = -2147220502
+Private Const INJECT_FAIL_CASE As String = "HARN-OUT-01"
+Private Const INJECT_ERROR_CASE As String = "DATA-CODES-01"
 
 Private mCaseId() As String
 Private mCaseOutcome() As String
@@ -52,6 +62,7 @@ Private mRows() As Variant
 Private mRowCount As Long
 Private mStarted As Date
 Private mInjectWriteFault As Boolean
+Private mInjectFailures As Boolean
 
 
 '==============================================================================
@@ -107,6 +118,21 @@ Public Sub TEST_RunTestsWithWriteFault()
     RunTests
 Done:
     mInjectWriteFault = False
+End Sub
+
+
+'------------------------------------------------------------------------------
+' TEST_RunTestsWithInjectedFailures: run the harness with one failing assertion
+' added to HARN-OUT-01 and an unexpected error raised in DATA-CODES-01, to show
+' that a failure is reported as FAIL or ERROR and never as PASS. Leaves status
+' COMPLETE - FAILURES; run RunTests afterwards to restore current results.
+'------------------------------------------------------------------------------
+Public Sub TEST_RunTestsWithInjectedFailures()
+    mInjectFailures = True
+    On Error GoTo Done          ' RunTests reports its own errors; this only resets the flag
+    RunTests
+Done:
+    mInjectFailures = False
 End Sub
 
 
@@ -170,6 +196,7 @@ Private Sub RunOne(ByVal caseId As String, ByVal built As Boolean, ByVal note As
     If built Then
         On Error GoTo CaseErr
         DispatchCase caseId
+        If mInjectFailures Then InjectFailure caseId
         On Error GoTo 0
     End If
 
@@ -186,6 +213,19 @@ CaseErr:
     mCaseAsserts(mCurrent) = mCaseAsserts(mCurrent) + 1
     errored = True
     Resume Finish
+End Sub
+
+
+' The deliberate failures of TEST_RunTestsWithInjectedFailures, after the case's
+' own assertions; the case note says they were injected.
+Private Sub InjectFailure(ByVal caseId As String)
+    If caseId = INJECT_FAIL_CASE Then
+        mCaseNote(mCurrent) = Trim$(mCaseNote(mCurrent) & " Failing assertion injected.")
+        TEST_AssertTrue caseId, "injected failing assertion (TEST_RunTestsWithInjectedFailures)", False
+    ElseIf caseId = INJECT_ERROR_CASE Then
+        mCaseNote(mCurrent) = Trim$(mCaseNote(mCurrent) & " Unexpected error injected.")
+        Err.Raise ERR_INJECTED_CASE, "TEST_Harness.InjectFailure", "Injected unexpected error"
+    End If
 End Sub
 
 
