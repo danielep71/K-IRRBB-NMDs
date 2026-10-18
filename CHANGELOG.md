@@ -99,6 +99,14 @@ Use only the categories needed by a release.
 
 ### Added
 
+- Deliberate failure run (#8): `TEST_Harness.TEST_RunTestsWithInjectedFailures`
+  runs every case with one failing assertion added to `HARN-OUT-01` and an
+  unexpected error raised in `DATA-CODES-01`, so an Excel run can show that a
+  failure ends `COMPLETE - FAILURES` with those cases `FAIL` and `ERROR`, never
+  `PASS`, and that the next `RunTests` withdraws them. `docs/EXCEL_EVIDENCE.md`
+  stage 4 now names this run and `TEST_RunTestsWithWriteFault`, and stage 3
+  says to copy the `Checks` results. `tools/devbuild/lo_smoke.py` runs it. Not
+  run in Excel.
 - Per-period outcome lineage (#71): an accepted import now writes, per month
   end, segment and currency, the transitions from that month end by outcome
   (observed, verified closures, gaps, censored disappearances with the sum of

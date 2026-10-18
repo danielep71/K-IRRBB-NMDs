@@ -5,8 +5,10 @@ Usage: python tools/devbuild/lo_smoke.py [build/IRRBB_Dev.xlsm]
 
 Opens the workbook in LibreOffice with VBA compatibility, runs
 TEST_Harness.RunTests, plants a stale row in the result tables, runs it again to
-check that previous results are withdrawn, runs it once more with every results
-write failing (both errors must be kept) and prints a JSON summary. Needs
+check that previous results are withdrawn, runs it with one injected failing
+assertion and one injected error (both must show, and a normal rerun must
+withdraw them), runs it once more with every results write failing (both
+errors must be kept) and prints a JSON summary. Needs
 LibreOffice and python3-uno. LibreOffice is NOT Excel: this is never Excel
 evidence (docs/EXCEL_EVIDENCE.md), only an early warning for runtime defects.
 """
@@ -86,6 +88,16 @@ def main() -> int:
         out["rerun_status"] = cells("Checks", "B3:B3")[0][0]
         out["stale_rows_withdrawn"] = (cells("Checks", "A70:A70")[0][0] in ("", None)
                                        and cells("Checks", "H2900:H2900")[0][0] in ("", None))
+        # Injected failures must show as FAIL and ERROR, never PASS, and a normal rerun must
+        # withdraw them.
+        out["injected_error"] = run("TEST_Harness", "TEST_RunTestsWithInjectedFailures")
+        out["injected_status"] = cells("Checks", "B3:B3")[0][0]
+        out["injected_counts"] = cells("Checks", "B8:B8")[0][0]
+        out["injected_outcomes"] = {r[0]: r[1] for r in cells("Checks", "A14:F80")
+                                    if r[0] in ("HARN-OUT-01", "DATA-CODES-01")}
+        run("TEST_Harness", "RunTests")
+        out["after_injected_status"] = cells("Checks", "B3:B3")[0][0]
+        out["after_injected_not_passing"] = [r[0] for r in cells("Checks", "H14:N3000") if r[0] and r[6] != "PASS"]
         # A run whose every results write fails must end FAILED with both errors kept and
         # no earlier result left in the tables.
         out["fault_error"] = run("TEST_Harness", "TEST_RunTestsWithWriteFault")

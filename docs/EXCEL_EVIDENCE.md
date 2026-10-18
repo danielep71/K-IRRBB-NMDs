@@ -87,13 +87,13 @@ error text and the highlighted component if it fails.
 ### 3. Smoke run
 
 The smoke run shows that the built workbook works end to end on synthetic
-data, not that the models are correct. Until the regression harness exists
-(issue #8), it consists of:
+data, not that the models are correct. It consists of:
 
 1. opening the saved workbook afresh with macros enabled through the existing
    trust mechanism;
-2. running the harness entry point `TEST_Harness.RunTests`, once it exists, and
-   copying the complete Immediate-window output; and
+2. running the harness entry point `TEST_Harness.RunTests` (the **Run tests**
+   button on `Checks`) and copying its status block (`Checks!A3:B11`) and case
+   table (`Checks!A13:F46`) into the log; and
 3. checking that `Calculation`, `EnableEvents`, `ScreenUpdating` and
    `DisplayAlerts` are the same after the run as before it.
 
@@ -102,10 +102,20 @@ the expected number of cases, and Excel state is restored.
 
 ### 4. Failure path
 
-The harness designed in issue #8 must be able to show a failure. Run its
-deliberate-failure path once it exists. `PASS` requires that it reports `FAIL`,
-keeps the primary error, and still restores Excel state, so that a passing
-smoke run is known to be able to fail. Until then this stage is `NOT_RUN`.
+The harness must be able to show a failure, so that a passing smoke run is
+known to be able to fail. Run, from the Immediate window, in this order:
+
+1. `TEST_Harness.TEST_RunTestsWithInjectedFailures`: `PASS` requires status
+   `COMPLETE - FAILURES`, `HARN-OUT-01` `FAIL` and `DATA-CODES-01` `ERROR`
+   (both noted as injected), every other executed case `PASS`;
+2. `TEST_Harness.RunTests`: `PASS` requires status
+   `COMPLETE - ALL EXECUTED CASES PASSED` and no `FAIL` or `ERROR` row left;
+3. `TEST_Harness.TEST_RunTestsWithWriteFault`: `PASS` requires status `FAILED`
+   with both the primary and the cleanup error in `Checks!B10:B11` and empty
+   result tables; and
+4. `TEST_Harness.RunTests` again, to leave current results.
+
+Excel state must be restored after each run, as in stage 3.
 
 ### 5. Cleanup
 
