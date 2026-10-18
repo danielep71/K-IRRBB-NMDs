@@ -42,6 +42,13 @@ HOST_IDENTIFIER = re.compile(
     r"WorksheetFunction|Evaluate|MsgBox|InputBox|UserForms?)\b", re.I)
 # Core cannot activate or attach to external COM objects, even via dynamic ProgIDs.
 AUTOMATION_IDENTIFIER = re.compile(r"\b(CreateObject|GetObject)\b", re.I)
+# Module-level Public members of a standard module: procedures, constants, enums,
+# types, declares and variables. Option Private Module hides them from other
+# projects only, so two modules of one project may not share a name.
+PUBLIC_MEMBER = re.compile(
+    r"^Public\s+(?:(?:Static\s+)?(?:Function|Sub|Property\s+(?:Get|Let|Set))|Const|Enum|Type"
+    r"|Declare\s+(?:PtrSafe\s+)?(?:Function|Sub))\s+(\w+)|^Public\s+(?:WithEvents\s+)?(\w+)\s*(?:\(\s*\))?\s+As\b",
+    re.I)
 FORBIDDEN_PART = re.compile(r"(^|/)vbaProject\.bin$|^docProps/", re.I)
 
 
@@ -91,6 +98,37 @@ def check_core_host_independence(path: str, text: str) -> list[str]:
             findings.extend(f"{path}:{number}: core must not use {kind} identifier {match.group(1)}"
                             for match in pattern.finditer(code))
     return findings
+
+
+def public_members(text: str) -> set[str]:
+    """Case-folded names of a standard module's Public members, including enum members."""
+    members: set[str] = set()
+    in_enum = False
+    for _, code in code_lines(text.replace("\r\n", "\n")):
+        line = code.strip()
+        if in_enum:
+            if re.match(r"End\s+Enum\b", line, re.I):
+                in_enum = False
+            elif re.match(r"\w+", line):
+                members.add(re.match(r"\w+", line).group(0).casefold())
+            continue
+        match = PUBLIC_MEMBER.match(line)
+        if match:
+            members.add((match.group(1) or match.group(2)).casefold())
+            in_enum = bool(re.match(r"Public\s+Enum\b", line, re.I))
+    return members
+
+
+def check_public_names(root: Path, components: list[str]) -> list[str]:
+    """A Public name declared in two standard modules does not compile (ambiguous name)."""
+    owners: dict[str, list[str]] = {}
+    for path in components:
+        if path.lower().endswith(".bas"):
+            text = (root / path).read_bytes().decode(VBA_ENCODING, errors="replace")
+            for name in public_members(text):
+                owners.setdefault(name, []).append(path)
+    return [f"Public name {name} is declared in more than one module: {', '.join(paths)}"
+            for name, paths in sorted(owners.items()) if len(paths) > 1]
 
 
 def check_component(root: Path, path: str, tracked: set[str], names: dict[str, str]) -> list[str]:
@@ -234,6 +272,7 @@ def run_check(root: Path) -> dict[str, Any]:
                     if Path(p).suffix.lower() in VBA_SUFFIXES | {".frx"} and not p.startswith(VBA_HOMES))
     for path in components:
         findings.extend(check_component(root, path, tracked, names))
+    findings.extend(check_public_names(root, components))
     for path in sorted(p for p in tracked if Path(p).suffix.lower() in WORKBOOK_SUFFIXES):
         if path != "src/workbook/IRRBB_Template.xlsx":
             findings.append(f"{path}: only src/workbook/IRRBB_Template.xlsx may be tracked")
