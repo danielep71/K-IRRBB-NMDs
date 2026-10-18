@@ -5,7 +5,7 @@
 ### Interest Rate Risk in the Banking Book | behavioral modeling, calibration and independent testing
 
 [![Excel VBA](https://img.shields.io/badge/Excel_VBA-Windows-217346?style=for-the-badge&logo=microsoft-excel&logoColor=white)](INSTALLATION.md)
-[![Status](https://img.shields.io/badge/Status-Foundation%20only-6e7781?style=for-the-badge)](#status)
+[![Status](https://img.shields.io/badge/Status-v0.2.0%20in%20progress-6e7781?style=for-the-badge)](#status)
 [![Development](https://img.shields.io/badge/Development-release%2Fv0.2.0-6f42c1?style=for-the-badge)](https://github.com/danielep71/VBA-IRRBB-Toolkit/tree/release/v0.2.0)
 [![License](https://img.shields.io/badge/License-MPL--2.0-2ea44f?style=for-the-badge)](LICENSE)
 
@@ -40,9 +40,9 @@ Planned cross-cutting functionality includes data validation, calibration, histo
 **v0.2.0 – Workbook, data and Excel tests (in progress).** The [v0.1.0 foundation](docs/Milestones/v0.1.0.md), closed on 2026-10-09, established source layout, documentation, issue governance, CI and static source checks; v0.2.0 builds the first workbook, data import and Excel test harness. Neither delivers pricing, econometric fitting, a production workbook or certified IRRBB outputs.
 
 - Application profile: an Excel workbook will be the end-user deliverable, assembled from reviewed exported VBA source.
-- Production calculations will live in `src/core/` without direct Excel object dependencies.
-- `src/modules/` will expose a documented public facade; `src/workbook/` will contain host glue only.
-- `tests/` will hold synthetic test cases and expected results; evidence from a real Excel run must be separately recorded.
+- Production calculations live in `src/core/` without direct Excel object dependencies; at present the data import's parsing, validation, summaries and fingerprint.
+- `src/modules/` exposes the documented public facade (the data import, listed in [`docs/PUBLIC_API.txt`](docs/PUBLIC_API.txt)); `src/workbook/` contains host glue only.
+- `tests/` holds synthetic fixtures, expected results and the VBA regression harness; evidence from a real Excel run must be separately recorded.
 - No client data, confidential third-party material, vendor source code or customer-specific models are allowed in Git; the repository and its history are public.
 
 ## 📁 Repository navigation

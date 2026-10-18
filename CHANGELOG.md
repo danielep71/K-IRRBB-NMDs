@@ -99,6 +99,14 @@ Use only the categories needed by a release.
 
 ### Added
 
+- Deliberate failure run (#8): `TEST_Harness.TEST_RunTestsWithInjectedFailures`
+  runs every case with one failing assertion added to `HARN-OUT-01` and an
+  unexpected error raised in `DATA-CODES-01`, so an Excel run can show that a
+  failure ends `COMPLETE - FAILURES` with those cases `FAIL` and `ERROR`, never
+  `PASS`, and that the next `RunTests` withdraws them. `docs/EXCEL_EVIDENCE.md`
+  stage 4 now names this run and `TEST_RunTestsWithWriteFault`, and stage 3
+  says to copy the `Checks` results. `tools/devbuild/lo_smoke.py` runs it. Not
+  run in Excel.
 - Per-period outcome lineage (#71): an accepted import now writes, per month
   end, segment and currency, the transitions from that month end by outcome
   (observed, verified closures, gaps, censored disappearances with the sum of
@@ -133,9 +141,8 @@ Use only the categories needed by a release.
   returns totals, findings, warnings and
   lineage as tables. **Import data** on `Config` writes them to `DataSummary`
   under the status protocol: earlier results withdrawn first, totals only
-  for an accepted import, primary and cleanup errors kept. Excluding a
-  segment is refused until its meaning is defined. `DATA-IMPORT-01` runs it
-  end to end. `SECURITY.md` records the file access. Not run in Excel.
+  for an accepted import, primary and cleanup errors kept. `DATA-IMPORT-01`
+  runs it end to end. `SECURITY.md` records the file access. Not run in Excel.
 - Transition outcomes and point-in-time view (#71, stage 2): the import
   summary assigns every observed month its outcome (observed, verified
   closure, gap, censored disappearance, end of sample), and `CORE_ViewBuild`

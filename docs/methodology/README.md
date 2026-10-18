@@ -32,4 +32,4 @@ Maintain an explicit reference register for the applicable EBA Guidelines, EU RT
 
 Record input provenance, data window, feature pipeline version, model formula, optimization settings, rounding rules, resulting coefficients, diagnostics, run timestamps and independent benchmark outputs.
 
-The initial milestone establishes these contracts. No model is implemented at v0.1.0.
+The v0.1.0 milestone established these contracts. No model is implemented on this branch; the decay model is under review in #36 (v0.3.0).

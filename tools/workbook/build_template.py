@@ -57,10 +57,10 @@ class Sheet:
 SHEETS = [
     Sheet("Readme", "shReadme", "Documentation", "Builder", "Implemented: sheet map and build stamp",
           "IRRBB Toolkit", "Workbook for IRRBB behavioral models. This sheet maps every sheet and records the build."),
-    Sheet("Config", "shConfig", "Input", "User", "Input area defined; read by the data importer (v0.2.0, not built)",
+    Sheet("Config", "shConfig", "Input", "User", "Implemented: run settings read by the data importer (#71)",
           "Run settings", "Data files, data window, rate series and attestation for one run (DATA_CONTRACT.md)."),
     Sheet("Segments", "shSegments", "Input", "User",
-          "Input area defined; read by the data importer (v0.2.0, not built)",
+          "Implemented: segment selection read by the data importer (#71)",
           "Segments", "Segments of the data contract; choose which ones a run includes."),
     Sheet("DataSummary", "shDataSummary", "Output", "VBA",
           "Implemented: import totals, outcomes, findings, warnings and lineage (#71)",
