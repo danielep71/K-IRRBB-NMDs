@@ -36,8 +36,8 @@ no function.
 | Sheet | CodeName | Role | Owner | Status |
 | --- | --- | --- | --- | --- |
 | `Readme` | `shReadme` | Documentation | Builder | Implemented: sheet map and build stamp |
-| `Config` | `shConfig` | Input | User | Input area defined; read by the data importer (v0.2.0, not built) |
-| `Segments` | `shSegments` | Input | User | Input area defined; read by the data importer (v0.2.0, not built) |
+| `Config` | `shConfig` | Input | User | Implemented: run settings read by the data importer (#71) |
+| `Segments` | `shSegments` | Input | User | Implemented: segment selection read by the data importer (#71) |
 | `DataSummary` | `shDataSummary` | Output | VBA | Implemented: import totals, outcomes, findings, warnings and lineage (#71) |
 | `ModelParams` | `shModelParams` | Output | VBA | Placeholder: parameter sets (v0.3.0 to v0.5.0) |
 | `Calibration` | `shCalibration` | Output | VBA | Placeholder: estimation diagnostics (v0.3.0 to v0.5.0) |
