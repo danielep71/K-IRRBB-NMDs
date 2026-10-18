@@ -179,7 +179,7 @@ A VBA `Public` declaration is not automatically supported API.
 - **Never supported:** test and example modules. They are not part of the
   production workbook.
 
-At v0.1.0 the manifest is empty: there is no implemented public API.
+The manifest lists the data-import facade `IRRBB_Import`, each declaration with its normalized signature.
 
 <a id="parameter-and-units-boundary"></a>
 

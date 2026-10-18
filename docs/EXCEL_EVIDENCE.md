@@ -27,7 +27,7 @@ and [`RELEASING.md`](../RELEASING.md#release-invariants).
 > [!IMPORTANT]
 > `python tools/check.py` and CI never compile VBA or run Excel. Only a record
 > made by a person running Excel, bound to an exact commit, is Excel evidence.
-> At v0.1.0 there is no VBA source, so no record exists yet. Until a validator
+> No record exists yet for the VBA source of v0.2.0. Until a validator
 > is added, records are checked by review against this document.
 
 <a id="outcomes"></a>
@@ -70,7 +70,8 @@ components. Evidence is never carried from one commit to another.
 ### 1. Clean build
 
 Build the workbook from the template at the candidate commit, outside the
-checkout, exactly as in
+checkout or in a location Git ignores (the development builder writes
+`build/IRRBB_Dev.xlsm`), exactly as in
 [Importing VBA into Excel](../INSTALLATION.md#importing-vba-into-excel).
 Record the files imported, in order, and the reference list.
 
