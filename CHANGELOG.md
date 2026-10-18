@@ -167,9 +167,8 @@ Use only the categories needed by a release.
   returns totals, findings, warnings and
   lineage as tables. **Import data** on `Config` writes them to `DataSummary`
   under the status protocol: earlier results withdrawn first, totals only
-  for an accepted import, primary and cleanup errors kept. Excluding a
-  segment is refused until its meaning is defined. `DATA-IMPORT-01` runs it
-  end to end. `SECURITY.md` records the file access. Not run in Excel.
+  for an accepted import, primary and cleanup errors kept. `DATA-IMPORT-01`
+  runs it end to end. `SECURITY.md` records the file access. Not run in Excel.
 - Transition outcomes and point-in-time view (#71, stage 2): the import
   summary assigns every observed month its outcome (observed, verified
   closure, gap, censored disappearance, end of sample), and `CORE_ViewBuild`
@@ -395,17 +394,16 @@ Use only the categories needed by a release.
 
 ### Validation
 
-- Decay branch at the merge of `release/v0.2.0`: `python tools/check.py --ci`
+- Decay model as merged into `release/v0.3.0`: `python tools/check.py --ci`
   passes; LibreOffice 24.2 headless proxy run of the development workbook, see
-  the commit message for counts. **No Excel compile or run has been recorded**;
+  the merge commit messages for counts. **No Excel compile or run has been recorded**;
   LibreOffice is not a supported host and this is not Excel evidence.
 
 ### Known limitations
 
-- Only the decay model exists, as a draft under review (#36). The rate
-  pass-through and stable-amount models, the account-panel importer and the
-  workbook template (#5) are not built; decay inputs are aggregate series that
-  the caller derives from the panel.
+- The decay model is a draft under review (#36). Nothing yet builds its
+  aggregate series from an accepted import; the caller supplies the series.
+  The rate pass-through and stable-amount models are not built.
 - Decay choices not fixed by the contract await an owner decision in #36: the
   treatment of censored disappearances (`W05`) in the aggregate series, the
   break-date convention, the median path, the diagnostic settings and the
