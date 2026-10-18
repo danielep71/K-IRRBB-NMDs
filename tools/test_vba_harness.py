@@ -6,7 +6,8 @@ from the independent Python reading of docs/methodology/DATA_CONTRACT.md in
 tools/test_data_contract.py and from the harness rules in
 docs/methodology/TEST_CASES.md, so a wrong hand-written expectation fails here.
 It also keeps the harness registry in tests/modules/TEST_Harness.bas equal to
-the register in TEST_CASES.md. It does not execute VBA.
+the register in TEST_CASES.md, and the generated decay data module equal to the
+expected files in tests/expected/decay/. It does not execute VBA.
 """
 from __future__ import annotations
 
@@ -36,6 +37,9 @@ FIXTURE_MODULE = ROOT / "tests" / "modules" / "TEST_Fixtures.bas"
 CORE_PARSE = ROOT / "src" / "core" / "CORE_Parse.bas"
 CORE_CODES = ROOT / "src" / "core" / "CORE_Codes.bas"
 REGISTER = ROOT / "docs" / "methodology" / "TEST_CASES.md"
+DECAY_CASES = ROOT / "tests" / "modules" / "TEST_DecayCases.bas"
+DECAY_DATA = ROOT / "tests" / "modules" / "TEST_DecayData.bas"
+DECAY_EXPECTED = ROOT / "tests" / "expected" / "decay"
 
 VB_OBJECT_ERROR = -2147221504
 ARGUMENT = re.compile(r'\s*("(?:[^"]|"")*"|[^,]+?)\s*(?:,|$)')
@@ -386,6 +390,42 @@ class WorkbookLayout(unittest.TestCase):
 
     def test_counts(self) -> None:
         self.assertEqual(self.args("ExpectCounts"), [[len(build_template.SHEETS), len(build_template.NAMES)]])
+
+
+def json_rows(value, prefix: str = "") -> list[tuple[str, float]]:
+    """Flatten an expected-file value the way make_expected.py does (dict keys, [i] indices)."""
+    if isinstance(value, dict):
+        return [row for k, v in value.items() for row in json_rows(v, f"{prefix}.{k}" if prefix else k)]
+    if isinstance(value, list):
+        return [row for i, v in enumerate(value) for row in json_rows(v, f"{prefix}[{i}]")]
+    return [(prefix, float(value))]
+
+
+@unittest.skipUnless(DECAY_DATA.exists(), "decay cases not on this branch")
+class DecayData(unittest.TestCase):
+    """TEST_DecayData.bas is generated; it must equal the reviewed expected files exactly."""
+
+    ROW = re.compile(r'v\(\d+, 1\) = "([^"]+)": v\(\d+, 2\) = "([^"]+)": v\(\d+, 3\) = Val\("([^"]+)"\): '
+                     r'v\(\d+, 4\) = "([a-z]+)": v\(\d+, 5\) = Val\("([^"]+)"\)')
+
+    def test_generated_module_equals_expected_files(self) -> None:
+        import json
+        vba = [(c, k, float(v), kind, float(e)) for c, k, v, kind, e in self.ROW.findall(read(DECAY_DATA))]
+        files = []
+        for path in sorted(DECAY_EXPECTED.glob("*.json")):
+            case = json.loads(path.read_text(encoding="ascii"))
+            self.assertEqual(case["case"], path.stem)
+            for field in ("tool", "script", "method", "date", "produced_by"):
+                self.assertTrue(case["provenance"].get(field), f"{path.name}: provenance.{field} missing")
+            tol = case["tolerance"]
+            files += [(case["case"], k, v, tol["kind"], float(tol["eps"])) for k, v in json_rows(case["expected"])]
+        self.assertTrue(vba)
+        self.assertEqual(sorted(vba), sorted(files))
+
+    def test_every_decay_expected_case_is_registered(self) -> None:
+        registered = set(register_ids())
+        for path in DECAY_EXPECTED.glob("*.json"):
+            self.assertIn(path.stem, registered)
 
 
 if __name__ == "__main__":
