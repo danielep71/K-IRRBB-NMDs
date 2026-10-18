@@ -411,13 +411,18 @@ def _in_project_namespace(declaration: dict[str, Any]) -> bool:
             or declaration["kind"] in {"Enum", ENUM_MEMBER})
 
 
-def _project_name_collisions(
-    declaration: dict[str, Any], names: dict[str, list[dict[str, Any]]]
+def _name_collisions(
+    declaration: dict[str, Any], names: dict[str, list[dict[str, Any]]], scope: str,
+    reported: bool = False,
 ) -> list[dict[str, Any]]:
-    """A project-wide public name may not collide with another in an overlapping environment."""
+    """A public name may not collide with another of its scope in an overlapping environment.
+
+    ``reported`` skips pairs of project-wide names, which the project scope already reports."""
     findings: list[dict[str, Any]] = []
     prior = names.setdefault(str(declaration["name"]).casefold(), [])
     for previous in prior:
+        if reported and _in_project_namespace(previous) and _in_project_namespace(declaration):
+            continue
         if (set(previous["environments"]) & set(declaration["environments"])
                 and not property_pair(previous, declaration)):
             findings.append(
@@ -425,7 +430,7 @@ def _project_name_collisions(
                     "path": declaration["path"],
                     "line": declaration["line"],
                     "message": (
-                        "Public project-wide name "
+                        f"Public {scope} name "
                         f"{declaration['name']!r} collides with "
                         f"{previous['component']}.{previous['name']} "
                         f"({previous['kind']})."
@@ -439,9 +444,11 @@ def _project_name_collisions(
 def _index_declarations(
     declarations: list[dict[str, Any]],
 ) -> tuple[dict[str, list[dict[str, Any]]], list[dict[str, Any]]]:
-    """Group declarations by case-insensitive key; report duplicates and project-wide name collisions."""
+    """Group declarations by case-insensitive key; report duplicates and name collisions,
+    project-wide and, for class and form modules, within the module."""
     keys: dict[str, list[dict[str, Any]]] = {}
     names: dict[str, list[dict[str, Any]]] = {}
+    modules: dict[str, dict[str, list[dict[str, Any]]]] = {}
     findings: list[dict[str, Any]] = []
     for declaration in declarations:
         declaration_key = key(
@@ -460,7 +467,10 @@ def _index_declarations(
             })
         variants.append(declaration)
         if _in_project_namespace(declaration):
-            findings.extend(_project_name_collisions(declaration, names))
+            findings.extend(_name_collisions(declaration, names, "project-wide"))
+        if Path(str(declaration["path"])).suffix.casefold() != ".bas":
+            module = modules.setdefault(str(declaration["path"]), {})
+            findings.extend(_name_collisions(declaration, module, "module", reported=True))
     return keys, findings
 
 
@@ -840,6 +850,11 @@ End Function
     tests.append(("class-member-distinct", fixture(facade, manifest, extra={
         "src/classes/Widget.cls": class_enum["src/classes/Widget.cls"].replace("Enum Mode", "Enum WidgetMode")}),
         "pass", None))
+    same_class = class_enum["src/classes/Widget.cls"].replace("Enum Mode", "Enum WidgetMode")
+    tests.append(("class-enum-member-vs-variable", fixture(facade, manifest, extra={
+        "src/classes/Widget.cls": same_class + "Public WidgetA As Long\n"}), "fail", "collides"))
+    tests.append(("class-member-vs-member", fixture(facade, manifest, extra={
+        "src/classes/Widget.cls": same_class + "Public Echo As Long\n"}), "fail", "collides"))
     for name, report, expected, needle in tests:
         if report["status"] != expected:
             failures.append(f"{name}: expected {expected}, got {report['status']}")
@@ -855,7 +870,7 @@ End Function
     print(
         "SELF-TEST PASS: procedures, paired properties, constants, events, declares, "
         "variables, WithEvents, enums, types, continuations, implicit-public rejection, "
-        "signature drift, conditional variants, reachable collisions across every standard module (Option Private Module, Global and enum members included) and with class-module enums, unknown conditions, and one-identifier Const/variable policy passed."
+        "signature drift, conditional variants, reachable collisions across every standard module (Option Private Module, Global and enum members included) and with class-module enums, names within a class module, unknown conditions, and one-identifier Const/variable policy passed."
     )
     return 0
 
