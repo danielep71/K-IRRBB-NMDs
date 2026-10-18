@@ -103,8 +103,7 @@ Python is also used by the static checks, which never run with the workbook.
 commits to support. Whether a given commit actually compiles and runs on a
 host is shown only by an Excel evidence record bound to that commit, as defined
 in [`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md). No host is listed as
-tested until such a record exists; at v0.1.0 none does, because there is no VBA
-source yet.
+tested until such a record exists; none does yet.
 
 ## 📥 Get the source
 
