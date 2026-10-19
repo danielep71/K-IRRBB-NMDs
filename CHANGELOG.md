@@ -99,6 +99,33 @@ Use only the categories needed by a release.
 
 ### Added
 
+- **Decay model** per `MODEL_CONTRACTS.md` (draft `DECAY-1.0-draft`, not
+  validated; review in #36): host-independent core `CORE_Math`, `CORE_Decay`
+  and `CORE_Overlay`, and the public facade `IRRBB_Decay` (`IRRBB_DecayFit`,
+  `IRRBB_DecayOverlay`, `IRRBB_DecayBacktest`, layout enums), listed in
+  `docs/PUBLIC_API.txt`. Log changes with declared impulse breaks, residual
+  sigma with n - 1 - K degrees of freedom, prudential drift, minimum probable
+  amount at confidence c, conserved runoff profile, core and non-core split,
+  mean lives in months, Ljung-Box and Jarque-Bera diagnostics with the
+  empirical quantile, the `REG-1` overlay (non-core overnight, core-share cap,
+  average-maturity cap by cutoff reduction; `REG-2` shown provisional and not
+  applied) and the out-of-sample exceedance score with frozen parameters.
+  Input is rejected below 36 log changes, on non-month-end dates, gaps,
+  non-positive balances, unknown segments and currencies outside the run
+  allowlist; the backtest rejects a zero balance at a forecast origin and
+  accepts it only as the last realized balance.
+- Decay cases `DEC-LOG-01`, `DEC-MPA-01`, `DEC-PROF-01`, `DEC-LIFE-01`,
+  `DEC-CAP-01`, the new `DEC-E2E-01` and `DEC-ERR-01`, and the decay parts of
+  `OOS-FREEZE-01`, `OOS-LEAK-01` and `OOS-SCORE-01`, run by the harness through
+  `TEST_DecayCases`; synthetic fixtures with generator and seed
+  (`tests/fixtures/decay/`); independent expected values from numpy and scipy
+  with provenance (`tests/expected/decay/`), generated into
+  `tests/modules/TEST_DecayData.bas`, which `tools/test_vba_harness.py` now
+  keeps equal to the expected files.
+- Example `examples/modules/EX_DecayExample.bas` (facade only). It reads a
+  `DecayExample` sheet, which the template-based development workbook does not
+  have yet (#36); `lo_smoke.py` runs the example and its invalid-input path
+  when the sheet exists.
 - Deliberate failure run (#8): `TEST_Harness.TEST_RunTestsWithInjectedFailures`
   runs every case with one failing assertion added to `HARN-OUT-01` and an
   unexpected error raised in `DATA-CODES-01`, so an Excel run can show that a
@@ -366,9 +393,22 @@ Use only the categories needed by a release.
 - Continued comments now recognize VBA whitespace, including tabs, and require
   the continuation underscore immediately before the newline.
 
+### Validation
+
+- Decay model as merged into `release/v0.3.0`: `python tools/check.py --ci`
+  passes; LibreOffice 24.2 headless proxy run of the development workbook, see
+  the merge commit messages for counts. **No Excel compile or run has been recorded**;
+  LibreOffice is not a supported host and this is not Excel evidence.
+
 ### Known limitations
 
-- No VBA source, workbook, regression harness or model engine exists yet.
+- The decay model is a draft under review (#36). Nothing yet builds its
+  aggregate series from an accepted import; the caller supplies the series.
+  The rate pass-through and stable-amount models are not built.
+- Decay choices not fixed by the contract await an owner decision in #36: the
+  treatment of censored disappearances (`W05`) in the aggregate series, the
+  break-date convention, the median path, the diagnostic settings and the
+  backtest horizons 1 to 12.
 - No automated check compiles VBA, runs Excel or validates a model; passing CI
   is not evidence of correct IRRBB calculations.
 - The methodology is a roadmap, not a validated specification, and its

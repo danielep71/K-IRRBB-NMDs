@@ -8,7 +8,9 @@ TEST_Harness.RunTests, plants a stale row in the result tables, runs it again to
 check that previous results are withdrawn, runs it with one injected failing
 assertion and one injected error (both must show, and a normal rerun must
 withdraw them), runs it once more with every results write failing (both
-errors must be kept) and prints a JSON summary. Needs
+errors must be kept), runs the decay example with valid and then invalid input
+when the workbook has its sheet (outputs must be withdrawn) and prints a JSON
+summary. Needs
 LibreOffice and python3-uno. LibreOffice is NOT Excel: this is never Excel
 evidence (docs/EXCEL_EVIDENCE.md), only an early warning for runtime defects.
 """
@@ -105,6 +107,15 @@ def main() -> int:
         out["fault_status"], out["fault_primary"], out["fault_cleanup"] = status[0], status[7], status[8]
         out["fault_tables_empty"] = (not any(r[0] for r in cells("Checks", "A14:A514"))
                                      and not any(r[0] for r in cells("Checks", "H14:H3000")))
+        if doc.Sheets.hasByName("DecayExample"):
+            out["example_error"] = run("EX_DecayExample", "RunDecayExample")
+            out["example_status"] = cells("DecayExample", "B14:B14")[0][0]
+            example = doc.Sheets.getByName("DecayExample")
+            example.getCellRangeByName("B8").setValue(1.0)  # confidence 1: invalid input
+            run("EX_DecayExample", "RunDecayExample")
+            out["example_failure_path"] = {
+                "status": cells("DecayExample", "B14:B14")[0][0],
+                "outputs_withdrawn": all(v in ("", None) for r in cells("DecayExample", "F3:J17") for v in r)}
         doc.close(True)
         try:
             desk.terminate()

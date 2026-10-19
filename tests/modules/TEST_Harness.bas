@@ -142,7 +142,7 @@ End Sub
 Private Function Registry() As Variant
     ' Built as a Collection so the list never needs more than 24 line continuations.
     Dim c As New Collection, out() As Variant, i As Long
-    Const DECAY_NOTE As String = "Decay model not on this branch (#36, v0.3.0)"
+    Const DECAY_ONLY As String = "Decay model only; rate and stable parts not built"
     c.Add Array("HARN-OUT-01", True, "")
     c.Add Array("WB-LAYOUT-01", True, "")
     c.Add Array("DATA-VALID-01", True, "")
@@ -168,14 +168,16 @@ Private Function Registry() As Variant
     c.Add Array("STAB-SEP-01", False, "Stable-amount model not built")
     c.Add Array("STAB-CONV-01", False, "Stable-amount model not built")
     c.Add Array("STAB-LEAK-01", False, "Stable-amount model not built")
-    c.Add Array("DEC-LOG-01", False, DECAY_NOTE)
-    c.Add Array("DEC-MPA-01", False, DECAY_NOTE)
-    c.Add Array("DEC-PROF-01", False, DECAY_NOTE)
-    c.Add Array("DEC-LIFE-01", False, DECAY_NOTE)
-    c.Add Array("DEC-CAP-01", False, DECAY_NOTE)
-    c.Add Array("OOS-FREEZE-01", False, DECAY_NOTE)
-    c.Add Array("OOS-LEAK-01", False, DECAY_NOTE)
-    c.Add Array("OOS-SCORE-01", False, DECAY_NOTE)
+    c.Add Array("DEC-LOG-01", True, "")
+    c.Add Array("DEC-MPA-01", True, "")
+    c.Add Array("DEC-PROF-01", True, "")
+    c.Add Array("DEC-LIFE-01", True, "")
+    c.Add Array("DEC-CAP-01", True, "")
+    c.Add Array("DEC-E2E-01", True, "")
+    c.Add Array("DEC-ERR-01", True, "")
+    c.Add Array("OOS-FREEZE-01", True, DECAY_ONLY)
+    c.Add Array("OOS-LEAK-01", True, DECAY_ONLY)
+    c.Add Array("OOS-SCORE-01", True, "Decay exceedance rate only; bias, MAE and RMSE not built")
     ReDim out(0 To c.Count - 1)
     For i = 1 To c.Count
         out(i - 1) = c(i)
@@ -244,6 +246,10 @@ Private Sub DispatchCase(ByVal caseId As String)
             TEST_ImportCases.TEST_RunImportCase caseId
         Case "DATA-SHA-01"
             TEST_HashCases.TEST_RunHashCase caseId
+        Case "DEC-LOG-01", "DEC-MPA-01", "DEC-PROF-01", "DEC-LIFE-01", "DEC-CAP-01", "DEC-E2E-01"
+            TEST_DecayCases.TEST_RunDecayCase caseId
+        Case "DEC-ERR-01", "OOS-FREEZE-01", "OOS-LEAK-01", "OOS-SCORE-01"
+            TEST_DecayCases.TEST_RunDecayCase caseId
         Case Else
             Err.Raise TEST_ERR_NO_CASE, "TEST_Harness.DispatchCase", "No VBA implementation for " & caseId & "."
     End Select

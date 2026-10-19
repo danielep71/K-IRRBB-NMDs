@@ -39,6 +39,7 @@ Planned cross-cutting functionality includes data validation, calibration, histo
 
 **v0.2.0 – Workbook, data and Excel tests (in progress).** The [v0.1.0 foundation](docs/Milestones/v0.1.0.md), closed on 2026-10-09, established source layout, documentation, issue governance, CI and static source checks; v0.2.0 builds the first workbook, data import and Excel test harness. Neither delivers pricing, econometric fitting, a production workbook or certified IRRBB outputs.
 
+- **Decay model (draft, not validated, on `release/v0.3.0`):** core, public facade `IRRBB_Decay`, harness cases and example, built to [`MODEL_CONTRACTS.md`](docs/methodology/MODEL_CONTRACTS.md#decay-model) and under review in [#36](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/36); no Excel evidence is recorded yet. Rate and stable-amount models are not built.
 - Application profile: an Excel workbook will be the end-user deliverable, assembled from reviewed exported VBA source.
 - Production calculations live in `src/core/` without direct Excel object dependencies; at present the data import's parsing, validation, summaries and fingerprint.
 - `src/modules/` exposes the documented public facade (the data import, listed in [`docs/PUBLIC_API.txt`](docs/PUBLIC_API.txt)); `src/workbook/` contains host glue only.
