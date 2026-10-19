@@ -44,7 +44,7 @@ PROC = re.compile(
     re.I,
 )
 END_PROC = re.compile(r"^\s*End\s+(?:Sub|Function|Property)\b", re.I)
-BLOCK = re.compile(r"^\s*(?:Public|Global)\s+(?P<kind>Enum|Type)\s+(?P<name>[A-Za-z_]\w*)\b", re.I)
+BLOCK = re.compile(r"^\s*(?P<vis>Public|Global)\s+(?P<kind>Enum|Type)\s+(?P<name>[A-Za-z_]\w*)\b", re.I)
 END_BLOCK = {
     "enum": re.compile(r"^\s*End\s+Enum\b", re.I),
     "type": re.compile(r"^\s*End\s+Type\b", re.I),
@@ -211,11 +211,16 @@ def _procedure_header(scan: _ComponentScan, match: re.Match[str], code: str, lin
 def _public_block(
     scan: _ComponentScan, match: re.Match[str], statements: list[tuple[int, int, str]], index: int, line: int
 ) -> int:
-    """Record a public Type/Enum block with its body; return the index after it."""
+    """Record a public Type/Enum block with its body; return the index after it.
+
+    Global is valid VBA only for an Enum in a standard module; other uses are rejected."""
     kind = match.group("kind").capitalize()
     name = match.group("name")
     body = [norm(statements[index][2])]
     close = END_BLOCK[kind.casefold()]
+    if match.group("vis").casefold() == "global" and (
+            kind == "Type" or Path(scan.path).suffix.casefold() != ".bas"):
+        scan.reject(line, f"Global {kind} {name} is not valid here: Global applies only to an Enum in a standard module.")
     end_index = index + 1
     while end_index < len(statements) and not close.match(statements[end_index][2]):
         if statements[end_index][2].strip():
@@ -417,11 +422,14 @@ def _name_collisions(
 ) -> list[dict[str, Any]]:
     """A public name may not collide with another of its scope in an overlapping environment.
 
-    ``reported`` skips pairs of project-wide names, which the project scope already reports."""
+    ``reported`` skips pairs of project-wide names, which the project scope already reports.
+    Events have their own namespace: an event collides only with another event."""
     findings: list[dict[str, Any]] = []
     prior = names.setdefault(str(declaration["name"]).casefold(), [])
     for previous in prior:
         if reported and _in_project_namespace(previous) and _in_project_namespace(declaration):
+            continue
+        if (previous["kind"] == "Event") != (declaration["kind"] == "Event"):
             continue
         if (set(previous["environments"]) & set(declaration["environments"])
                 and not property_pair(previous, declaration)):
@@ -855,6 +863,17 @@ End Function
         "src/classes/Widget.cls": same_class + "Public WidgetA As Long\n"}), "fail", "collides"))
     tests.append(("class-member-vs-member", fixture(facade, manifest, extra={
         "src/classes/Widget.cls": same_class + "Public Echo As Long\n"}), "fail", "collides"))
+    tests.append(("class-event-vs-procedure", fixture(facade, manifest, extra={
+        "src/classes/Widget.cls": same_class + "Public Event Echo()\n"}), "pass", None))
+    tests.append(("class-event-vs-event", fixture(facade, manifest, extra={
+        "src/classes/Widget.cls": same_class + "Public Event Fired()\nPublic Event fired(ByVal x As Long)\n"}),
+        "fail", "collides"))
+    tests.append(("global-type-rejected", fixture(facade, manifest, extra={
+        "src/core/Second.bas": 'Attribute VB_Name = "Second"\nOption Explicit\nOption Private Module\n'
+                               "Global Type Cell\n    Value As Long\nEnd Type\n"}), "fail", "not valid here"))
+    tests.append(("class-global-enum-rejected", fixture(facade, manifest, extra={
+        "src/classes/Widget.cls": same_class.replace("Public Enum WidgetMode", "Global Enum WidgetMode")}),
+        "fail", "not valid here"))
     for name, report, expected, needle in tests:
         if report["status"] != expected:
             failures.append(f"{name}: expected {expected}, got {report['status']}")
@@ -870,7 +889,7 @@ End Function
     print(
         "SELF-TEST PASS: procedures, paired properties, constants, events, declares, "
         "variables, WithEvents, enums, types, continuations, implicit-public rejection, "
-        "signature drift, conditional variants, reachable collisions across every standard module (Option Private Module, Global and enum members included) and with class-module enums, names within a class module, unknown conditions, and one-identifier Const/variable policy passed."
+        "signature drift, conditional variants, reachable collisions across every standard module (Option Private Module, Global and enum members included) and with class-module enums, names within a class module (events apart), Global only on standard-module enums, unknown conditions, and one-identifier Const/variable policy passed."
     )
     return 0
 
