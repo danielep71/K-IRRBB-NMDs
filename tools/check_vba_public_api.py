@@ -213,14 +213,14 @@ def _public_block(
 ) -> int:
     """Record a public Type/Enum block with its body; return the index after it.
 
-    Global is valid VBA only for an Enum in a standard module; other uses are rejected."""
+    Global Enum and Global Type are rejected: sources disagree on whether VBA accepts
+    Global Enum at all, so the project declares both Public."""
     kind = match.group("kind").capitalize()
     name = match.group("name")
     body = [norm(statements[index][2])]
     close = END_BLOCK[kind.casefold()]
-    if match.group("vis").casefold() == "global" and (
-            kind == "Type" or Path(scan.path).suffix.casefold() != ".bas"):
-        scan.reject(line, f"Global {kind} {name} is not valid here: Global applies only to an Enum in a standard module.")
+    if match.group("vis").casefold() == "global":
+        scan.reject(line, f"Global {kind} {name} is not allowed; declare it Public.")
     end_index = index + 1
     while end_index < len(statements) and not close.match(statements[end_index][2]):
         if statements[end_index][2].strip():
@@ -295,6 +295,9 @@ def _parse_active_component(
             if isinstance(outcome, str):
                 scan.reject(line, outcome)
             elif outcome is not None:
+                if outcome[0] == "Event" and Path(path).suffix.casefold() == ".bas":
+                    scan.reject(line, f"Event {outcome[1]} is declared in a standard module; "
+                                      "events are valid only in class and form modules.")
                 scan.declare(outcome[0], outcome[1], norm(code), line)
         index = next_index
     return scan.declarations, scan.findings
@@ -693,7 +696,6 @@ def run_self_test() -> int:
     facade = '''Attribute VB_Name = "Facade"
 Option Explicit
 Public Const C As Long = 7
-Public Event Changed(ByVal value As Long)
 Public Declare PtrSafe Function Tick Lib "kernel32" () As Long
 Public Number As Long
 Public WithEvents Source As Object
@@ -719,8 +721,6 @@ End Property
         "# Supported VBA declarations: <component><TAB><kind><TAB><name>",
         "Facade\tConst\tC",
         "# SIG\tFacade\tConst\tC\tPublic Const C As Long = 7",
-        "Facade\tEvent\tChanged",
-        "# SIG\tFacade\tEvent\tChanged\tPublic Event Changed(ByVal value As Long)",
         "Facade\tDeclare Function\tTick",
         '# SIG\tFacade\tDeclare Function\tTick\tPublic Declare PtrSafe Function Tick Lib "kernel32" () As Long',
         "Facade\tVariable\tNumber",
@@ -848,8 +848,11 @@ End Function
     global_enum = {"src/core/Second.bas": 'Attribute VB_Name = "Second"\nOption Explicit\nOption Private Module\n'
                                           "Global Enum Level\n    ModeA = 2\nEnd Enum\n"}
     tests.append(("global-enum-member-collision", fixture(facade, manifest, extra=global_enum), "fail", "collides"))
-    tests.append(("global-enum-distinct", fixture(facade, manifest, extra={
-        "src/core/Second.bas": global_enum["src/core/Second.bas"].replace("ModeA", "LevelA")}), "pass", None))
+    tests.append(("global-enum-rejected", fixture(facade, manifest, extra={
+        "src/core/Second.bas": global_enum["src/core/Second.bas"].replace("ModeA", "LevelA")}), "fail", "declare it Public"))
+    tests.append(("standard-module-event-rejected", fixture(facade, manifest, extra={
+        "src/core/Second.bas": 'Attribute VB_Name = "Second"\nOption Explicit\nOption Private Module\n'
+                               "Public Event Ping()\n"}), "fail", "valid only in class and form modules"))
     class_enum = {"src/classes/Widget.cls": 'VERSION 1.0 CLASS\nBEGIN\n  MultiUse = -1  \'True\nEND\n'
                                             'Attribute VB_Name = "Widget"\nOption Explicit\n'
                                             "Public Enum Mode\n    WidgetA = 1\nEnd Enum\n"
@@ -870,10 +873,10 @@ End Function
         "fail", "collides"))
     tests.append(("global-type-rejected", fixture(facade, manifest, extra={
         "src/core/Second.bas": 'Attribute VB_Name = "Second"\nOption Explicit\nOption Private Module\n'
-                               "Global Type Cell\n    Value As Long\nEnd Type\n"}), "fail", "not valid here"))
+                               "Global Type Cell\n    Value As Long\nEnd Type\n"}), "fail", "declare it Public"))
     tests.append(("class-global-enum-rejected", fixture(facade, manifest, extra={
         "src/classes/Widget.cls": same_class.replace("Public Enum WidgetMode", "Global Enum WidgetMode")}),
-        "fail", "not valid here"))
+        "fail", "declare it Public"))
     for name, report, expected, needle in tests:
         if report["status"] != expected:
             failures.append(f"{name}: expected {expected}, got {report['status']}")
@@ -889,7 +892,7 @@ End Function
     print(
         "SELF-TEST PASS: procedures, paired properties, constants, events, declares, "
         "variables, WithEvents, enums, types, continuations, implicit-public rejection, "
-        "signature drift, conditional variants, reachable collisions across every standard module (Option Private Module, Global and enum members included) and with class-module enums, names within a class module (events apart), Global only on standard-module enums, unknown conditions, and one-identifier Const/variable policy passed."
+        "signature drift, conditional variants, reachable collisions across every standard module (Option Private Module, Global and enum members included) and with class-module enums, names within a class module (events apart), Global Enum/Type and standard-module events rejected, unknown conditions, and one-identifier Const/variable policy passed."
     )
     return 0
 
