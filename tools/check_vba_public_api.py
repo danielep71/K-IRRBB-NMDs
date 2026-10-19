@@ -44,7 +44,7 @@ PROC = re.compile(
     re.I,
 )
 END_PROC = re.compile(r"^\s*End\s+(?:Sub|Function|Property)\b", re.I)
-BLOCK = re.compile(r"^\s*Public\s+(?P<kind>Enum|Type)\s+(?P<name>[A-Za-z_]\w*)\b", re.I)
+BLOCK = re.compile(r"^\s*(?:Public|Global)\s+(?P<kind>Enum|Type)\s+(?P<name>[A-Za-z_]\w*)\b", re.I)
 END_BLOCK = {
     "enum": re.compile(r"^\s*End\s+Enum\b", re.I),
     "type": re.compile(r"^\s*End\s+Type\b", re.I),
@@ -404,13 +404,25 @@ def _parse_components(
     return declarations, findings
 
 
-def _standard_module_collisions(
-    declaration: dict[str, Any], names: dict[str, list[dict[str, Any]]]
+def _in_project_namespace(declaration: dict[str, Any]) -> bool:
+    """Standard-module Public names, and Public Enums with their members from any
+    module type (class modules included), share one project namespace."""
+    return (Path(str(declaration["path"])).suffix.casefold() == ".bas"
+            or declaration["kind"] in {"Enum", ENUM_MEMBER})
+
+
+def _name_collisions(
+    declaration: dict[str, Any], names: dict[str, list[dict[str, Any]]], scope: str,
+    reported: bool = False,
 ) -> list[dict[str, Any]]:
-    """A public name in a standard module may not collide with another in an overlapping environment."""
+    """A public name may not collide with another of its scope in an overlapping environment.
+
+    ``reported`` skips pairs of project-wide names, which the project scope already reports."""
     findings: list[dict[str, Any]] = []
     prior = names.setdefault(str(declaration["name"]).casefold(), [])
     for previous in prior:
+        if reported and _in_project_namespace(previous) and _in_project_namespace(declaration):
+            continue
         if (set(previous["environments"]) & set(declaration["environments"])
                 and not property_pair(previous, declaration)):
             findings.append(
@@ -418,7 +430,7 @@ def _standard_module_collisions(
                     "path": declaration["path"],
                     "line": declaration["line"],
                     "message": (
-                        "Public standard-module name "
+                        f"Public {scope} name "
                         f"{declaration['name']!r} collides with "
                         f"{previous['component']}.{previous['name']} "
                         f"({previous['kind']})."
@@ -432,9 +444,11 @@ def _standard_module_collisions(
 def _index_declarations(
     declarations: list[dict[str, Any]],
 ) -> tuple[dict[str, list[dict[str, Any]]], list[dict[str, Any]]]:
-    """Group declarations by case-insensitive key; report duplicates and standard-module collisions."""
+    """Group declarations by case-insensitive key; report duplicates and name collisions,
+    project-wide and, for class and form modules, within the module."""
     keys: dict[str, list[dict[str, Any]]] = {}
     names: dict[str, list[dict[str, Any]]] = {}
+    modules: dict[str, dict[str, list[dict[str, Any]]]] = {}
     findings: list[dict[str, Any]] = []
     for declaration in declarations:
         declaration_key = key(
@@ -452,8 +466,11 @@ def _index_declarations(
                 "message": "Public declaration appears more than once: " + declaration_key,
             })
         variants.append(declaration)
-        if Path(str(declaration["path"])).suffix.casefold() == ".bas":
-            findings.extend(_standard_module_collisions(declaration, names))
+        if _in_project_namespace(declaration):
+            findings.extend(_name_collisions(declaration, names, "project-wide"))
+        if Path(str(declaration["path"])).suffix.casefold() != ".bas":
+            module = modules.setdefault(str(declaration["path"]), {})
+            findings.extend(_name_collisions(declaration, module, "module", reported=True))
     return keys, findings
 
 
@@ -636,6 +653,7 @@ def init_fixture(
         files["src/modules/Other.bas"] = other
     files.update(extra or {})
     for relative, text in files.items():
+        (root / relative).parent.mkdir(parents=True, exist_ok=True)
         (root / relative).write_bytes(text.replace("\n", "\r\n").encode("cp1252"))
     (root / "docs/PUBLIC_API.txt").write_text(
         "\n".join(manifest) + "\n", encoding="utf-8"
@@ -819,6 +837,24 @@ End Function
     member = {"src/core/Second.bas": 'Attribute VB_Name = "Second"\nOption Explicit\nOption Private Module\n'
                                      "Public Const ModeA As Long = 2\n"}
     tests.append(("enum-member-collision", fixture(facade, manifest, extra=member), "fail", "collides"))
+    global_enum = {"src/core/Second.bas": 'Attribute VB_Name = "Second"\nOption Explicit\nOption Private Module\n'
+                                          "Global Enum Level\n    ModeA = 2\nEnd Enum\n"}
+    tests.append(("global-enum-member-collision", fixture(facade, manifest, extra=global_enum), "fail", "collides"))
+    tests.append(("global-enum-distinct", fixture(facade, manifest, extra={
+        "src/core/Second.bas": global_enum["src/core/Second.bas"].replace("ModeA", "LevelA")}), "pass", None))
+    class_enum = {"src/classes/Widget.cls": 'VERSION 1.0 CLASS\nBEGIN\n  MultiUse = -1  \'True\nEND\n'
+                                            'Attribute VB_Name = "Widget"\nOption Explicit\n'
+                                            "Public Enum Mode\n    WidgetA = 1\nEnd Enum\n"
+                                            "Public Function Echo(ByVal value As Long) As Long\nEnd Function\n"}
+    tests.append(("class-enum-collision", fixture(facade, manifest, extra=class_enum), "fail", "collides"))
+    tests.append(("class-member-distinct", fixture(facade, manifest, extra={
+        "src/classes/Widget.cls": class_enum["src/classes/Widget.cls"].replace("Enum Mode", "Enum WidgetMode")}),
+        "pass", None))
+    same_class = class_enum["src/classes/Widget.cls"].replace("Enum Mode", "Enum WidgetMode")
+    tests.append(("class-enum-member-vs-variable", fixture(facade, manifest, extra={
+        "src/classes/Widget.cls": same_class + "Public WidgetA As Long\n"}), "fail", "collides"))
+    tests.append(("class-member-vs-member", fixture(facade, manifest, extra={
+        "src/classes/Widget.cls": same_class + "Public Echo As Long\n"}), "fail", "collides"))
     for name, report, expected, needle in tests:
         if report["status"] != expected:
             failures.append(f"{name}: expected {expected}, got {report['status']}")
@@ -834,7 +870,7 @@ End Function
     print(
         "SELF-TEST PASS: procedures, paired properties, constants, events, declares, "
         "variables, WithEvents, enums, types, continuations, implicit-public rejection, "
-        "signature drift, conditional variants, reachable collisions across every standard module (Option Private Module and enum members included), unknown conditions, and one-identifier Const/variable policy passed."
+        "signature drift, conditional variants, reachable collisions across every standard module (Option Private Module, Global and enum members included) and with class-module enums, names within a class module, unknown conditions, and one-identifier Const/variable policy passed."
     )
     return 0
 
