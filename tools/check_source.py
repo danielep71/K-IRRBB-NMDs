@@ -43,6 +43,19 @@ HOST_IDENTIFIER = re.compile(
 # Core cannot activate or attach to external COM objects, even via dynamic ProgIDs.
 AUTOMATION_IDENTIFIER = re.compile(r"\b(CreateObject|GetObject)\b", re.I)
 FORBIDDEN_PART = re.compile(r"(^|/)vbaProject\.bin$|^docProps/", re.I)
+# The synchronizer imports the VBA source of the directories in its
+# $sourceRoots list into a workbook; a component outside them would never
+# reach the workbook. Document modules in src/workbook/ update the code of
+# existing sheets, so each needs its sheet in the template. Both files are
+# required: without them the checks below could not run.
+SYNC_SCRIPT = "tools/Sync-IRRBB-VBA.ps1"
+SYNC_START = re.compile(r"^\s*\$sourceRoots\s*=\s*@\(\s*$")
+# The one entry form the list may hold; anything else is reported, so that
+# a commented-out or unusual entry is never counted as synchronized.
+SYNC_ENTRY = re.compile(r'\(Join-Path\s+\$repoFullPath\s+"([^"]+)"\),?')
+TEMPLATE = "src/workbook/IRRBB_Template.xlsx"
+DOCUMENT_HOME = "src/workbook/"
+CODE_NAME = re.compile(r'<(?:sheetPr|workbookPr)\b[^>]*\bcodeName="([^"]+)"')
 
 
 def index_eol(root: Path) -> dict[str, tuple[str, str]]:
@@ -206,6 +219,130 @@ def check_changelog(root: Path) -> list[str]:
     return findings
 
 
+def required_file(root: Path, tracked: set[str], path: str) -> list[str]:
+    """A file the source checks depend on must be tracked and present."""
+    if path not in tracked:
+        return [f"{path}: required file is not tracked"]
+    if not (root / path).is_file():
+        return [f"{path}: tracked but missing from the working tree"]
+    return []
+
+
+def strip_comment(line: str, state: str) -> tuple[str, str]:
+    """Remove PowerShell comments from one line: # to the end of the line and
+    <# ... #> blocks, which may span lines; a # or <# inside quotes is text.
+    state carries what is open at the end of the previous line: "" (code),
+    "<#" (a block comment), '"' or "'" (a string) or '@"' or "@'" (a
+    here-string, whose lines are text and are left out of the code).
+    In a double-quoted string a backtick escapes the next character."""
+    if state in ('@"', "@'"):
+        if not line.lstrip().startswith(state[1] + "@"):
+            return "", state
+        line, state = line.lstrip()[2:], ""
+    in_block = state == "<#"
+    quote = state if state in ('"', "'") else ""
+    code: list[str] = []
+    i = 0
+    while i < len(line):
+        if in_block:
+            if line.startswith("#>", i):
+                in_block, i = False, i + 2
+            else:
+                i += 1
+            continue
+        char = line[i]
+        if quote == '"' and char == "`":
+            # A backtick escapes the next character of a double-quoted
+            # string: `" does not close it and `` is a literal backtick. In
+            # a single-quoted string a backtick is literal.
+            code.append(line[i:i + 2])
+            i += 2
+            continue
+        if quote:
+            quote = "" if char == quote else quote
+        elif line.startswith(('@"', "@'"), i) and not line[i + 2:].strip():
+            return "".join(code), line[i:i + 2]
+        elif char in "\"'":
+            quote = char
+        elif line.startswith("<#", i):
+            in_block, i = True, i + 2
+            continue
+        elif char == "#":
+            break
+        code.append(char)
+        i += 1
+    return "".join(code), "<#" if in_block else quote
+
+
+def sync_roots(text: str) -> tuple[list[str], list[str]]:
+    """Read the active entries of $sourceRoots: the directories, with "/"
+    separators and a trailing "/", and the problems found."""
+    lines = text.splitlines()
+    # Comments and strings are tracked from the top of the file, so that a
+    # declaration inside a <# ... #> block, after a # or in a here-string is
+    # never taken as the active one, and a "<#" inside a string opens no
+    # comment .
+    state = ""
+    start = None
+    for number, line in enumerate(lines):
+        code, state = strip_comment(line, state)
+        if SYNC_START.match(code):
+            start = number
+            break
+    if start is None:
+        return [], ["$sourceRoots list not found"]
+    roots: list[str] = []
+    problems: list[str] = []
+    for line in lines[start + 1:]:
+        code, state = strip_comment(line, state)
+        code = code.strip()
+        if not code:
+            continue
+        if code == ")":
+            return roots, problems
+        entry = SYNC_ENTRY.fullmatch(code)
+        if entry:
+            roots.append(entry.group(1).replace("\\", "/").strip("/") + "/")
+        else:
+            problems.append(f"unsupported $sourceRoots entry: {code}")
+    return roots, problems + ["$sourceRoots list is not closed"]
+
+
+def check_sync_script(root: Path, tracked: set[str], components: list[str]) -> list[str]:
+    """Every VBA component must lie in a directory the synchronizer reads."""
+    missing = required_file(root, tracked, SYNC_SCRIPT)
+    if missing:
+        return missing
+    roots, problems = sync_roots((root / SYNC_SCRIPT).read_text(encoding="utf-8"))
+    findings = [f"{SYNC_SCRIPT}: {problem}" for problem in problems]
+    findings.extend(f"{SYNC_SCRIPT}: source directory {r} does not exist" for r in roots
+                    if not (root / r).is_dir())
+    findings.extend(f"{p}: not synchronized; add its directory to $sourceRoots in {SYNC_SCRIPT}"
+                    for p in components if not p.startswith(tuple(roots)))
+    return findings
+
+
+def check_document_modules(root: Path, tracked: set[str], components: list[str]) -> list[str]:
+    """Document modules and the template's sheets must correspond one to one."""
+    missing = required_file(root, tracked, TEMPLATE)
+    if missing:
+        return missing
+    try:
+        with zipfile.ZipFile(root / TEMPLATE) as package:
+            names = {match for part in package.namelist()
+                     if part == "xl/workbook.xml" or part.startswith("xl/worksheets/sheet")
+                     for match in CODE_NAME.findall(package.read(part).decode("utf-8", errors="replace"))}
+    except (OSError, zipfile.BadZipFile):
+        return []    # check_workbook reports an unreadable template
+    modules = {Path(p).stem for p in components
+               if p.startswith(DOCUMENT_HOME) and p.lower().endswith(".cls")}
+    findings = [f"{DOCUMENT_HOME}{name}.cls: no sheet or workbook with this CodeName in {TEMPLATE}"
+                for name in sorted(modules - names)]
+    findings.extend(f"{TEMPLATE}: CodeName {name} has no document module {DOCUMENT_HOME}{name}.cls"
+                    for name in sorted(names - modules))
+    return findings
+
+
 def check_version(root: Path) -> list[str]:
     """VERSION exists from the first release on and names the newest dated changelog release."""
     changelog = root / "CHANGELOG.md"
@@ -235,9 +372,11 @@ def run_check(root: Path) -> dict[str, Any]:
     for path in components:
         findings.extend(check_component(root, path, tracked, names))
     for path in sorted(p for p in tracked if Path(p).suffix.lower() in WORKBOOK_SUFFIXES):
-        if path != "src/workbook/IRRBB_Template.xlsx":
-            findings.append(f"{path}: only src/workbook/IRRBB_Template.xlsx may be tracked")
+        if path != TEMPLATE:
+            findings.append(f"{path}: only {TEMPLATE} may be tracked")
         findings.extend(check_workbook(root, path))
+    findings.extend(check_sync_script(root, tracked, components))
+    findings.extend(check_document_modules(root, tracked, components))
     findings.extend(check_changelog(root))
     findings.extend(check_version(root))
     return {"schema_version": 1, "status": "fail" if findings else "pass",

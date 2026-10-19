@@ -99,6 +99,20 @@ Use only the categories needed by a release.
 
 ### Added
 
+- Workbook synchronization and source round trip (#6), following
+  VBA-SACCR-Toolkit: `tools/Sync-IRRBB-VBA.ps1` with the launchers
+  `Sync-IRRBB-VBA.cmd` (drag a workbook onto it to import the checkout's source)
+  and `Sync-IRRBB-VBA-Downloads.cmd` (import modules from a folder, by default
+  Downloads, without changing the checkout) updates the VBA project of an
+  existing `.xlsm` in production or development mode without touching sheets;
+  `tools/Export-IRRBB-VBA.ps1` exports a workbook's components with an
+  `export-manifest.json`, and `tools/compare_vba_export.py` checks them against
+  the source of one commit. `tools/vba-projects.json` lists both workbooks'
+  components. The document modules `ThisWorkbook.cls` and one `sh<Sheet>.cls`
+  per template sheet are now source files in `src/workbook/`; the development
+  builder embeds them. `check_source.py` requires every component to lie in a
+  synchronized directory and the document modules to match the template's
+  CodeNames; `docs/EXCEL_EVIDENCE.md` adds the round trip as stage 6.
 - Deliberate failure run (#8): `TEST_Harness.TEST_RunTestsWithInjectedFailures`
   runs every case with one failing assertion added to `HARN-OUT-01` and an
   unexpected error raised in `DATA-CODES-01`, so an Excel run can show that a
@@ -227,6 +241,10 @@ Use only the categories needed by a release.
 
 ### Security
 
+- The synchronizer and the export script need Excel's *Trust access to the VBA
+  project object model*; `SECURITY.md` says to enable it only while running
+  them. The development-workbook builder still needs neither Excel automation
+  nor that setting (#6).
 - `.gitignore` now keeps local data, extracts, snapshots and parameter
   exports out of Git (rooted `private/`, `local-data/`, `extracts/`,
   `snapshots/`, `exports/` and `parameter-exports/` folders), ignores binary
