@@ -3,10 +3,13 @@
 ## Workflow
 
 - Active integration branch: `release/v0.2.0`.
-- Start focused task branches from the release branch; open PRs back into it.
-- No direct commits to `release/**` or `main` after the initial repository bootstrap.
+- Start focused task branches from the release branch; open PRs back into it
+  and squash-merge them (the only method the release-branch ruleset allows).
+  The release branch goes into `main` with a merge commit; see
+  [`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main).
+- No direct commits to `release/**` or `main` after the initial repository bootstrap, except the owner bringing a release branch level with `main` after an integration ([`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main)).
 - A release-to-main PR requires the owner's explicit approval. No version tags or releases are implied.
-- Merge only with reviewer sign-off and green repository checks; Excel evidence is separately recorded when VBA changes exist.
+- Merge only with reviewer sign-off and green repository checks. VBA may be merged before Excel evidence exists; a release needs Excel evidence on its candidate ([`EXCEL_EVIDENCE.md`](EXCEL_EVIDENCE.md)).
 
 ## Issue metadata
 
@@ -28,9 +31,13 @@ API call is logged with its HTTP status and response, with token-like strings
 redacted (#41).
 
 Administrator bypass is an exceptional capability, not permission to skip review
-or failing checks. The intended `main` and `release/**` bypass mode is **pull
-requests only**. Verify the saved GitHub ruleset after any settings change; an
-unsaved edit or an authentication prompt does not establish enforcement.
+or failing checks. As in VBA-SACCR-Toolkit, the `main` bypass mode is **pull
+requests only**, and the `release/**` bypass mode is **always**, so that the
+owner can bring a release branch level with `main` after an integration
+([`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main));
+it is used for nothing else. Verify the saved GitHub ruleset after any settings
+change; an unsaved edit or an authentication prompt does not establish
+enforcement.
 
 ## Privacy and intellectual property
 

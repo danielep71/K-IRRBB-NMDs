@@ -126,7 +126,7 @@ impact.
 
 ### In scope
 
-- source in this repository, including exported VBA once it is added;
+- source in this repository, including the exported VBA;
 - repository-owned validation tooling in [`tools/`](tools/README.md);
 - GitHub Actions workflows, their permissions and pinned actions; and
 - security or integrity behavior introduced by project code.

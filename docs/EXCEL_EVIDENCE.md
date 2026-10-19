@@ -142,7 +142,7 @@ enabled, and if it was enabled for this stage, that it was turned off again.
 
 | Host | Stages required | When no host is available |
 | --- | --- | --- |
-| Windows, 64-bit | All six | The change cannot be merged or released; record `UNAVAILABLE` and stop |
+| Windows, 64-bit | All six | The candidate cannot be released; record `UNAVAILABLE` and stop |
 | Windows, 32-bit (best effort) | Stages 1 and 2 | Record `NOT_RUN` with the reason; the change may proceed |
 
 A 32-bit `PASS` is reported as best-effort compile evidence, never as

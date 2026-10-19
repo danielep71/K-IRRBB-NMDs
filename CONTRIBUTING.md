@@ -91,13 +91,15 @@ requests follow [the PR template](.github/PULL_REQUEST_TEMPLATE.md).
    branch** with evidence and explicit limitations.
 9. Merge only after review, with the **Repository integrity** check green and
    every review finding resolved. The release branch accepts changes only
-   through pull requests; a merge commit keeps each commit as authored, and a
-   squash must carry a commit message that follows the rules below.
+   through pull requests, and its ruleset allows only a **squash** merge: the
+   squash commit message must follow the rules below.
 
-Nothing is committed directly to the release branch or to `main`. Integration
+Nothing is committed directly to the release branch or to `main`, except the
+owner bringing a release branch level with `main` after an integration. Integration
 of the release branch into `main` happens only on the owner's request; see
 [`RELEASING.md`](RELEASING.md). Pushed history on a shared branch is never
-rewritten: no rebase, amend or force-push. Bring `main` in with a merge commit.
+rewritten: no rebase, amend or force-push. Bring a moved base branch into a
+task branch with a merge commit.
 
 ### Commit messages
 
@@ -245,9 +247,12 @@ Use only the applicable fields, but never omit a material limitation.
   workflow inspect files. They do not compile VBA, run Excel or validate any
   model. Evidence bound to an exact commit follows
   [`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md).
-- **VBA changes are not merged until verified in Excel:** compile, run the
-  harness, and exercise the specific scenario the change addresses. State
-  plainly what was and was not run in Excel.
+- **Nothing is released until verified in Excel.** A VBA change may be merged
+  into the release branch on the static checks and, where it applies, the
+  LibreOffice proxy run, with what was not run in Excel stated plainly. The
+  release candidate is then compiled, the harness run and the changed
+  scenarios exercised in Excel, as in
+  [`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md).
 - **A skipped check is not a pass.**
 - **Reference values must be independent** of the implementation under test,
   for example a published worked example or an independent statistical

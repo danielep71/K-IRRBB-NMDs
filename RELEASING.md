@@ -39,19 +39,19 @@ sequence**. Day-to-day contribution is owned by
 | Active milestone | `v0.2.0 - Workbook, data and Excel tests` |
 | Closed milestones | `v0.1.0 - Repository foundation` (2026-10-09, no release) |
 | Version file | Not present; created when the first release is prepared ([versioning](#versioning)) |
-| Release evidence tooling | Static checks (`tools/check.py`) |
-| Excel certification procedure | Policy in [`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md); harness *(to be defined)* |
+| Release evidence tooling | Static checks (`tools/check.py`); development-workbook builder, synchronizer and source round trip ([`tools/README.md`](tools/README.md)) |
+| Excel certification procedure | Stages 1–6 of [`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md), with the harness `TEST_Harness.RunTests` |
 
-Steps below marked *(to be defined)* are settled with the first VBA source and
-the first distributed artifact. The v0.1.0 foundation milestone closed without
-producing a release.
+The step below marked *(to be defined)* is settled with the first distributed
+artifact. The v0.1.0 foundation milestone closed without producing a release.
 
 ## 🌿 Branch model
 
 | Branch | Role |
 | --- | --- |
-| `release/<version>` | Active integration branch. Task PRs merge into it after review and green checks. |
-| `main` | Default branch. Receives the release branch only through an owner-requested PR. |
+| `release/<version>` | Active integration branch. Task PRs are squash-merged into it after review and green checks. |
+| `release/v0.3.0` | Opened early to hold the reviewed decay prototype (#36); takes no other work until v0.2.0 is released. |
+| `main` | Default branch. Receives the release branch only through an owner-requested PR merged with a merge commit. |
 | Task branches | One per change, from the release branch: `fix/<issue>-<slug>`, `docs/<slug>`, `test/<slug>`. |
 
 <a id="versioning"></a>
@@ -102,28 +102,36 @@ rerun. Never compensate by editing an already-tested artifact.
 
 Done only when the owner asks. This is an integration, not a release.
 
-Both `main` and `release/**` accept changes **only through pull requests**
-with the **Repository integrity** check green; direct pushes, including
-fast-forwards, are rejected by the branch rulesets.
+The rulesets mirror VBA-SACCR-Toolkit's. `main` accepts changes only through
+pull requests merged with a **merge commit**. `release/**` accepts pull requests
+merged with a **squash** only, rejects non-fast-forward pushes and cannot be
+deleted; repository admins may bypass it. Both require the **Repository
+integrity** check.
 
 1. Confirm the release branch is green and has no open review findings.
-2. **Always create an integration branch** from the release tip and use it as
-   the PR head, never `release/vX.Y.Z` itself: the repository deletes a PR's
-   head branch after merging, which would remove the release branch.
-3. **Bring `main` in if it has moved.** If `main` has commits the release
-   branch lacks, merge `main` into the integration branch with a merge commit
-   and resolve any conflict so the result keeps the release branch's content.
-4. Open the PR into `main`, wait for **Repository integrity** and the review
-   findings, then merge it with a **merge commit**, not a squash, so both
-   branches share history.
-5. **Bring the release branch level with `main`** with a second PR from `main`
-   into `release/vX.Y.Z`, merged with a **merge commit**. `main` then becomes an
-   ancestor of the release branch, and the next integration merges without
-   conflicts. At a milestone closeout, open the next `release/vX.Y.Z` branch
-   from the merge commit instead, and point the docs and
-   `ISSUE_MILESTONE_NUMBER` at its milestone.
-6. Verify that the release branch contains the `main` merge commit, that both
-   trees are identical, and that CI passed on both.
+2. Open a PR from `release/vX.Y.Z` into `main`. `main` changes only through
+   these integrations, so it has nothing the release branch lacks.
+3. Merge it with a **merge commit**, not a squash, once the hosted checks are
+   green, so provenance remains visible. The automatic head-branch deletion
+   fails on the protected release branch, which is kept.
+4. **Bring the release branch level with `main`:** the owner, as an admin
+   bypassing the ruleset, fast-forwards it to the merge commit
+   (`git push origin <merge-sha>:refs/heads/release/vX.Y.Z`). A merge commit or
+   a squash of `main` into the release branch is not used: the ruleset allows
+   only squash, which would cut the shared history. At a milestone closeout,
+   open the next `release/vX.Y.Z` branch from the merge commit instead, and
+   point the docs and `ISSUE_MILESTONE_NUMBER` at its milestone.
+
+   **If the next release branch already exists**, as `release/v0.3.0` does,
+   it is not recreated. The owner merges the merge commit into it locally with
+   a merge commit, resolving any conflict in favour of the later branch's work,
+   and pushes the result as an admin:
+   `git switch release/vX.Y.Z && git merge --no-ff <merge-sha> && git push origin release/vX.Y.Z`.
+   The push is a fast-forward of that branch, since the new commit has its tip
+   as first parent, so nothing is reset or rewritten. CI must pass on the
+   pushed commit before more work lands on it.
+5. Verify that both branches point to the merge commit and that CI passed on
+   it.
 
 Never rebase, amend, force-push or reset either branch.
 
@@ -131,12 +139,11 @@ Never rebase, amend, force-push or reset either branch.
 
 Performed only on the owner's explicit request.
 
-### 1. Freeze and identify the candidate
+The candidate is the merge commit that brings the release branch into `main`:
+it is certified, any artifact is built from it, and the tag is put on it, so
+all three name one SHA.
 
-Record the release-branch SHA, the previous tag (if any) and the intended
-version.
-
-### 2. Finalize the changelog
+### 1. Finalize the changelog
 
 Move the `[Unreleased]` entries into `## [X.Y.Z] - YYYY-MM-DD`, add the link
 reference for the new version, keep an empty `[Unreleased]` section, and create
@@ -144,42 +151,45 @@ or update `VERSION` to `X.Y.Z` in the same PR. `tools/check_source.py` enforces
 the heading format, real calendar dates, link references, newest-first order
 and the `VERSION` match. Merge this through a task PR into the release branch.
 
+### 2. Integrate into main and freeze the candidate
+
+Follow [Integrating the release branch into main](#integrating-the-release-branch-into-main),
+which leaves the release branch level with `main`. The merge commit on `main`
+is the candidate: record its full SHA, the previous tag (if any) and the
+intended version. Until the tag exists, the release branch takes only fixes for
+a gate that failed on the candidate (steps 3 to 5); each is integrated again,
+and the new merge commit becomes the candidate.
+
 ### 3. Run the static gates
 
 ```sh
+git switch --detach <candidate-sha>
 python tools/check.py --ci
 ```
 
 Confirm the hosted **Repository integrity** check is green on the same SHA.
 
-### 4. Certify in Excel *(to be defined)*
+### 4. Certify in Excel
 
-Import the exact candidate into a clean workbook, compile, run the full
-regression harness, the reference cases and the release scenarios, and record
-the evidence against the candidate SHA as described in
+Build a clean workbook from the candidate, compile, run the full regression
+harness, the reference cases and the release scenarios, and record the evidence
+against the candidate SHA as described in
 [`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md).
 
 ### 5. Build artifacts *(to be defined)*
 
-If a workbook is distributed, build it from the certified source, test the
-packaged file and record its SHA-256 hash. No artifact is distributed today.
+If a workbook is distributed, build it from the candidate, test the packaged
+file and record its SHA-256 hash. No artifact is distributed today.
 
-### 6. Integrate into main
+### 6. Create the annotated tag
 
-Follow [Integrating the release branch into main](#integrating-the-release-branch-into-main).
-If the merge changes the source identity, repeat the certification on the
-merged SHA.
-
-### 7. Create the annotated tag
-
-Tag only the certified commit on `main`, from the command line so the tag is
-annotated:
+Tag only the candidate, the certified merge commit on `main`, from the command
+line so the tag is annotated:
 
 ```sh
-git switch main
-git pull --ff-only
-git rev-parse HEAD
-git tag -a vX.Y.Z -F ../tag-message-vX.Y.Z.txt
+git fetch origin main
+git rev-parse <candidate-sha>
+git tag -a vX.Y.Z <candidate-sha> -F ../tag-message-vX.Y.Z.txt
 git cat-file -t vX.Y.Z        # must print: tag
 git push origin vX.Y.Z
 ```
@@ -200,7 +210,7 @@ Deviations: none.
 Copy totals verbatim from the run; never round or reuse earlier figures. Never
 delete and recreate a published tag.
 
-### 8. Publish and verify
+### 7. Publish and verify
 
 Publish the GitHub Release from the tag, attach only certified artifacts with
 their hashes, and verify that a fresh clone of the tag passes the static checks
@@ -232,12 +242,12 @@ it does not replace it.
 | 2 | Scope frozen and diff reviewed | ☐ |
 | 3 | Licensing and distribution review recorded and closed | ☐ |
 | 4 | Changelog finalized and `VERSION` created or updated | ☐ |
-| 5 | Static checks pass locally and in CI | ☐ |
-| 6 | Excel certification and reference cases pass | ☐ |
-| 7 | Artifacts built, tested and hashed (if any) | ☐ |
-| 8 | Release branch merged into `main` with a merge commit | ☐ |
-| 9 | Release branch level with `main` again (PR from `main`, merge commit) | ☐ |
-| 10 | Annotated tag targets the certified `main` SHA | ☐ |
+| 5 | Release branch merged into `main` with a merge commit; candidate SHA recorded | ☐ |
+| 6 | Release branch fast-forwarded to the merge commit | ☐ |
+| 7 | Static checks pass on the candidate locally and in CI | ☐ |
+| 8 | Excel certification and reference cases pass on the candidate | ☐ |
+| 9 | Artifacts built, tested and hashed (if any) | ☐ |
+| 10 | Annotated tag targets the candidate | ☐ |
 | 11 | GitHub Release published and verified | ☐ |
 
 ## 📚 Related documents
