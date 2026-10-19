@@ -326,6 +326,7 @@ Private Sub CaseLeak()
     Dim dates() As Date, bal() As Double, fit() As Double, mpa() As Double, runoff() As Double
     Dim median() As Double, kappa() As Double, resid() As Double, diag() As Double
     Dim p1() As Double, e1() As Double, s1() As Double, p2() As Double, e2() As Double, s2() As Double
+    Dim pr() As Double, er() As Double, before As Double, after As Double
     Dim i As Long, same As Boolean
 
     FitRetTx dates, bal, fit, mpa, runoff, median, kappa, resid, diag
@@ -342,6 +343,45 @@ Private Sub CaseLeak()
         If s1(i) <> s2(i) Then same = False
     Next i
     TEST_AssertTrue C, "scores unchanged when data after the test window change", same
+
+    ' Data after an origin inside the window: every forecast must still come from its own
+    ' origin balance and the frozen parameters. The fixture is reloaded because LibreOffice
+    ' shares an array on assignment.
+    TEST_FixtureRetTx dates, bal
+    For i = 1 To UBound(dates)
+        If dates(i) > DateSerial(2023, 12, 31) Then bal(i) = bal(i) * 0.1
+    Next i
+    IRRBB_DecayBacktest dates, bal, fit, DateSerial(2024, 12, 31), 12, p2, e2, s2
+    ReferenceScores dates, bal, fit, DateSerial(2024, 12, 31), 12, pr, er
+    same = True
+    For i = 1 To 12
+        If p2(i) <> pr(i) Or e2(i) <> er(i) Then same = False
+        before = before + e1(i)
+        after = after + e2(i)
+    Next i
+    TEST_AssertTrue C, "the change after the origin alters the realized exceedances", after > before
+    TEST_AssertTrue C, "scores equal a reference built from each origin balance only", same
+End Sub
+
+
+Private Sub ReferenceScores(ByRef dates() As Date, ByRef bal() As Double, ByRef fit() As Double, _
+                            ByVal testEnd As Date, ByVal maxH As Long, ByRef pairs() As Double, _
+                            ByRef exceed() As Double)
+    ' Exceedance counts per horizon from the origin balance B(u) and the frozen fit only.
+    Dim u As Long, h As Long, threshold As Double
+    ReDim pairs(1 To maxH)
+    ReDim exceed(1 To maxH)
+    For u = 1 To UBound(dates)
+        If dates(u) > CDate(fit(CORE_DF_ORIGIN)) And dates(u) < testEnd Then
+            For h = 1 To maxH
+                If u + h > UBound(dates) Then Exit For
+                If dates(u + h) > testEnd Then Exit For
+                threshold = bal(u) * Exp(fit(CORE_DF_MU_STAR) * h + fit(CORE_DF_Z) * fit(CORE_DF_SIGMA) * Sqr(h))
+                pairs(h) = pairs(h) + 1
+                If bal(u + h) < threshold Then exceed(h) = exceed(h) + 1
+            Next h
+        End If
+    Next u
 End Sub
 
 
