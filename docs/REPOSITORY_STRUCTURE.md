@@ -256,7 +256,9 @@ The toolkit deliberately does **not**:
    conditional-compilation environment. VBA would accept a duplicate, but any
    unqualified reference from a third module then fails to compile
    ("Ambiguous name detected"), and the code calls core procedures
-   unqualified. *(enforced by `tools/check_vba_public_api.py`)*
+   unqualified. A Public Enum and its members count as such a name in any
+   module type, class modules included, because they are visible
+   project-wide. *(enforced by `tools/check_vba_public_api.py`)*
 5. Code in `src/core/` uses no Excel object-model or UI identifier. *(enforced)*
 6. Test and example modules never go into the production import set.
 7. Fixtures are synthetic; never commit real balances, rates, accounts or
