@@ -214,8 +214,10 @@ End Sub
 
 Private Sub CaseErrors()
     Const C As String = "DEC-ERR-01"
-    Dim dates() As Date, bal() As Double, d2() As Date, b2() As Double, i As Long
+    Dim dates() As Date, bal() As Double, d2() As Date, b2() As Double, i As Long, n As Long
     Dim mpa() As Double, ov() As Double, ovInfo() As Double, ovLabel As String
+    Dim fit() As Double, runoff() As Double, median() As Double, kappa() As Double
+    Dim resid() As Double, diag() As Double
 
     TEST_FixtureRetTx dates, bal
     TEST_AssertError C, "35 log changes are below the minimum", _
@@ -277,6 +279,16 @@ Private Sub CaseErrors()
     TEST_AssertError C, "overlay rejects a non-monotone path", OverlayError("RET_TX", mpa), CORE_ERR_INVARIANT
     mpa(2) = 85
     TEST_AssertError C, "overlay rejects an unknown segment", OverlayError("RET", mpa), CORE_ERR_INPUT
+
+    FitRetTx dates, bal, fit, mpa, runoff, median, kappa, resid, diag
+    n = UBound(dates)
+    TEST_FixtureRetTx d2, b2
+    b2(n - 1) = 0
+    TEST_AssertError C, "backtest rejects a zero balance at a forecast origin", _
+                     BacktestError(dates, b2, fit, dates(n)), CORE_ERR_DOMAIN
+    TEST_FixtureRetTx d2, b2
+    b2(n) = 0
+    TEST_AssertError C, "backtest accepts a zero last realized balance", BacktestError(dates, b2, fit, dates(n)), 0
 End Sub
 
 
@@ -395,6 +407,16 @@ Private Function FitError(ByVal segment As String, ByVal currencyCode As String,
     IRRBB_DecayFit segment, currencyCode, dates, bal, estStart, estEnd, breaks, confidence, cutoff, _
                    fit, mpa, runoff, median, kappa, resid, diag
     FitError = Err.Number
+    On Error GoTo 0
+End Function
+
+
+Private Function BacktestError(ByRef dates() As Date, ByRef bal() As Double, ByRef fit() As Double, _
+                               ByVal testEnd As Date) As Long
+    Dim pairs() As Double, exceed() As Double, sm() As Double
+    On Error Resume Next
+    IRRBB_DecayBacktest dates, bal, fit, testEnd, 12, pairs, exceed, sm
+    BacktestError = Err.Number
     On Error GoTo 0
 End Function
 

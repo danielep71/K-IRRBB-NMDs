@@ -112,7 +112,8 @@ Use only the categories needed by a release.
   applied) and the out-of-sample exceedance score with frozen parameters.
   Input is rejected below 36 log changes, on non-month-end dates, gaps,
   non-positive balances, unknown segments and currencies outside the run
-  allowlist.
+  allowlist; the backtest rejects a zero balance at a forecast origin and
+  accepts it only as the last realized balance.
 - Decay cases `DEC-LOG-01`, `DEC-MPA-01`, `DEC-PROF-01`, `DEC-LIFE-01`,
   `DEC-CAP-01`, the new `DEC-E2E-01` and `DEC-ERR-01`, and the decay parts of
   `OOS-FREEZE-01`, `OOS-LEAK-01` and `OOS-SCORE-01`, run by the harness through

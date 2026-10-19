@@ -129,7 +129,7 @@ method, date and producer. They have not yet been reviewed by the owner (#36).
 | `DEC-LIFE-01` | Mean life of the profile and of the core | Direct evaluation of the contract formulas on the same hand case | `abs 1e-9` months | Built (VBA) |
 | `DEC-CAP-01` | Overlay: core-share scaling and cutoff reduction for the maturity cap | Direct implementation of the overlay rules with the `REG-1` Table 2 caps, three segments | `abs 1e-8` | Built (VBA) |
 | `DEC-E2E-01` | Full fit with a break dummy on a 168-month generated series: parameters, profile, mean lives, Ljung–Box and Jarque–Bera diagnostics, empirical quantile, overlay and 12-horizon backtest | numpy `lstsq`; scipy `norm.ppf`, `chi2.sf`, `jarque_bera`, `skew`, `kurtosis`; numpy `quantile` (type 7) | `rel 1e-9` | Built (VBA) |
-| `DEC-ERR-01` | Rejected input raises the documented error: sample below 36 changes, unknown segment, currency outside the run allowlist or not upper case, confidence, cutoff, break outside the window or given as text, zero balance, non-month-end date, gap, non-monotone overlay path | Hand construction | `exact` (error number) | Built (VBA) |
+| `DEC-ERR-01` | Rejected input raises the documented error: sample below 36 changes, unknown segment, currency outside the run allowlist or not upper case, confidence, cutoff, break outside the window or given as text, zero balance, non-month-end date, gap, non-monotone overlay path, zero balance at a backtest forecast origin | Hand construction | `exact` (error number) | Built (VBA) |
 
 ### Common
 

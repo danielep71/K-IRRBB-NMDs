@@ -295,7 +295,10 @@ End Sub
 '   Scores frozen fit parameters on the test window (T_e, T_f], where T_e is
 '   the fit origin. Every month end u in the window is an origin; for
 '   h = 1..maxHorizon with u + h still in the window the pair is scored:
-'   exceedance when B(u + h) < B(u) exp(mu* h + z sigma sqrt(h)).
+'   exceedance when B(u + h) < B(u) exp(mu* h + z sigma sqrt(h)). A zero
+'   balance at an origin would make every threshold zero and every pair a
+'   non-exceedance, so it is rejected; zero is accepted only as the last
+'   realized balance T_f.
 '   pairs(1..maxH), exceed(1..maxH), summary(1..6)                          [out]
 '------------------------------------------------------------------------------
 Public Sub CORE_DecayBacktest(ByRef dates() As Date, ByRef bal() As Double, ByRef fit() As Double, _
@@ -322,6 +325,9 @@ Public Sub CORE_DecayBacktest(ByRef dates() As Date, ByRef bal() As Double, ByRe
     For u = o + 1 To f
         If bal(u) < 0 Then
             Err.Raise CORE_ERR_DOMAIN, "CORE_Decay.CORE_DecayBacktest", "Negative balance in the test window."
+        End If
+        If bal(u) = 0 And u < f Then
+            Err.Raise CORE_ERR_DOMAIN, "CORE_Decay.CORE_DecayBacktest", "Zero balance at a forecast origin in the test window."
         End If
     Next u
 
