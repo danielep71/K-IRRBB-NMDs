@@ -38,6 +38,14 @@ NOT_IMPLEMENTED = "NOT RUN - not implemented"
 
 # Cell styles (index into cellXfs below).
 TITLE, PURPOSE, LABEL, HEADER, INPUT, INPUT_DATE, STATUS, STATUS_TIME, TEXT = range(1, 10)
+BRAND, OUTPUT_HEADER, SECTION, NOTE, AMOUNT, COUNT, DIAGNOSTIC, OUTPUT_DATE = range(10, 18)
+
+# Shared visual identity with the maintainer's SACCR template. These are
+# presentation constants; they never determine model or status behavior.
+BLACK, GOLD, TITLE_BLUE = "000000", "FFC000", "265A99"
+NAVY, OUTPUT_BLUE, INPUT_GOLD, TEST_GREEN = "1F3864", "2E75B6", "BF9000", "548235"
+INPUT_YELLOW, BORDER_GRAY, NOTE_GRAY = "FFF2CC", "BFBFBF", "595959"
+README_NOTE_ROW = 34
 
 
 @dataclass
@@ -52,6 +60,11 @@ class Sheet:
     cells: dict[str, tuple[str, int]] = field(default_factory=dict)
     widths: dict[str, float] = field(default_factory=dict)
     freeze_row: int = 0
+    merges: list[str] = field(default_factory=list)
+    heights: dict[int, float] = field(default_factory=dict)
+    column_styles: dict[str, int] = field(default_factory=dict)
+    tab_color: str = OUTPUT_BLUE
+    print_columns: str = "H"
 
 
 SHEETS = [
@@ -123,19 +136,30 @@ TEMPLATE_STAMP = ["None: template without a VBA project", "Not built from source
 def _layout() -> None:
     sheets = {s.name: s for s in SHEETS}
     for s in SHEETS:
-        s.cells["A1"] = (s.title, TITLE)
-        s.cells["A2"] = (s.purpose, PURPOSE)
+        s.cells["A1"] = ("K-IRRBB", BRAND)
+        s.cells["A2"] = (s.title, TITLE)
+        s.heights = {1: 24, 2: 27, 3: 30, 4: 24}
         if s.role == "Output":
             s.cells["A3"] = ("Status", LABEL)
             s.cells["B3"] = (NOT_IMPLEMENTED, STATUS)
-            s.widths = {"A": 18, "B": 40}
+            s.cells["D3"] = (s.purpose, PURPOSE)
+            s.widths = {"A": 24, "B": 44, "C": 3, "D": 16, "E": 16, "F": 16, "G": 16, "H": 16}
+            s.merges.append("D3:H4")
         if s.status.startswith("Placeholder"):
             s.cells["A5"] = ("Reserved: no function writes this sheet yet. The result layout from row 13 is defined "
                              "when the function is built (docs/WORKBOOK_CONTRACT.md).", TEXT)
+            s.merges.append("A5:H6")
+            s.heights.update({5: 26, 6: 20})
 
     readme = sheets["Readme"]
-    readme.cells["A4"] = ("Build", LABEL)
-    readme.cells["A11"] = ("Sheets", LABEL)
+    readme.cells["A3"] = ("Start with Config and Segments. Import data in the development workbook, then review "
+                           "DataSummary. Yellow cells are inputs; blue tabs hold outputs.", PURPOSE)
+    readme.cells["A4"] = ("Build information", SECTION)
+    readme.cells["A11"] = ("Workbook map and readiness", SECTION)
+    readme.merges = ["A3:E3", "A4:E4", "A11:E11", "A24:E24", "A26:E26"]
+    readme.merges += [f"B{row}:E{row}" for row in range(5, 10)]
+    readme.tab_color = NAVY
+    readme.print_columns = "E"
     for col, text in zip("ABCDE", ("Sheet", "CodeName", "Role", "Owner", "Status")):
         readme.cells[f"{col}12"] = (text, HEADER)
     for row, s in enumerate(SHEETS, 13):
@@ -143,7 +167,23 @@ def _layout() -> None:
             readme.cells[f"{col}{row}"] = (text, TEXT)
     readme.cells["A24"] = ("A sheet name is not evidence that a function exists: the Status column says what is "
                            "implemented. Contract: docs/WORKBOOK_CONTRACT.md.", TEXT)
-    readme.widths = {"A": 18, "B": 18, "C": 15, "D": 10, "E": 72}
+    readme.widths = {"A": 23, "B": 30, "C": 16, "D": 12, "E": 64}
+    readme.heights.update({3: 36, 4: 28, 8: 48, 11: 30, 12: 30, 24: 36, 26: 30})
+    readme.heights.update({row: 32 for row in range(13, 23)})
+    readme.cells["A26"] = ("How to use", SECTION)
+    for row, (label, detail) in enumerate([
+        ("1. Configure", "On Config, choose the account and rate files, set month-end dates and the rate series, "
+         "and complete the closure attestation."),
+        ("2. Select segments", "On Segments, choose Yes or No for each segment to include in the run."),
+        ("3. Import and review", "In the development workbook, use Import data on Config. Review the status, totals, "
+         "findings, warnings and lineage on DataSummary."),
+        ("4. Check readiness", "Run the development workbook's regression tests on Checks. Reserved model sheets "
+         "remain unavailable until their functions are implemented."),
+    ], 27):
+        readme.cells[f"A{row}"] = (label, LABEL)
+        readme.cells[f"B{row}"] = (detail, TEXT)
+        readme.merges.append(f"B{row}:E{row}")
+        readme.heights[row] = 36
 
     config = sheets["Config"]
     for col, text in zip("ABCD", ("Setting", "Value", "Format", "Notes")):
@@ -162,7 +202,14 @@ def _layout() -> None:
         config.cells[f"B{row}"] = ("", style)
         config.cells[f"C{row}"] = (fmt, TEXT)
         config.cells[f"D{row}"] = (note, TEXT)
-    config.widths = {"A": 32, "B": 40, "C": 12, "D": 90}
+    config.cells["A3"] = (config.purpose, PURPOSE)
+    config.cells["A12"] = ("Yellow cells identify inputs. File paths are selected with the buttons in the "
+                           "development workbook; the macro-free template has no action buttons.", NOTE)
+    config.merges = ["A3:D3", "A12:D12"]
+    config.widths = {"A": 34, "B": 46, "C": 14, "D": 70}
+    config.heights.update({3: 34, 4: 10, 5: 32, 6: 32, 7: 32, 8: 26, 9: 26, 10: 26, 11: 44, 12: 32})
+    config.tab_color = INPUT_GOLD
+    config.print_columns = "D"
 
     segments = sheets["Segments"]
     for col, text in zip("ABC", ("Code", "Description", "Include")):
@@ -171,7 +218,13 @@ def _layout() -> None:
         segments.cells[f"A{row}"] = (code, TEXT)
         segments.cells[f"B{row}"] = (description, TEXT)
         segments.cells[f"C{row}"] = ("Yes", INPUT)
-    segments.widths = {"A": 12, "B": 40, "C": 10}
+    segments.cells["A3"] = (segments.purpose, PURPOSE)
+    segments.cells["A10"] = ("Yellow cells are editable. Choose Yes to include a segment, or No to leave it out.", NOTE)
+    segments.merges = ["A3:C3", "A10:C11"]
+    segments.widths = {"A": 16, "B": 52, "C": 14}
+    segments.heights.update({3: 38, 4: 10, 5: 32, 6: 30, 7: 30, 8: 30, 10: 24, 11: 18})
+    segments.tab_color = INPUT_GOLD
+    segments.print_columns = "C"
 
     summary = sheets["DataSummary"]
     for row, label in enumerate(["Status", "Started", "Finished", "Account panel file", "Market-rate file",
@@ -197,6 +250,16 @@ def _layout() -> None:
                                                      3)))
     summary.widths.update(zip(outcome_columns, (12, 10, 9, 10, 16, 7, 9, 20, 13, 18)))
     summary.freeze_row = 13
+    summary.merges = ["D3:J4", "C12:E12", "G12:J12", "L12:N12", "P12:Q12", "S12:AB12"]
+    for cell, label in (("C12", "Monthly totals"), ("G12", "Findings"), ("L12", "Warnings"),
+                        ("P12", "Source lineage"), ("S12", "Monthly outcomes")):
+        summary.cells[cell] = (label, SECTION)
+    summary.column_styles = {"A": OUTPUT_DATE, "D": COUNT, "E": AMOUNT, "H": COUNT, "J": OUTPUT_DATE,
+                             "N": OUTPUT_DATE, "S": OUTPUT_DATE, "V": COUNT, "W": COUNT, "X": COUNT,
+                             "Y": COUNT, "Z": AMOUNT, "AA": COUNT, "AB": COUNT}
+    summary.heights.update({row: 24 for row in range(5, 13)})
+    summary.heights.update({6: 32, 7: 32, 11: 36, 12: 36, 13: 42})
+    summary.print_columns = "AB"
 
     checks = sheets["Checks"]
     checks.cells["B3"] = ("NOT RUN", STATUS)
@@ -211,6 +274,20 @@ def _layout() -> None:
         checks.cells[f"{col}13"] = (text, HEADER)
     checks.widths = dict(zip("ABCDEFGHIJKLMN", (16, 40, 11, 9, 9, 60, 3, 14, 34, 18, 18, 10, 14, 9)))
     checks.freeze_row = 13
+    checks.merges = ["D3:N4", "A12:F12", "H12:N12"]
+    checks.cells["A12"] = ("Test cases", SECTION)
+    checks.cells["H12"] = ("Assertion detail", SECTION)
+    checks.column_styles = {"C": COUNT, "D": COUNT, "E": COUNT, "L": DIAGNOSTIC, "M": DIAGNOSTIC}
+    checks.heights.update({row: 24 for row in range(5, 13)})
+    checks.heights.update({6: 36, 10: 36, 11: 36, 12: 30, 13: 42})
+    checks.tab_color = TEST_GREEN
+    checks.print_columns = "N"
+
+    for s in SHEETS:
+        s.merges = [f"A1:{s.print_columns}1", f"A2:{s.print_columns}2"] + s.merges
+        if s.role == "Output":
+            s.cells = {ref: (value, OUTPUT_HEADER if style == HEADER else style)
+                       for ref, (value, style) in s.cells.items()}
 
 
 _layout()
@@ -259,8 +336,9 @@ def _sheet_xml(sheet: Sheet, strings: dict[str, int], selected: bool) -> bytes:
             rows.setdefault(row, []).append(f'<c r="{ref}" s="{style}" t="s"><v>{index}</v></c>')
         else:
             rows.setdefault(row, []).append(f'<c r="{ref}" s="{style}"/>')
-    last_row = max(_cell_key(ref)[0] for ref in sheet.cells)
-    last_col = max(_cell_key(ref)[1] for ref in sheet.cells)
+    extent = list(sheet.cells) + [area.split(":")[-1] for area in sheet.merges]
+    last_row = max(_cell_key(ref)[0] for ref in extent)
+    last_col = max(_cell_key(ref)[1] for ref in extent)
     dimension = f"A1:{_column_letters(last_col)}{last_row}"
 
     tab = ' tabSelected="1"' if selected else ""
@@ -270,9 +348,13 @@ def _sheet_xml(sheet: Sheet, strings: dict[str, int], selected: bool) -> bytes:
         view += (f'<pane ySplit="{sheet.freeze_row}" topLeftCell="{top}" activePane="bottomLeft" state="frozen"/>'
                  f'<selection pane="bottomLeft" activeCell="{top}" sqref="{top}"/>')
     view += "</sheetView>"
-    cols = "".join(f'<col min="{_cell_key(c + "1")[1]}" max="{_cell_key(c + "1")[1]}" width="{w}" customWidth="1"/>'
+    cols = "".join(f'<col min="{_cell_key(c + "1")[1]}" max="{_cell_key(c + "1")[1]}" width="{w}" '
+                   f'customWidth="1" style="{sheet.column_styles.get(c, 0)}"/>'
                    for c, w in sheet.widths.items())
-    data = "".join(f'<row r="{r}">{"".join(cells)}</row>' for r, cells in sorted(rows.items()))
+    data = "".join(f'<row r="{r}" ht="{sheet.heights.get(r, 22)}" customHeight="1">'
+                   f'{"".join(rows.get(r, []))}</row>' for r in sorted(rows.keys() | sheet.heights.keys()))
+    merges = (f'<mergeCells count="{len(sheet.merges)}">'
+              + "".join(f'<mergeCell ref="{area}"/>' for area in sheet.merges) + '</mergeCells>')
 
     formatting, priority = "", 1
     if sheet.role == "Output":
@@ -300,57 +382,77 @@ def _sheet_xml(sheet: Sheet, strings: dict[str, int], selected: bool) -> bytes:
             validations += f"<dataValidation {body}</dataValidation>"
         validations += "</dataValidations>"
 
-    return _xml(f'<worksheet xmlns="{MAIN_NS}" xmlns:r="{REL_NS}"><sheetPr codeName="{sheet.code_name}"/>'
+    # Wide output tables retain readable column widths across printed pages.
+    # No fixed output print area: newly written rows must not be omitted.
+    fit_width = 0 if last_col > 8 else 1
+    return _xml(f'<worksheet xmlns="{MAIN_NS}" xmlns:r="{REL_NS}"><sheetPr codeName="{sheet.code_name}">'
+                f'<tabColor rgb="FF{sheet.tab_color}"/><pageSetUpPr fitToPage="1"/></sheetPr>'
                 f'<dimension ref="{dimension}"/><sheetViews>{view}</sheetViews>'
-                f'<sheetFormatPr defaultRowHeight="15"/><cols>{cols}</cols><sheetData>{data}</sheetData>'
-                f'{formatting}{validations}'
-                '<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>'
+                f'<sheetFormatPr defaultRowHeight="22"/><cols>{cols}</cols><sheetData>{data}</sheetData>'
+                f'{merges}{formatting}{validations}'
+                '<pageMargins left="0.3" right="0.3" top="0.4" bottom="0.4" header="0.2" footer="0.2"/>'
+                f'<pageSetup paperSize="9" orientation="landscape" fitToWidth="{fit_width}" fitToHeight="0"/>'
                 '</worksheet>')
 
 
+def _font(size: int, color: str = BLACK, bold: bool = False, italic: bool = False) -> str:
+    return (f'<font>{"<b/>" if bold else ""}{"<i/>" if italic else ""}'
+            f'<sz val="{size}"/><color rgb="FF{color}"/><name val="Aptos"/><family val="2"/></font>')
+
+
+def _xf(font: int = 0, fill: int = 0, border: int = 0, number: int = 0,
+        align: str = "left", wrap: bool = False, indent: int = 0) -> str:
+    return (f'<xf numFmtId="{number}" fontId="{font}" fillId="{fill}" borderId="{border}" xfId="0" '
+            'applyFont="1" applyFill="1" applyBorder="1" applyNumberFormat="1" applyAlignment="1">'
+            f'<alignment horizontal="{align}" vertical="center" wrapText="{int(wrap)}" indent="{indent}"/></xf>')
+
+
+_FONTS = [_font(10), _font(10, bold=True), _font(18, "FFFFFF", bold=True),
+          _font(10, NOTE_GRAY, italic=True), _font(11, "FFFFFF", bold=True),
+          _font(14, GOLD), _font(12, NAVY, bold=True), _font(9, NOTE_GRAY)]
+_FILLS = [NAVY, "F7F7F7", INPUT_YELLOW, BLACK, TITLE_BLUE, OUTPUT_BLUE]
+_XFS = [
+    _xf(),                                                        # Normal
+    _xf(2, 6, indent=1),                                          # Title
+    _xf(3, wrap=True),                                            # Purpose
+    _xf(1, wrap=True),                                            # Label
+    _xf(4, 2, 1, align="center", wrap=True),                      # Input header
+    _xf(0, 4, 1, 49, wrap=True),                                 # Text input
+    _xf(0, 4, 1, 164, align="right"),                            # Date input
+    _xf(0, 3, 1, wrap=True),                                      # Status / metadata
+    _xf(0, 3, 1, 165),                                           # Timestamp
+    _xf(wrap=True),                                               # Body text
+    _xf(5, 5, indent=1),                                          # Brand strip
+    _xf(4, 7, 1, align="center", wrap=True),                      # Output header
+    _xf(6, border=2, wrap=True),                                  # Section
+    _xf(7, wrap=True),                                            # Note
+    _xf(number=4, align="right"),                                # Amount: #,##0.00
+    _xf(number=3, align="right"),                                # Count: #,##0
+    _xf(number=166, align="right"),                              # Diagnostic precision
+    _xf(number=164, align="right"),                              # Output date
+]
 STYLES = _xml(
     f'<styleSheet xmlns="{MAIN_NS}">'
-    '<numFmts count="2"><numFmt numFmtId="164" formatCode="yyyy-mm-dd"/>'
-    '<numFmt numFmtId="165" formatCode="yyyy-mm-dd hh:mm:ss"/></numFmts>'
-    '<fonts count="5">'
-    '<font><sz val="11"/><name val="Calibri"/><family val="2"/></font>'
-    '<font><b/><sz val="11"/><name val="Calibri"/><family val="2"/></font>'
-    '<font><b/><sz val="14"/><color rgb="FF1F3A5F"/><name val="Calibri"/><family val="2"/></font>'
-    '<font><i/><sz val="11"/><color rgb="FF5B6573"/><name val="Calibri"/><family val="2"/></font>'
-    '<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/><family val="2"/></font>'
-    '</fonts>'
-    '<fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'
-    '<fill><patternFill patternType="solid"><fgColor rgb="FF1F3A5F"/><bgColor indexed="64"/></patternFill></fill>'
-    '<fill><patternFill patternType="solid"><fgColor rgb="FFF2F4F7"/><bgColor indexed="64"/></patternFill></fill>'
-    '<fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/><bgColor indexed="64"/></patternFill></fill>'
-    '</fills>'
-    '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>'
-    '<border><left style="thin"><color rgb="FFC8CED6"/></left><right style="thin"><color rgb="FFC8CED6"/></right>'
-    '<top style="thin"><color rgb="FFC8CED6"/></top><bottom style="thin"><color rgb="FFC8CED6"/></bottom>'
-    '<diagonal/></border></borders>'
+    '<numFmts count="3"><numFmt numFmtId="164" formatCode="yyyy-mm-dd"/>'
+    '<numFmt numFmtId="165" formatCode="yyyy-mm-dd hh:mm:ss"/>'
+    '<numFmt numFmtId="166" formatCode="0.00E+00"/></numFmts>'
+    f'<fonts count="{len(_FONTS)}">' + "".join(_FONTS) + '</fonts>'
+    f'<fills count="{len(_FILLS) + 2}"><fill><patternFill patternType="none"/></fill>'
+    '<fill><patternFill patternType="gray125"/></fill>'
+    + "".join(f'<fill><patternFill patternType="solid"><fgColor rgb="FF{color}"/>'
+              '<bgColor indexed="64"/></patternFill></fill>' for color in _FILLS) + '</fills>'
+    '<borders count="3"><border><left/><right/><top/><bottom/><diagonal/></border><border>'
+    + "".join(f'<{side} style="thin"><color rgb="FF{BORDER_GRAY}"/></{side}>'
+              for side in ("left", "right", "top", "bottom"))
+    + '<diagonal/></border><border><left/><right/><top/>'
+    f'<bottom style="medium"><color rgb="FF{NAVY}"/></bottom><diagonal/></border></borders>'
     '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-    '<cellXfs count="10">'
-    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
-    '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
-    '<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
-    '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
-    '<xf numFmtId="0" fontId="4" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" '
-    'applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'
-    '<xf numFmtId="49" fontId="0" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" '
-    'applyBorder="1"/>'
-    '<xf numFmtId="164" fontId="0" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" '
-    'applyBorder="1"/>'
-    '<xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1"/>'
-    '<xf numFmtId="165" fontId="0" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" '
-    'applyBorder="1"/>'
-    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1">'
-    '<alignment vertical="top"/></xf>'
-    '</cellXfs>'
+    f'<cellXfs count="{len(_XFS)}">' + "".join(_XFS) + '</cellXfs>'
     '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
     '<dxfs count="3">'
-    '<dxf><fill><patternFill><bgColor rgb="FFC6EFCE"/></patternFill></fill></dxf>'
-    '<dxf><fill><patternFill><bgColor rgb="FFFFC7CE"/></patternFill></fill></dxf>'
-    '<dxf><fill><patternFill><bgColor rgb="FFFFEB9C"/></patternFill></fill></dxf>'
+    '<dxf><font><color rgb="FF006100"/></font><fill><patternFill><bgColor rgb="FFC6EFCE"/></patternFill></fill></dxf>'
+    '<dxf><font><color rgb="FF9C0006"/></font><fill><patternFill><bgColor rgb="FFFFC7CE"/></patternFill></fill></dxf>'
+    '<dxf><font><color rgb="FF9C6500"/></font><fill><patternFill><bgColor rgb="FFFFEB9C"/></patternFill></fill></dxf>'
     '</dxfs></styleSheet>')
 
 
@@ -358,11 +460,14 @@ def package(stamp: list[str] | None = None, notes: list[str] | None = None) -> b
     """The template package; a build stamp (BUILD_LABELS values) and notes give the development variant."""
     readme = SHEETS[0]
     saved = dict(readme.cells)
+    saved_merges, saved_heights = list(readme.merges), dict(readme.heights)
     for row, (label, value) in enumerate(zip(BUILD_LABELS, stamp or TEMPLATE_STAMP), 5):
         readme.cells[f"A{row}"] = (label, LABEL)
         readme.cells[f"B{row}"] = (value, TEXT)
-    for row, text in enumerate(notes or [], 26):
-        readme.cells[f"A{row}"] = (text, LABEL if row == 26 else TEXT)
+    for row, text in enumerate(notes or [], README_NOTE_ROW):
+        readme.cells[f"A{row}"] = (text, SECTION if row == README_NOTE_ROW else TEXT)
+        readme.merges.append(f"A{row}:E{row}")
+        readme.heights[row] = 36
 
     strings: dict[str, int] = {}
     members: list[tuple[str, bytes]] = []
@@ -370,6 +475,7 @@ def package(stamp: list[str] | None = None, notes: list[str] | None = None) -> b
         sheets_xml = [_sheet_xml(s, strings, i == 0) for i, s in enumerate(SHEETS)]
     finally:
         readme.cells = saved
+        readme.merges, readme.heights = saved_merges, saved_heights
 
     overrides = "".join(f'<Override PartName="/xl/worksheets/sheet{i}.xml" ContentType="application/vnd.'
                         'openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
@@ -391,6 +497,15 @@ def package(stamp: list[str] | None = None, notes: list[str] | None = None) -> b
     sheet_entries = "".join(f'<sheet name="{s.name}" sheetId="{i}" r:id="rId{i}"/>' for i, s in enumerate(SHEETS, 1))
     defined = "".join(f'<definedName name="{name}">{sheet}!{ref}</definedName>'
                       for name, (sheet, ref) in sorted(NAMES.items(), key=lambda item: item[0].upper()))
+    for index, sheet in enumerate(SHEETS):
+        repeat = sheet.freeze_row or (5 if sheet.role == "Input" else 3)
+        defined += (f'<definedName name="_xlnm.Print_Titles" localSheetId="{index}">'
+                    f"'{sheet.name}'!$1:${repeat}</definedName>")
+        if sheet.role != "Output":
+            last = (max(30, README_NOTE_ROW + len(notes or []) - 1) if sheet.name == "Readme"
+                    else 23 if sheet.name == "Config" else 11)
+            defined += (f'<definedName name="_xlnm.Print_Area" localSheetId="{index}">'
+                        f"'{sheet.name}'!$A$1:${sheet.print_columns}${last}</definedName>")
     members.append(("xl/workbook.xml", _xml(
         f'<workbook xmlns="{MAIN_NS}" xmlns:r="{REL_NS}"><workbookPr codeName="ThisWorkbook"/>'
         f'<bookViews><workbookView activeTab="0"/></bookViews><sheets>{sheet_entries}</sheets>'

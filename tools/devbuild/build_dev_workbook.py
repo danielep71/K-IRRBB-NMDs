@@ -33,10 +33,10 @@ from vba_project import Module, build_vba_project  # noqa: E402
 ROOT = Path(__file__).resolve().parents[2]
 COMPONENT_DIRS = ["src/core", "src/modules", "src/workbook", "tests/modules", "examples/modules"]
 BUTTONS = {
-    "Config": [("Choose account file", "WB_ChooseAccountsFile", 0, 13, "1F3A5F"),
-               ("Choose rate file", "WB_ChooseRatesFile", 0, 16, "1F3A5F"),
-               ("Import data", "WB_ImportData", 0, 19, "2E7D7A")],
-    "Checks": [("Run tests", "RunTests", 1, 3, "2E7D7A")],
+    "Config": [("Choose account file", "WB_ChooseAccountsFile", 0, 13, build_template.NAVY),
+               ("Choose rate file", "WB_ChooseRatesFile", 0, 16, build_template.NAVY),
+               ("Import data", "WB_ImportData", 0, 19, build_template.OUTPUT_BLUE)],
+    "Checks": [("Run tests", "RunTests", 6, 5, build_template.OUTPUT_BLUE)],
 }
 EVIDENCE_STEPS = [
     "Evidence steps (docs/EXCEL_EVIDENCE.md, INSTALLATION.md):",
@@ -101,7 +101,8 @@ def button_anchor(idx: int, label: str, macro: str, col: int, row: int, color: s
             f'<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></a:xfrm><a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom>'
             f'<a:solidFill><a:srgbClr val="{color}"/></a:solidFill><a:ln><a:noFill/></a:ln></xdr:spPr>'
             f'<xdr:txBody><a:bodyPr vertOverflow="clip" rtlCol="0" anchor="ctr"/><a:lstStyle/><a:p><a:pPr algn="ctr"/>'
-            f'<a:r><a:rPr lang="en-US" sz="1100" b="1"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:rPr>'
+            f'<a:r><a:rPr lang="en-US" sz="1100" b="1"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>'
+            f'<a:latin typeface="Aptos"/></a:rPr>'
             f'<a:t>{label}</a:t></a:r></a:p></xdr:txBody></xdr:sp><xdr:clientData/></xdr:twoCellAnchor>')
 
 
@@ -140,7 +141,7 @@ def inject(xlsx: bytes, vba_bin: bytes, out: Path, sheet_names: list[str]) -> No
                            'schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdBtn" '
                            'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" '
                            f'Target="../drawings/{dname}"/></Relationships>').encode()
-        sheet, count = re.subn(r"(<pageMargins[^>]*/>)", r'\1<drawing r:id="rIdBtn"/>', sheet, count=1)
+        sheet, count = re.subn(r"(<pageSetup[^>]*/>)", r'\1<drawing r:id="rIdBtn"/>', sheet, count=1)
         if not count:
             raise RuntimeError(f"cannot place the drawing in {sheet_path}")
         files[sheet_path] = sheet.encode()
