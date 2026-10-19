@@ -1,0 +1,15 @@
+{
+  "segment": "RET_TX",
+  "currency": "EUR",
+  "start": "2012-01-31",
+  "months": 168,
+  "b0": 250000000.0,
+  "mu": 0.0015,
+  "sigma": 0.011,
+  "break": "2020-03-31",
+  "jump": 0.06,
+  "seed": 20261008,
+  "generator": "tests/fixtures/decay/generate_fixtures.py",
+  "rng": "Python random.Random(seed).gauss, CPython 3.13",
+  "rounding": "balances rounded to 2 decimals after exponentiation"
+}

@@ -14,3 +14,21 @@ IRRBB_Import	Function	IRRBB_ImportWarnings
 # SIG	IRRBB_Import	Function	IRRBB_ImportWarnings	Public Function IRRBB_ImportWarnings() As Variant
 IRRBB_Import	Function	IRRBB_ImportLineage
 # SIG	IRRBB_Import	Function	IRRBB_ImportLineage	Public Function IRRBB_ImportLineage() As Variant
+IRRBB_Decay	Const	IRRBB_DECAY_MODEL_VERSION
+# SIG	IRRBB_Decay	Const	IRRBB_DECAY_MODEL_VERSION	Public Const IRRBB_DECAY_MODEL_VERSION As String = "DECAY-1.0-draft"
+IRRBB_Decay	Sub	IRRBB_DecayBacktest
+# SIG	IRRBB_Decay	Sub	IRRBB_DecayBacktest	Public Sub IRRBB_DecayBacktest(ByRef dates() As Date, ByRef balances() As Double, ByRef fit() As Double, ByVal testEnd As Date, ByVal maxHorizon As Long, ByRef pairs() As Double, ByRef exceed() As Double, ByRef summary() As Double)
+IRRBB_Decay	Enum	IRRBB_DecayBacktestField
+# SIG	IRRBB_Decay	Enum	IRRBB_DecayBacktestField	Public Enum IRRBB_DecayBacktestField | IRRBB_BT_ORIGINS = 1 | IRRBB_BT_PAIRS = 2 | IRRBB_BT_EXCEED = 3 | IRRBB_BT_RATE = 4 | IRRBB_BT_TAIL = 5 | IRRBB_BT_MAX_H = 6 | End Enum
+IRRBB_Decay	Enum	IRRBB_DecayDiagField
+# SIG	IRRBB_Decay	Enum	IRRBB_DecayDiagField	Public Enum IRRBB_DecayDiagField | IRRBB_DD_LB_LAGS = 1 | IRRBB_DD_LB_Q = 2 | IRRBB_DD_LB_P = 3 | IRRBB_DD_JB = 4 | IRRBB_DD_JB_P = 5 | IRRBB_DD_SKEW = 6 | IRRBB_DD_KURT = 7 | IRRBB_DD_EMP_Q = 8 | IRRBB_DD_NORM_Q = 9 | End Enum
+IRRBB_Decay	Sub	IRRBB_DecayFit
+# SIG	IRRBB_Decay	Sub	IRRBB_DecayFit	Public Sub IRRBB_DecayFit(ByVal segment As String, ByVal currencyCode As String, ByRef dates() As Date, ByRef balances() As Double, ByVal estStart As Date, ByVal estEnd As Date, ByVal breakDates As Variant, ByVal confidence As Double, ByVal cutoff As Long, ByRef fit() As Double, ByRef mpa() As Double, ByRef runoff() As Double, ByRef median() As Double, ByRef kappa() As Double, ByRef resid() As Double, ByRef diag() As Double)
+IRRBB_Decay	Enum	IRRBB_DecayFitField
+# SIG	IRRBB_Decay	Enum	IRRBB_DecayFitField	Public Enum IRRBB_DecayFitField | IRRBB_DF_MU_HAT = 1 | IRRBB_DF_MU_STAR = 2 | IRRBB_DF_SIGMA = 3 | IRRBB_DF_Z = 4 | IRRBB_DF_CONFIDENCE = 5 | IRRBB_DF_N = 6 | IRRBB_DF_K = 7 | IRRBB_DF_ORIGIN = 8 | IRRBB_DF_B0 = 9 | IRRBB_DF_CORE = 10 | IRRBB_DF_NONCORE_SHARE = 11 | IRRBB_DF_MEANLIFE = 12 | IRRBB_DF_CORE_MEANLIFE = 13 | IRRBB_DF_CUTOFF = 14 | IRRBB_DF_FIRST_DATE = 15 | End Enum
+IRRBB_Decay	Sub	IRRBB_DecayOverlay
+# SIG	IRRBB_Decay	Sub	IRRBB_DecayOverlay	Public Sub IRRBB_DecayOverlay(ByVal segment As String, ByRef mpa() As Double, ByRef overlay() As Double, ByRef ovInfo() As Double, ByRef ovLabel As String)
+IRRBB_Decay	Enum	IRRBB_DecayOverlayField
+# SIG	IRRBB_Decay	Enum	IRRBB_DecayOverlayField	Public Enum IRRBB_DecayOverlayField | IRRBB_OV_CORE_SHARE_FIT = 1 | IRRBB_OV_CORE_SHARE_CAP = 2 | IRRBB_OV_SCALE = 3 | IRRBB_OV_SHARE_APPLIED = 4 | IRRBB_OV_CORE_SHARE = 5 | IRRBB_OV_MAT_CAP = 6 | IRRBB_OV_CORE_MEANLIFE_IN = 7 | IRRBB_OV_CUTOFF = 8 | IRRBB_OV_MAT_APPLIED = 9 | IRRBB_OV_CORE_MEANLIFE = 10 | IRRBB_OV_OVERNIGHT = 11 | End Enum
+IRRBB_Decay	Function	IRRBB_DecayVersion
+# SIG	IRRBB_Decay	Function	IRRBB_DecayVersion	Public Function IRRBB_DecayVersion() As String

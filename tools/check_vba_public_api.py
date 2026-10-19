@@ -30,6 +30,9 @@ ROLE_BY_PREFIX = (
     ("examples/", "example"),
 )
 TOOL_NAME = "VBA public API"
+# Enum members share the project namespace, so they take part in collision
+# checks; they are recorded in the manifest only through their Enum's body.
+ENUM_MEMBER = "Enum Member"
 VBA_SUFFIXES = {".bas", ".cls", ".frm"}
 SIG_PREFIX = "# SIG\t"
 PROPERTY_KINDS = {"property get", "property let", "property set"}
@@ -166,17 +169,17 @@ def record(
     path: str,
     line: int,
 ) -> None:
-    if supported:
-        output.append(
-            {
-                "component": component,
-                "kind": kind,
-                "name": name,
-                "signature": signature,
-                "path": path,
-                "line": line,
-            }
-        )
+    output.append(
+        {
+            "component": component,
+            "kind": kind,
+            "name": name,
+            "signature": signature,
+            "path": path,
+            "line": line,
+            "supported": supported,
+        }
+    )
 
 
 @dataclass
@@ -223,6 +226,11 @@ def _public_block(
         return index + 1
     body.append(norm(statements[end_index][2]))
     scan.declare(kind, name, " | ".join(body), line)
+    if kind == "Enum":
+        for member_line, _, member_code in statements[index + 1:end_index]:
+            member = re.match(r"\s*([A-Za-z_]\w*)", member_code)
+            if member:
+                scan.declare(ENUM_MEMBER, member.group(1), norm(member_code), member_line)
     return end_index + 1
 
 
@@ -378,7 +386,8 @@ def property_pair(first: dict[str, Any], second: dict[str, Any]) -> bool:
 def _parse_components(
     root: Path, components: dict[str, str]
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Parse every tracked configured component; only public-role ones contribute declarations."""
+    """Parse every tracked configured component; every declaration is returned, flagged
+    "supported" only for public-role components, which alone enter the manifest."""
     declarations: list[dict[str, Any]] = []
     findings: list[dict[str, Any]] = []
     tracked = set(tracked_vba(root))
@@ -525,10 +534,14 @@ def component_roles(root: Path) -> dict[str, str]:
 def run_check(root: Path) -> dict[str, Any]:
     manifest = MANIFEST_PATH
     findings: list[dict[str, Any]] = []
-    declarations, parse_errors = _parse_components(root, component_roles(root))
+    everything, parse_errors = _parse_components(root, component_roles(root))
     findings.extend(parse_errors)
-    keys, index_errors = _index_declarations(declarations)
+    # Every standard module's Public names share one project namespace, Option
+    # Private Module included: a clash anywhere does not compile.
+    _, index_errors = _index_declarations(everything)
     findings.extend(index_errors)
+    declarations = [item for item in everything if item["supported"] and item["kind"] != ENUM_MEMBER]
+    keys, _ = _index_declarations(declarations)
     rows, signatures, errors = read_manifest(root, manifest)
     findings.extend(errors)
     findings.extend(_manifest_findings(manifest, keys, rows, signatures))
@@ -593,7 +606,8 @@ def markdown_report(report: dict[str, Any]) -> str:
 
 
 def init_fixture(
-    root: Path, facade: str, manifest: list[str], other: str | None = None
+    root: Path, facade: str, manifest: list[str], other: str | None = None,
+    extra: dict[str, str] | None = None,
 ) -> None:
     for path in (
         root / "src/modules",
@@ -620,6 +634,7 @@ def init_fixture(
     }
     if other is not None:
         files["src/modules/Other.bas"] = other
+    files.update(extra or {})
     for relative, text in files.items():
         (root / relative).write_bytes(text.replace("\n", "\r\n").encode("cp1252"))
     (root / "docs/PUBLIC_API.txt").write_text(
@@ -639,11 +654,12 @@ def init_fixture(
 
 
 def fixture(
-    facade: str, manifest: list[str], other: str | None = None
+    facade: str, manifest: list[str], other: str | None = None,
+    extra: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="vba-api-") as temporary:
         root = Path(temporary)
-        init_fixture(root, facade, manifest, other)
+        init_fixture(root, facade, manifest, other, extra)
         return run_check(root)
 
 
@@ -789,6 +805,20 @@ End Function
     cross_manifest = manifest + ["Other\tDeclare Function\tTick", "# SIG\tOther\tDeclare Function\tTick\t" + legacy]
     tests.append(("exclusive-cross-component", fixture(complementary, cross_manifest, alternate), "pass", None))
     tests.append(("overlapping-cross-component", fixture(facade, cross_manifest, alternate), "fail", "collides"))
+    private = {"src/core/Second.bas": 'Attribute VB_Name = "Second"\nOption Explicit\nOption Private Module\n'
+                                      "Public Function internalonly() As Long\nEnd Function\n"}
+    tests.append(("private-module-collision", fixture(facade, manifest, extra=private), "fail", "collides"))
+    tests.append(("private-module-distinct", fixture(facade, manifest, extra={
+        "src/core/Second.bas": private["src/core/Second.bas"].replace("internalonly", "OtherInternal")}), "pass", None))
+    exclusive = {"src/core/Second.bas": 'Attribute VB_Name = "Second"\nOption Explicit\nOption Private Module\n'
+                                        "#If VBA7 Then\n#Else\nPublic Function InternalOnly() As Long\nEnd Function\n"
+                                        "#End If\n"}
+    core_vba7 = {"src/core/Core.bas": 'Attribute VB_Name = "Core"\nOption Explicit\nOption Private Module\n'
+                                      "#If VBA7 Then\nPublic Function InternalOnly() As Long\nEnd Function\n#End If\n"}
+    tests.append(("exclusive-private-modules", fixture(facade, manifest, extra={**exclusive, **core_vba7}), "pass", None))
+    member = {"src/core/Second.bas": 'Attribute VB_Name = "Second"\nOption Explicit\nOption Private Module\n'
+                                     "Public Const ModeA As Long = 2\n"}
+    tests.append(("enum-member-collision", fixture(facade, manifest, extra=member), "fail", "collides"))
     for name, report, expected, needle in tests:
         if report["status"] != expected:
             failures.append(f"{name}: expected {expected}, got {report['status']}")
@@ -804,7 +834,7 @@ End Function
     print(
         "SELF-TEST PASS: procedures, paired properties, constants, events, declares, "
         "variables, WithEvents, enums, types, continuations, implicit-public rejection, "
-        "signature drift, conditional variants, reachable collisions, unknown conditions, and one-identifier Const/variable policy passed."
+        "signature drift, conditional variants, reachable collisions across every standard module (Option Private Module and enum members included), unknown conditions, and one-identifier Const/variable policy passed."
     )
     return 0
 
