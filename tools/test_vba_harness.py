@@ -403,7 +403,7 @@ def json_rows(value, prefix: str = "") -> list[tuple[str, float]]:
 
 @unittest.skipUnless(DECAY_DATA.exists(), "decay cases not on this branch")
 class DecayData(unittest.TestCase):
-    """TEST_DecayData.bas is generated; it must equal the reviewed expected files exactly."""
+    """TEST_DecayData.bas is generated; it must equal the reviewed expected files and fixtures exactly."""
 
     ROW = re.compile(r'v\(\d+, 1\) = "([^"]+)": v\(\d+, 2\) = "([^"]+)": v\(\d+, 3\) = Val\("([^"]+)"\): '
                      r'v\(\d+, 4\) = "([a-z]+)": v\(\d+, 5\) = Val\("([^"]+)"\)')
@@ -421,6 +421,20 @@ class DecayData(unittest.TestCase):
             files += [(case["case"], k, v, tol["kind"], float(tol["eps"])) for k, v in json_rows(case["expected"])]
         self.assertTrue(vba)
         self.assertEqual(sorted(vba), sorted(files))
+
+    def test_generated_module_is_rebuilt_from_committed_sources(self) -> None:
+        """Rebuilding from the committed JSON and CSV files gives the module byte for byte, inputs
+        and fixtures included. vba_emit.py is the emitter make_expected.py uses, stdlib only."""
+        import json
+        sys.path.insert(0, str(DECAY_EXPECTED))
+        try:
+            from vba_emit import emit_vba
+        finally:
+            sys.path.remove(str(DECAY_EXPECTED))
+        order = list(dict.fromkeys(re.findall(r'v\(\d+, 1\) = "([^"]+)": v\(\d+, 2\)', read(DECAY_DATA))))
+        self.assertEqual(set(order), {path.stem for path in DECAY_EXPECTED.glob("*.json")})
+        cases = [json.loads((DECAY_EXPECTED / f"{case}.json").read_text(encoding="ascii")) for case in order]
+        self.assertEqual(emit_vba(cases).encode("ascii"), DECAY_DATA.read_bytes())
 
     def test_every_decay_expected_case_is_registered(self) -> None:
         registered = set(register_ids())
