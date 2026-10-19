@@ -94,7 +94,8 @@ requests follow [the PR template](.github/PULL_REQUEST_TEMPLATE.md).
    through pull requests, and its ruleset allows only a **squash** merge: the
    squash commit message must follow the rules below.
 
-Nothing is committed directly to the release branch or to `main`. Integration
+Nothing is committed directly to the release branch or to `main`, except the
+owner bringing a release branch level with `main` after an integration. Integration
 of the release branch into `main` happens only on the owner's request; see
 [`RELEASING.md`](RELEASING.md). Pushed history on a shared branch is never
 rewritten: no rebase, amend or force-push. Bring a moved base branch into a

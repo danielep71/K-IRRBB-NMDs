@@ -121,6 +121,15 @@ integrity** check.
    only squash, which would cut the shared history. At a milestone closeout,
    open the next `release/vX.Y.Z` branch from the merge commit instead, and
    point the docs and `ISSUE_MILESTONE_NUMBER` at its milestone.
+
+   **If the next release branch already exists**, as `release/v0.3.0` does,
+   it is not recreated. The owner merges the merge commit into it locally with
+   a merge commit, resolving any conflict in favour of the later branch's work,
+   and pushes the result as an admin:
+   `git switch release/vX.Y.Z && git merge --no-ff <merge-sha> && git push origin release/vX.Y.Z`.
+   The push is a fast-forward of that branch, since the new commit has its tip
+   as first parent, so nothing is reset or rewritten. CI must pass on the
+   pushed commit before more work lands on it.
 5. Verify that both branches point to the merge commit and that CI passed on
    it.
 
