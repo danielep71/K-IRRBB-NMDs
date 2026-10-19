@@ -354,11 +354,12 @@ Use only the categories needed by a release.
   benchmarks accompany each model, and Stable-Decay composition is explicit.
 - Accepted host/data/model records now have direct evidence links; unresolved
   model interpretation and reproducibility requirements are tracked in #26.
-- `RELEASING.md` describes integration through pull requests only: always
-  open it from an integration branch (never the release branch, which would be
-  deleted on merge), bring a moved `main` into it first, merge into `main`
-  with a merge commit, and bring the release branch level with a second PR
-  from `main`, also merged with a merge commit.
+- `RELEASING.md` and `CONTRIBUTING.md` follow the rulesets copied from
+  VBA-SACCR-Toolkit: task PRs are squash-merged into the release branch, the
+  release branch is merged into `main` with a merge commit from its own PR, and
+  the owner then fast-forwards the release branch, which cannot be deleted, to
+  the merge commit. VBA may be merged into the release branch before Excel
+  evidence exists; nothing is released without it.
 - Documentation prepared for public visibility (#42): `SECURITY.md` routes
   reports through GitHub private vulnerability reporting, with email as the
   fallback; `docs/TRAFFIC.md` states that the traffic branch is public and
@@ -398,11 +399,14 @@ Use only the categories needed by a release.
 
 ### Known limitations
 
-- No VBA source, workbook, regression harness or model engine exists yet.
+- No model engine exists on this branch; the decay prototype is reviewed on
+  `release/v0.3.0` (#36).
+- No Excel compile or run has been recorded for the VBA source; the
+  LibreOffice proxy runs are not Excel evidence.
 - No automated check compiles VBA, runs Excel or validates a model; passing CI
   is not evidence of correct IRRBB calculations.
-- The methodology is a roadmap, not a validated specification, and its
-  regulatory reference register is not yet populated.
+- The methodology is a roadmap, not a validated specification. Of its
+  regulatory references, only `REG-1` and `REG-3` are verified.
 
 ---
 

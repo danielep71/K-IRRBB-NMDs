@@ -3,10 +3,13 @@
 ## Workflow
 
 - Active integration branch: `release/v0.2.0`.
-- Start focused task branches from the release branch; open PRs back into it.
+- Start focused task branches from the release branch; open PRs back into it
+  and squash-merge them (the only method the release-branch ruleset allows).
+  The release branch goes into `main` with a merge commit; see
+  [`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main).
 - No direct commits to `release/**` or `main` after the initial repository bootstrap.
 - A release-to-main PR requires the owner's explicit approval. No version tags or releases are implied.
-- Merge only with reviewer sign-off and green repository checks; Excel evidence is separately recorded when VBA changes exist.
+- Merge only with reviewer sign-off and green repository checks. VBA may be merged before Excel evidence exists; a release needs Excel evidence on its candidate ([`EXCEL_EVIDENCE.md`](EXCEL_EVIDENCE.md)).
 
 ## Issue metadata
 

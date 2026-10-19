@@ -151,7 +151,7 @@ counted) and the attributes of document modules, which Excel writes. Everything
 else must match. The export needs the same Trust access as the synchronizer;
 the comparison never runs Excel.
 
-Label reconciliation scripts and workflows mirror the SACCR label policy; merging them into the trusted default branch is needed before automatic label synchronization begins.
+Label reconciliation scripts and workflows mirror the SACCR label policy and run from the default branch `main`; see [`docs/LABELS.md`](../docs/LABELS.md).
 
 Ruff and mypy settings in `pyproject.toml` are optional development targets, not
 CI checks or verified compliance. The required CI command remains the portable

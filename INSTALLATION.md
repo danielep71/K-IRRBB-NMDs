@@ -60,7 +60,7 @@ Passing static checks is **not** evidence of correct IRRBB calculations.
 | Git | Cloning and all repository work |
 | Python 3.10 or later | `python tools/check.py`; standard library only, no packages |
 | Node.js 20 or later | Optional: local label-catalog checks |
-| Microsoft Excel for Windows | **Future** VBA import, compile and model execution; see [supported hosts](#supported-hosts); not needed for static checks |
+| Microsoft Excel for Windows | VBA import, compile, the regression harness and the data import, and later the models; see [supported hosts](#supported-hosts); not needed for static checks |
 
 <a id="supported-hosts"></a>
 
@@ -218,10 +218,11 @@ Use these steps when neither the builder nor the synchronizer can be used. Compo
    committed.
 3. Open the VBE (**Alt+F11**) and check that **Tools → References** lists only
    the [four default references](#vba-references).
-4. Import in dependency order: `src/core/`, then `src/classes/`, then
-   `src/modules/`, then the standard modules in `src/workbook/`, then
-   `src/forms/` (each `.frm` with its `.frx`). For a development workbook only,
-   add `tests/` and `examples/` modules.
+4. Import in dependency order: `src/core/`, then `src/classes/` (none exist
+   yet), then `src/modules/`, then the standard modules in `src/workbook/`,
+   then `src/forms/` (none yet; each `.frm` with its `.frx`). For a development
+   workbook only, add the `tests/` modules (and `examples/` modules, when
+   present).
 5. Paste the code of the document modules (`src/workbook/ThisWorkbook.cls` and
    the sheet modules `src/workbook/sh*.cls`) into the existing module instead
    of importing it, which would create a duplicate class.
