@@ -94,6 +94,18 @@ Use only the categories needed by a release.
 
 ## [Unreleased]
 
+### Presentation
+
+- Align the workbook with the maintainer's SACCR visual identity: black-and-gold
+  `K-IRRBB` branding, blue title bands, Aptos typography, distinct input/output
+  headers, colored tabs, consistent spacing and landscape print setup. Add a
+  short Readme workflow, section labels on DataSummary and Checks, and readable
+  amount, count and diagnostic formats. Development-workbook buttons share the
+  palette and avoid the status block. The template remains reproducible from
+  its generator; sheet order, CodeNames, named ranges, validations, status rules
+  and calculation behavior are unchanged. Native Excel visual verification is
+  still required.
+
 > Not yet released. Development takes place on the active release branch,
 > `release/v0.2.0`; changes to `main` require an explicit owner instruction.
 
