@@ -56,7 +56,7 @@ run never replaces an earlier failing one in the record; both are kept.
 | Sources | Every imported component and the workbook template, all from that one commit |
 | Host | Excel version and build, Office bitness, Windows edition, version and architecture |
 | References | The entries in **Tools → References**, which must be exactly the [four defaults](../INSTALLATION.md#vba-references) |
-| Security context | Macro setting and *Trust access to the VBA project object model*, as found and **not changed** |
+| Security context | Macro setting and *Trust access to the VBA project object model*, as found and **not changed**, except Trust access enabled for stage 6 and turned off after it, when so recorded |
 | Operator and time | Who ran it, start and finish time with UTC offset |
 | Outcomes | One outcome per stage below, with the copied output that supports it |
 
@@ -123,13 +123,26 @@ Excel state must be restored after each run, as in stage 3.
 Close the test workbook without saving it into the checkout, and record that
 it was closed. A built workbook is never committed.
 
+### 6. Source round trip
+
+Export the saved workbook with `tools/Export-IRRBB-VBA.ps1` into a new folder
+and compare it with `python tools/compare_vba_export.py --export <folder>
+--mode development --candidate-sha <sha> --workbook <workbook>`
+([source round trip](../tools/README.md#source-round-trip)). Copy its output
+into the log.
+
+`PASS` requires `RESULT=PASS` with `binding=VERIFIED`: the workbook holds
+exactly the components of its mode at the candidate commit. The export needs
+*Trust access to the VBA project object model*; record whether it was already
+enabled, and if it was enabled for this stage, that it was turned off again.
+
 <a id="bitness"></a>
 
 ## 🖥️ Bitness
 
 | Host | Stages required | When no host is available |
 | --- | --- | --- |
-| Windows, 64-bit | All five | The change cannot be merged or released; record `UNAVAILABLE` and stop |
+| Windows, 64-bit | All six | The change cannot be merged or released; record `UNAVAILABLE` and stop |
 | Windows, 32-bit (best effort) | Stages 1 and 2 | Record `NOT_RUN` with the reason; the change may proceed |
 
 A 32-bit `PASS` is reported as best-effort compile evidence, never as
@@ -142,13 +155,17 @@ conditional-compilation branches statically.
 ## 🧑‍💻 Procedure
 
 Execution is **manual**: a person runs Excel interactively. The procedure never
-changes macro security or Trust Center settings.
+changes macro security or Trust Center settings, with one exception: stage 6
+needs *Trust access to the VBA project object model*. If it is off, enable it
+for stage 6 only, turn it off afterwards, and record both; a stage 6 `PASS` run
+that way is valid.
 
 1. Check out the candidate in a clean tree: `git switch --detach FULL_SHA`,
    then `git status`.
 2. Create a record folder **outside** the checkout and start a plain-text
    `session.log` in UTF-8 with the SHA and the start time.
-3. Record the host and security context without changing them.
+3. Record the host and security context without changing them (stage 6 apart,
+   as above).
 4. Run the [required stages](#required-stages) in order, copying each output
    into the log as it appears.
 5. Write the outcome of every stage, with `NOT_RUN` or `UNAVAILABLE` and a

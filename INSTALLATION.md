@@ -182,9 +182,25 @@ appears on `DataSummary`. Details and the
 LibreOffice early-warning run are in
 [`tools/devbuild/README.md`](tools/devbuild/README.md).
 
+<a id="updating-an-existing-workbook"></a>
+
+### Updating an existing workbook
+
+To bring a workbook saved from the template (or an earlier build) up to the
+source of the checkout, close it and drag it onto `tools/Sync-IRRBB-VBA.cmd`.
+The synchronizer asks whether it is a production or a development workbook and
+replaces the VBA components from `src/` (and, for development, `tests/` and
+`examples/`) without touching sheets or data. To try modules downloaded for a
+review without copying them into the checkout, use
+`tools/Sync-IRRBB-VBA-Downloads.cmd` instead. Both need Windows Excel with
+**Trust access to the VBA project object model** enabled; see
+[`tools/README.md`](tools/README.md#local-vba-synchronization). Afterwards run
+**Debug → Compile VBAProject** and enter the commit in `Readme!B5` as in step 6
+below.
+
 ### Manual import
 
-Use these steps when the builder cannot be used. Components at present:
+Use these steps when neither the builder nor the synchronizer can be used. Components at present:
 `src/core/CORE_Codes.bas`, `src/core/CORE_Parse.bas`,
 `src/core/CORE_Import.bas`, `src/core/CORE_Sha256.bas`, `src/modules/IRRBB_Import.bas`,
 `src/workbook/WB_Import.bas`; development only: `tests/modules/TEST_Harness.bas`,
@@ -206,8 +222,9 @@ Use these steps when the builder cannot be used. Components at present:
    `src/modules/`, then the standard modules in `src/workbook/`, then
    `src/forms/` (each `.frm` with its `.frx`). For a development workbook only,
    add `tests/` and `examples/` modules.
-5. Paste document-module code (`ThisWorkbook`, sheet modules) into the existing
-   module instead of importing it, which would create a duplicate class.
+5. Paste the code of the document modules (`src/workbook/ThisWorkbook.cls` and
+   the sheet modules `src/workbook/sh*.cls`) into the existing module instead
+   of importing it, which would create a duplicate class.
 6. Run **Debug → Compile VBAProject**; it must complete with no error.
    Enter the 40-digit commit of the imported source in `Readme` cell `B5`
    (`Readme_SourceCommit`); the data import refuses to run without it, since
@@ -221,6 +238,11 @@ Do not paste source into arbitrarily named modules: the component name
 match the file name.
 
 ### Exporting changes back
+
+To check a workbook against a commit without changing the checkout, export it
+with `tools/Export-IRRBB-VBA.ps1` and compare with `tools/compare_vba_export.py`
+([source round trip](tools/README.md#source-round-trip)). To bring an edit made
+in the VBE back into the repository:
 
 1. In the VBE, export each changed component over its file in the checkout, in
    the same folder.

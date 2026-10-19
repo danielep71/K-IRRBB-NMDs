@@ -68,7 +68,9 @@ class PackageRegressions(unittest.TestCase):
                 with self.subTest(path=path), patch.object(check_source, "tracked_files", return_value={path}), \
                         patch.object(check_source, "check_storage", return_value=[]), \
                         patch.object(check_source, "check_workbook", return_value=[]), \
-                        patch.object(check_source, "check_changelog", return_value=[]):
+                        patch.object(check_source, "check_changelog", return_value=[]), \
+                        patch.object(check_source, "check_sync_script", return_value=[]), \
+                        patch.object(check_source, "check_document_modules", return_value=[]):
                     report = check_source.run_check(Path(directory))
                     self.assertEqual(report["status"], "pass" if allowed else "fail")
 

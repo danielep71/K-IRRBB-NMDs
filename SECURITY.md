@@ -162,6 +162,17 @@ impact.
   All actions are pinned to full commit SHAs. See
   [`tools/README.md`](tools/README.md), [`docs/LABELS.md`](docs/LABELS.md) and
   [`docs/TRAFFIC.md`](docs/TRAFFIC.md).
+- **Local tooling.** `tools/Sync-IRRBB-VBA.ps1` (with its `.cmd` launchers)
+  and `tools/Export-IRRBB-VBA.ps1` drive the user's own Excel through COM and
+  need Excel's *Trust access to the VBA project object model*. That setting
+  lets any code with access to Excel's object model read and change VBA
+  projects, so enable it only while running these scripts, on a machine you
+  control, and turn it off afterwards. The scripts run Excel with macros
+  disabled, never change Excel or Trust Center settings themselves, import only
+  repository components (or, with `-SourceDir`, files that declare a repository
+  component name or a project prefix, after confirmation), and change only the
+  VBA project of the workbook given. The development-workbook builder
+  (`tools/devbuild/`) needs neither Excel automation nor that setting.
 - **Artifacts.** No workbook, add-in or other binary is distributed. Office
   packages are ignored by Git unless an exact path is re-included.
 

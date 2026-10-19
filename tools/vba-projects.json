@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "description": "The VBA components of the production and the development workbook, read by tools/Sync-IRRBB-VBA.ps1 and tools/compare_vba_export.py; tools/test_devbuild.py keeps the development configuration equal to what tools/devbuild/build_dev_workbook.py embeds. Each configuration is one VBA project that can exist in a real workbook; modules from different configurations are never combined.",
+  "document_modules": [
+    "src/workbook/ThisWorkbook.cls",
+    "src/workbook/shReadme.cls",
+    "src/workbook/shConfig.cls",
+    "src/workbook/shSegments.cls",
+    "src/workbook/shDataSummary.cls",
+    "src/workbook/shModelParams.cls",
+    "src/workbook/shCalibration.cls",
+    "src/workbook/shBacktesting.cls",
+    "src/workbook/shScenarios.cls",
+    "src/workbook/shResults.cls",
+    "src/workbook/shChecks.cls"
+  ],
+  "configurations": {
+    "production": {
+      "description": "The production modules of a workbook built from the template: the host-independent core, the public facades and the workbook adapter.",
+      "modules": [
+        "src/core/CORE_Codes.bas",
+        "src/core/CORE_Import.bas",
+        "src/core/CORE_Parse.bas",
+        "src/core/CORE_Sha256.bas",
+        "src/modules/IRRBB_Import.bas",
+        "src/workbook/WB_Import.bas"
+      ]
+    },
+    "development": {
+      "description": "The development workbook of INSTALLATION.md: the production modules, every test module and every example module.",
+      "modules": [
+        "src/core/CORE_Codes.bas",
+        "src/core/CORE_Import.bas",
+        "src/core/CORE_Parse.bas",
+        "src/core/CORE_Sha256.bas",
+        "src/modules/IRRBB_Import.bas",
+        "src/workbook/WB_Import.bas",
+        "tests/modules/TEST_CoreCases.bas",
+        "tests/modules/TEST_DataCases.bas",
+        "tests/modules/TEST_Fixtures.bas",
+        "tests/modules/TEST_Harness.bas",
+        "tests/modules/TEST_HashCases.bas",
+        "tests/modules/TEST_ImportCases.bas",
+        "tests/modules/TEST_WorkbookCases.bas"
+      ]
+    }
+  }
+}
