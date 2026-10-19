@@ -7,7 +7,7 @@ set "SCRIPT=%~dp0Sync-IRRBB-VBA.ps1"
 
 if not exist "%SCRIPT%" (
     echo ERROR: PowerShell script not found:
-    echo   %SCRIPT%
+    echo   "%SCRIPT%"
     echo.
     pause
     exit /b 1
@@ -31,7 +31,7 @@ echo.
 if not exist "%WORKBOOK%" (
     echo.
     echo ERROR: Workbook not found:
-    echo   %WORKBOOK%
+    echo   "%WORKBOOK%"
     echo.
     pause
     exit /b 1
@@ -39,9 +39,9 @@ if not exist "%WORKBOOK%" (
 
 echo.
 echo Repository:
-echo   %CD%
+echo   "%CD%"
 echo Workbook:
-echo   %WORKBOOK%
+echo   "%WORKBOOK%"
 echo.
 echo Synchronizing VBA source...
 echo.

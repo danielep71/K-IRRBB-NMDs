@@ -7,7 +7,7 @@ set "SCRIPT=%~dp0Sync-IRRBB-VBA.ps1"
 
 if not exist "%SCRIPT%" (
     echo ERROR: PowerShell script not found:
-    echo   %SCRIPT%
+    echo   "%SCRIPT%"
     echo.
     pause
     exit /b 1
@@ -35,7 +35,7 @@ echo.
 
 if not exist "%WORKBOOK%" (
     echo ERROR: Workbook not found:
-    echo   %WORKBOOK%
+    echo   "%WORKBOOK%"
     echo.
     pause
     exit /b 1
@@ -49,7 +49,7 @@ set "SOURCE=%SOURCE:"=%"
 if not exist "%SOURCE%\" (
     echo.
     echo ERROR: Folder not found:
-    echo   %SOURCE%
+    echo   "%SOURCE%"
     echo.
     pause
     exit /b 1
@@ -57,9 +57,9 @@ if not exist "%SOURCE%\" (
 
 echo.
 echo Workbook:
-echo   %WORKBOOK%
+echo   "%WORKBOOK%"
 echo Folder:
-echo   %SOURCE%
+echo   "%SOURCE%"
 echo.
 
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT%" -WorkbookPath "%WORKBOOK%" -RepoRoot "%REPO_ROOT%" -SourceDir "%SOURCE%"

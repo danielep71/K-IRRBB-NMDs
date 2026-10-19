@@ -155,13 +155,17 @@ conditional-compilation branches statically.
 ## 🧑‍💻 Procedure
 
 Execution is **manual**: a person runs Excel interactively. The procedure never
-changes macro security or Trust Center settings.
+changes macro security or Trust Center settings, with one exception: stage 6
+needs *Trust access to the VBA project object model*. If it is off, enable it
+for stage 6 only, turn it off afterwards, and record both; a stage 6 `PASS` run
+that way is valid.
 
 1. Check out the candidate in a clean tree: `git switch --detach FULL_SHA`,
    then `git status`.
 2. Create a record folder **outside** the checkout and start a plain-text
    `session.log` in UTF-8 with the SHA and the start time.
-3. Record the host and security context without changing them.
+3. Record the host and security context without changing them (stage 6 apart,
+   as above).
 4. Run the [required stages](#required-stages) in order, copying each output
    into the log as it appears.
 5. Write the outcome of every stage, with `NOT_RUN` or `UNAVAILABLE` and a

@@ -115,7 +115,6 @@ $vbext_ct_ClassModule = 2
 $vbext_ct_MSForm = 3
 $vbext_ct_Document = 100
 $xlCalculationManual = -4135
-$xlCalculationAutomatic = -4105
 $msoAutomationSecurityForceDisable = 3
 
 # With -SourceDir, a standard module the repository checkout does not have
@@ -703,13 +702,17 @@ try {
 
     # Some Excel builds reject Application.Calculation changes until at least
     # one workbook is open (HRESULT 0x800A03EC). Open first, then disable
-    # calculation-before-save for this isolated Excel instance.
+    # calculation-before-save for this isolated Excel instance. The mode and
+    # the before-save flag are saved with the workbook, so the ones it was
+    # opened with are kept and restored before the save.
     $workbook = $excel.Workbooks.Open($workbookFullPath, 0, $false)
 
     if ($workbook.ReadOnly) {
         throw "Workbook opened read-only. Close any other Excel instance using it."
     }
 
+    $calculationMode = $excel.Calculation
+    $calculateBeforeSave = $excel.CalculateBeforeSave
     $excel.Calculation = $xlCalculationManual
     $excel.CalculateBeforeSave = $false
 
@@ -750,10 +753,11 @@ try {
     Assert-SheetSnapshotUnchanged -Before $before -After $after
 
     # The synchronization uses manual calculation only to avoid recalculation
-    # while modules are being replaced. The development workbook must leave
-    # this isolated Excel instance in Automatic mode before it is saved.
-    $excel.Calculation = $xlCalculationAutomatic
-    $excel.CalculateBeforeSave = $true
+    # while modules are being replaced. The workbook is saved with the
+    # calculation mode and before-save flag it was opened with, so that a
+    # code-only synchronization does not change its settings.
+    $excel.Calculation = $calculationMode
+    $excel.CalculateBeforeSave = $calculateBeforeSave
 
     $workbook.Save()
     $saved = $true

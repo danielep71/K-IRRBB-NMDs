@@ -107,8 +107,9 @@ the repository source.
 Standard modules are replaced from source; `ThisWorkbook` and the worksheet
 document modules keep their workbook objects and only their code text is
 replaced, read as cp1252. The script disables Excel events, macro execution,
-external-link updates and automatic calculation while synchronizing, checks
-that the sheet names and CodeNames are unchanged, and makes a timestamped
+external-link updates and automatic calculation while synchronizing, saves the
+workbook with the calculation mode and before-save setting it was opened with,
+checks that the sheet names and CodeNames are unchanged, and makes a timestamped
 safety copy of the workbook unless `-NoBackup` is given. It deletes that copy
 after a successful save and keeps it on failure; it is not a rollback archive.
 
