@@ -13,6 +13,16 @@
 
 **Source-first · Host-independent calculation core · Synthetic data only · Auditable model results**
 
+---
+
+<p align="center">
+  <img width="100%"
+       alt="K-IRRBB: decay reference case DEC-E2E-01 on a synthetic retail transactional series, its minimum probable amount, the REG-1 core-deposit caps and the out-of-sample backtest"
+       src="docs/assets/IRRBB_social_preview.png">
+</p>
+
+---
+
 </div>
 
 ---
