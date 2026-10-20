@@ -151,7 +151,7 @@ class SyncScriptTests(unittest.TestCase):
 
     def test_manifest_sources_per_mode(self) -> None:
         # Production: the production modules and the document modules;
-        # development adds every test module and nothing else.
+        # development adds every test and example module and nothing else.
         manifest = json.loads((SCRIPT.parent / "vba-projects.json").read_text(encoding="utf-8"))
         documents = {Path(p).name for p in manifest["document_modules"]}
         production = self.manifest_sources("Production")
@@ -159,7 +159,7 @@ class SyncScriptTests(unittest.TestCase):
         self.assertEqual(set(production), {Path(p).name for p in manifest["configurations"]["production"]["modules"]} | documents)
         self.assertEqual(set(development) - set(production),
                          {Path(p).name for p in manifest["configurations"]["development"]["modules"]
-                          if p.startswith("tests/")})
+                          if p.startswith(("tests/", "examples/"))})
         self.assertFalse([n for n in production if n.startswith("TEST_")])
         self.assertEqual(len(development), len(set(development)))
 
