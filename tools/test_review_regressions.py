@@ -12,6 +12,7 @@ import textwrap
 import unittest
 import warnings
 import zipfile
+from collections.abc import Mapping
 from pathlib import Path
 
 from check_source import check_workbook
@@ -26,7 +27,7 @@ CORE_PARTS = {
 
 
 class WorkbookPackageTests(unittest.TestCase):
-    def check_parts(self, parts):
+    def check_parts(self, parts: Mapping[str, str | bytes]) -> list[str]:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             with zipfile.ZipFile(root / "template.xlsx", "w") as archive:
@@ -34,29 +35,29 @@ class WorkbookPackageTests(unittest.TestCase):
                     archive.writestr(name, value)
             return check_workbook(root, "template.xlsx")
 
-    def test_empty_archive_rejected(self):
+    def test_empty_archive_rejected(self) -> None:
         self.assertTrue(self.check_parts({}))
 
-    def test_each_required_part_is_required(self):
+    def test_each_required_part_is_required(self) -> None:
         for missing in CORE_PARTS:
             with self.subTest(missing=missing):
                 findings = self.check_parts({k: v for k, v in CORE_PARTS.items() if k != missing})
                 self.assertIn(missing, " ".join(findings))
 
-    def test_structural_fixture_accepted_without_claiming_excel_validity(self):
+    def test_structural_fixture_accepted_without_claiming_excel_validity(self) -> None:
         # Deliberately a structural fixture, not a distributable Excel workbook.
         self.assertEqual(self.check_parts(CORE_PARTS), [])
 
-    def test_malformed_core_xml_rejected(self):
+    def test_malformed_core_xml_rejected(self) -> None:
         self.assertTrue(self.check_parts({**CORE_PARTS, "xl/workbook.xml": "<broken"}))
 
-    def test_unsupported_xml_encodings_reported(self):
+    def test_unsupported_xml_encodings_reported(self) -> None:
         for xml in ('<?xml version="1.0" encoding="NO-SUCH-ENCODING"?><workbook/>',
                     '<?xml version="1.0" encoding="UTF-32"?><workbook/>'):
             with self.subTest(xml=xml):
                 self.assertTrue(self.check_parts({**CORE_PARTS, "xl/workbook.xml": xml}))
 
-    def test_binary_workbook_uses_binary_parts(self):
+    def test_binary_workbook_uses_binary_parts(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             path = root / "template.xlsb"
@@ -69,12 +70,12 @@ class WorkbookPackageTests(unittest.TestCase):
             self.assertEqual(check_workbook(root, path.name), [])
             self.assertTrue(check_workbook(root, "missing.xlsb"))
 
-    def test_forbidden_parts_still_rejected(self):
+    def test_forbidden_parts_still_rejected(self) -> None:
         for name in ("xl/vbaProject.bin", "docProps/core.xml"):
             with self.subTest(name=name):
                 self.assertTrue(self.check_parts({**CORE_PARTS, name: "forbidden"}))
 
-    def test_corruption_outside_core_parts_rejected(self):
+    def test_corruption_outside_core_parts_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             path = root / "template.xlsx"
@@ -88,7 +89,7 @@ class WorkbookPackageTests(unittest.TestCase):
             path.write_bytes(corrupted)
             self.assertIn("corrupt", " ".join(check_workbook(root, path.name)))
 
-    def test_clean_duplicate_cannot_hide_corrupt_first_member(self):
+    def test_clean_duplicate_cannot_hide_corrupt_first_member(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             path = root / "template.xlsx"
@@ -106,7 +107,7 @@ class WorkbookPackageTests(unittest.TestCase):
                     archive.read(archive.infolist()[0])
             self.assertIn("duplicate", " ".join(check_workbook(root, path.name)))
 
-    def test_lzma_corruption_returns_a_finding(self):
+    def test_lzma_corruption_returns_a_finding(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             path = root / "template.xlsx"
@@ -128,7 +129,7 @@ class WorkbookPackageTests(unittest.TestCase):
 
 class LabelDefaultsTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which("node"), "Node is optional for local Python-only checks")
-    def test_commands_without_policy(self):
+    def test_commands_without_policy(self) -> None:
         for script, arguments in (("labels-sync.mjs", ["--mode", "validate"]),
                                   ("labels-drift.mjs", ["--self-test"])):
             with self.subTest(script=script):
@@ -138,7 +139,7 @@ class LabelDefaultsTests(unittest.TestCase):
 
 
 class TrafficMetricTests(unittest.TestCase):
-    def test_old_and_current_schema_and_same_day_rerun(self):
+    def test_old_and_current_schema_and_same_day_rerun(self) -> None:
         workflow = (ROOT / ".github/workflows/daily-traffic.yml").read_text()
         build = workflow.split("      - name: Build CSV history\n", 1)[1]
         source = textwrap.dedent(build.split("          python3 << 'PY'\n", 1)[1]
@@ -167,6 +168,7 @@ class TrafficMetricTests(unittest.TestCase):
             with history.open(newline="") as handle:
                 reader = csv.DictReader(handle)
                 rows = list(reader)
+                assert reader.fieldnames is not None  # the history file has a header row
                 self.assertNotIn("open_issues", reader.fieldnames)
                 self.assertIn("open_issues_and_prs", reader.fieldnames)
             self.assertEqual(len(rows), 2)

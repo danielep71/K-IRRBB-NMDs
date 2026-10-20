@@ -54,7 +54,7 @@ def physical_lines(lines: list[str], *, mask_strings: bool = False) -> list[tupl
 
 def logical_lines(lines: list[str], *, mask_strings: bool = False) -> list[tuple[int, int, str]]:
     result = []
-    buffer = []
+    buffer: list[str] = []
     start = 1
     for number, code, continued in physical_lines(lines, mask_strings=mask_strings):
         if not buffer:

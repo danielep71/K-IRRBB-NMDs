@@ -27,7 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "workbook"))
-import build_template  # noqa: E402
+import build_template as build_template  # noqa: E402  (explicit re-export, used by the tests)
 from vba_project import Module, build_vba_project  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]

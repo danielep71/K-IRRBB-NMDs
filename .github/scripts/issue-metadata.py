@@ -67,11 +67,20 @@ def reconcile(repository, number, default_milestone):
     print(f"Issue #{number}: owner, milestone and one priority verified")
 
 
+def configured_milestone():
+    # No fallback: a missing variable must not silently select a retired milestone (#117).
+    raw = os.environ.get("ISSUE_MILESTONE_NUMBER", "").strip()
+    if not raw:
+        raise RuntimeError("Repository variable ISSUE_MILESTONE_NUMBER is not set; "
+                           "set it to the number of the active milestone")
+    if not raw.isdigit() or int(raw) < 1:
+        raise ValueError(f"ISSUE_MILESTONE_NUMBER must be a positive milestone number, not {raw!r}")
+    return int(raw)
+
+
 def main():
     repository = os.environ["GITHUB_REPOSITORY"]
-    milestone = int(os.environ.get("ISSUE_MILESTONE_NUMBER", "1"))
-    if milestone < 1:
-        raise ValueError("ISSUE_MILESTONE_NUMBER must be positive")
+    milestone = configured_milestone()
     number = os.environ.get("ISSUE_NUMBER", "")
     if number and os.environ.get("ISSUE_IS_PULL_REQUEST", "") == "true":
         # GitHub also sends issues events (for example milestoned) for pull requests. The

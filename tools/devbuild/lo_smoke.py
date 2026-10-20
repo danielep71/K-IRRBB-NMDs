@@ -17,11 +17,11 @@ evidence (docs/EXCEL_EVIDENCE.md), only an early warning for runtime defects.
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 import uno  # type: ignore[import-not-found]
 from com.sun.star.beans import PropertyValue  # type: ignore[import-not-found]
@@ -45,7 +45,7 @@ def main() -> int:
     try:
         local = uno.getComponentContext()
         resolver = local.ServiceManager.createInstanceWithContext("com.sun.star.bridge.UnoUrlResolver", local)
-        ctx = None
+        ctx: Any = None
         for _ in range(120):
             try:
                 ctx = resolver.resolve(f"uno:socket,host=localhost,port={PORT};urp;StarOffice.ComponentContext")
@@ -73,7 +73,7 @@ def main() -> int:
             except Exception as error:  # noqa: BLE001
                 return str(error)
 
-        def cells(sheet: str, ref: str):
+        def cells(sheet: str, ref: str) -> Any:
             return doc.Sheets.getByName(sheet).getCellRangeByName(ref).getDataArray()
 
         out: dict[str, object] = {"modules": list(doc.BasicLibraries.getByName(lib).getElementNames())}

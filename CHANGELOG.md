@@ -254,12 +254,24 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- CI now installs Ruff and mypy from the hash-locked
+  `tools/requirements-quality-ci.txt` and runs `ruff check tools` with a
+  complexity-ceiling probe, and checksum-verified actionlint 1.7.12 on the
+  workflows, as VBA-SACCR-Toolkit does, and `mypy --strict` on every module in
+  `tools/`, tests included, with a strict-mode probe; `tools/` is clean under
+  both (#115).
+- Dependabot proposes weekly updates of the pinned GitHub Actions as pull
+  requests against the active release branch, labelled `ci` and `P3`, as in
+  VBA-SACCR-Toolkit; `actions/upload-artifact` is updated to v7.0.2 and every
+  action pin carries its version comment (#116).
 - The project is named K-IRRBB, like its sibling K-SACCR: the README heading,
   the governance documents, the PR template, the traffic alert and the title
   on the workbook's Readme sheet use the new name. The repository was
-  subsequently renamed to `K-IRRBB_Behavioral_Models`, and clone instructions,
-  badges, issue and milestone links and security/help links follow;
-  identifiers, file names and the `IRRBB_` prefix are unchanged.
+  subsequently renamed, from `VBA-IRRBB-Toolkit` through
+  `K-IRRBB_Behavioral_Models` to `K-IRRBB-NMDs`; clone instructions, badges,
+  issue and milestone links and security/help links follow, and GitHub
+  redirects the earlier names. Identifiers, file names and the `IRRBB_`
+  prefix are unchanged.
 - The workbook template follows the maintainer's SACCR visual identity:
   black-and-gold `K-IRRBB` branding, blue title bands, Aptos typography,
   distinct input/output headers, colored tabs, consistent spacing and landscape
@@ -411,6 +423,14 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The issue-metadata and traffic-alert workflows no longer fall back to
+  milestone 1, the closed v0.1.0, when the repository variable
+  `ISSUE_MILESTONE_NUMBER` is unset; they fail with a message naming the
+  variable, and a value that is not a positive number is rejected (#117).
+- The synchronizer drops procedure-level attribute lines (for example
+  `Attribute Worksheet_Change.VB_Description = ...`) from document modules
+  before pasting their code, where they would be invalid VBA; the code around
+  them is kept (#118).
 - The issue-metadata workflow no longer fails on issue events that GitHub
   raises for pull requests (#41): it skips them before reading the item, which
   its token, without pull-request access, cannot do. Failed API calls now log
@@ -435,7 +455,7 @@ Use only the categories needed by a release.
   variable or concatenated ProgIDs that could previously hide Excel access.
   External COM automation belongs in host adapters; these names are reserved
   in core code even for non-Excel objects. Comments and strings remain allowed
-  ([#22](https://github.com/danielep71/K-IRRBB_Behavioral_Models/issues/22)).
+  ([#22](https://github.com/danielep71/K-IRRBB-NMDs/issues/22)).
 - Continued comments now recognize VBA whitespace, including tabs, and require
   the continuation underscore immediately before the newline.
 
@@ -464,4 +484,4 @@ Use only the categories needed by a release.
 
 ---
 
-[Unreleased]: https://github.com/danielep71/K-IRRBB_Behavioral_Models/compare/main...release/v0.2.0
+[Unreleased]: https://github.com/danielep71/K-IRRBB-NMDs/compare/main...release/v0.2.0
