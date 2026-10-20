@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🤝 Contributing to IRRBB Toolkit
+# 🤝 Contributing to K-IRRBB
 
 ### Interest Rate Risk in the Banking Book — behavioral models in Excel/VBA
 

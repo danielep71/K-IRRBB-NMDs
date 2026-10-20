@@ -18,7 +18,7 @@
 
 ---
 
-All notable changes to the **IRRBB Toolkit** are documented here.
+All notable changes to the **K-IRRBB** are documented here.
 
 This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and [Semantic Versioning](https://semver.org/spec/v2.0.0.html). It records
@@ -93,6 +93,12 @@ Use only the categories needed by a release.
 <a id="unreleased"></a>
 
 ## [Unreleased]
+
+### Repository identity
+
+- Rename the repository to `K-IRRBB_behavioral_models`; align documentation,
+  clone commands, GitHub links, workflow messages and the workbook title with
+  the **K-IRRBB** display brand.
 
 > Not yet released. Development takes place on the active release branch,
 > `release/v0.2.0`; changes to `main` require an explicit owner instruction.
@@ -389,7 +395,7 @@ Use only the categories needed by a release.
   variable or concatenated ProgIDs that could previously hide Excel access.
   External COM automation belongs in host adapters; these names are reserved
   in core code even for non-Excel objects. Comments and strings remain allowed
-  ([#22](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/22)).
+  ([#22](https://github.com/danielep71/K-IRRBB_behavioral_models/issues/22)).
 - Continued comments now recognize VBA whitespace, including tabs, and require
   the continuation underscore immediately before the newline.
 
@@ -416,4 +422,4 @@ Use only the categories needed by a release.
 
 ---
 
-[Unreleased]: https://github.com/danielep71/VBA-IRRBB-Toolkit/compare/main...release/v0.2.0
+[Unreleased]: https://github.com/danielep71/K-IRRBB_behavioral_models/compare/main...release/v0.2.0

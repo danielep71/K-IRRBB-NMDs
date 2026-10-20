@@ -34,10 +34,10 @@ written by [`VBA_HOUSE_STYLE.md`](VBA_HOUSE_STYLE.md); model definitions by
 
 ## 🧭 Profile decision
 
-**The IRRBB Toolkit uses the `application` profile.** Decided by the owner on
+**The K-IRRBB uses the `application` profile.** Decided by the owner on
 2026-10-08 in issue #2.
 
-| Question | Answer for the IRRBB Toolkit |
+| Question | Answer for the K-IRRBB |
 | --- | --- |
 | Who calls it? | A model developer or validator working in the IRRBB workbook: loading a synthetic or permitted dataset, calibrating the behavioral models, backtesting them, running scenarios and exporting parameters. |
 | What does it own? | The workbook: input, parameter and result sheets, the model engines, run control, and their packaging. |
