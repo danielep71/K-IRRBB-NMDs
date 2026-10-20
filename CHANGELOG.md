@@ -302,6 +302,12 @@ Use only the categories needed by a release.
 
 ### Documentation
 
+- The milestone guides in `docs/Milestones/` follow one schema, the same as
+  the GitHub milestone descriptions: Objective, Scope, Exit criteria, Tracked
+  issues and dependency, Not in scope and Release evidence. Each keeps its
+  rationale, a synthetic acceptance case and its references; the v0.3.0 guide
+  names the open decay decisions of #36 and the missing `DecayExample` sheet,
+  and the v0.4.0 and v0.5.0 guides name their registered cases.
 - Social preview image `docs/assets/IRRBB_social_preview.png`, titled
   K-IRRBB and generated from `IRRBB_social_preview.html` in the layout of
   K-SACCR and K-FRTB-SA, and shown at the top of the root README. Its figures are the
