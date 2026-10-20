@@ -90,6 +90,23 @@ jobs:
           fi
           tee -a test-results/ruff.txt < test-results/ruff-probe-16.txt
           grep -F "is too complex (16 > 15)" test-results/ruff-probe-16.txt
+      - name: Type-check Python tooling (mypy --strict)
+        if: ${{ !cancelled() }}
+        run: |
+          set -o pipefail
+          mypy 2>&1 | tee test-results/mypy.txt
+          # Prove strict mode is active: an annotated function passes and the same
+          # function without annotations is rejected.
+          probe=test-results/strict_probe.py
+          printf 'def probe(value: int) -> int:\n    return value\n' > "$probe"
+          mypy --no-pretty "$probe" 2>&1 | tee -a test-results/mypy.txt
+          printf 'def probe(value):\n    return value\n' > "$probe"
+          if mypy --no-pretty "$probe" > test-results/mypy-probe.txt 2>&1; then
+            echo "::error::mypy accepted an unannotated function"
+            exit 1
+          fi
+          tee -a test-results/mypy.txt < test-results/mypy-probe.txt
+          grep -F "[no-untyped-def]" test-results/mypy-probe.txt
       - name: Validate workflows (actionlint)
         if: ${{ !cancelled() }}
         run: |

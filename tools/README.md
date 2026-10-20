@@ -178,17 +178,18 @@ wheels only) and runs, as in VBA-SACCR-Toolkit:
 
 - `ruff check tools` with the settings in `pyproject.toml`, plus a probe that
   proves the complexity ceiling of 15 is active;
+- `mypy --strict` on every module in `tools/`, tests included, plus a probe that
+  proves strict mode is active;
 - actionlint 1.7.12 on every workflow, downloaded and checked against its
   SHA-256.
 
 The quality steps run even when an earlier step failed, so one run reports
-every problem. `mypy --strict` (configured in `pyproject.toml`) is not yet a
-gate: `tools/` still has type errors, and the gate is added once they are fixed
-(#115). To change a tool version, update its hash or checksum in
+every problem. To change a tool version, update its hash or checksum in
 `tools/requirements-quality-ci.txt` or the workflow `env` in one reviewed pull
 request; Dependabot does not cover them. Locally:
 
 ```shell
 python -m pip install --only-binary=:all: --require-hashes -r tools/requirements-quality-ci.txt
 ruff check tools
+mypy
 ```

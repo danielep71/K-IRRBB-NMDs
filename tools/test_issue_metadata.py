@@ -7,20 +7,23 @@ import os
 import subprocess
 import unittest
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("issue_metadata", ROOT / ".github/scripts/issue-metadata.py")
-policy = importlib.util.module_from_spec(spec)
+assert spec is not None and spec.loader is not None  # a .py path always has a source loader
+policy: Any = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(policy)
 
 
 class IssueMetadataTests(unittest.TestCase):
-    def simulate(self, issue, milestone_state="open"):
+    def simulate(self, issue: dict[str, Any], milestone_state: str = "open"
+                 ) -> tuple[dict[str, Any], list[tuple[str, str, Any]]]:
         current = copy.deepcopy(issue)
-        calls = []
+        calls: list[tuple[str, str, Any]] = []
 
-        def api(endpoint, method="GET", payload=None, paginate=False):
+        def api(endpoint: str, method: str = "GET", payload: Any = None, paginate: bool = False) -> Any:
             calls.append((endpoint, method, payload))
             if "/milestones/" in endpoint:
                 return {"number": 1, "state": milestone_state}
@@ -41,13 +44,13 @@ class IssueMetadataTests(unittest.TestCase):
             policy.reconcile("owner/repo", 10, 1)
         return current, calls
 
-    def test_open_and_closed_issues_get_missing_metadata(self):
+    def test_open_and_closed_issues_get_missing_metadata(self) -> None:
         for state in ("open", "closed"):
             result, _ = self.simulate({"state": state, "assignees": [], "labels": [{"name": "bug"}], "milestone": None})
             self.assertEqual(result, {"state": state, "assignees": [{"login": "danielep71"}],
                                      "labels": [{"name": "bug"}, {"name": "P3"}], "milestone": {"number": 1}})
 
-    def test_conflicting_priorities_keep_highest_and_preserve_existing_milestone(self):
+    def test_conflicting_priorities_keep_highest_and_preserve_existing_milestone(self) -> None:
         result, calls = self.simulate({"assignees": [{"login": "danielep71"}, {"login": "other"}],
                                       "labels": [{"name": p} for p in ("P3", "bug", "P1", "P2")],
                                       "milestone": {"number": 99, "state": "closed"}})
@@ -56,14 +59,15 @@ class IssueMetadataTests(unittest.TestCase):
         self.assertEqual(len(result["assignees"]), 2)
         self.assertFalse(any(method in {"POST", "PATCH"} for _, method, _ in calls))
 
-    def test_correct_issue_is_idempotent_and_pr_is_ignored(self):
+    def test_correct_issue_is_idempotent_and_pr_is_ignored(self) -> None:
         issue = {"assignees": [{"login": "danielep71"}], "labels": [{"name": "P2"}], "milestone": {"number": 1}}
+        current: dict[str, Any]
         for current in (issue, {"pull_request": {}}):
             result, calls = self.simulate(current)
             self.assertEqual(result, current)
             self.assertTrue(all(method == "GET" for _, method, _ in calls))
 
-    def test_closed_default_milestone_is_rejected(self):
+    def test_closed_default_milestone_is_rejected(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "must be open"):
             self.simulate({"assignees": [{"login": "danielep71"}], "labels": [{"name": "P2"}],
                            "milestone": None}, "closed")
@@ -72,12 +76,12 @@ class IssueMetadataTests(unittest.TestCase):
 class IssueMetadataEntryTests(unittest.TestCase):
     """Event routing in main() and API failure reporting (#41)."""
 
-    def run_main(self, **env):
+    def run_main(self, **env: str) -> Any:
         environment = {"GITHUB_REPOSITORY": "owner/repo", "ISSUE_MILESTONE_NUMBER": "2", **env}
         with patch.dict(os.environ, environment, clear=True):
             return policy.main()
 
-    def test_unset_or_invalid_milestone_variable_fails_before_any_api_call(self):
+    def test_unset_or_invalid_milestone_variable_fails_before_any_api_call(self) -> None:
         # #117: no fallback to milestone 1, the closed v0.1.0.
         with patch.object(policy, "api", side_effect=AssertionError("no API call expected")), \
                 patch.object(policy, "reconcile", side_effect=AssertionError("no reconcile expected")):
@@ -91,31 +95,31 @@ class IssueMetadataEntryTests(unittest.TestCase):
                 with self.subTest(value=value), self.assertRaisesRegex(ValueError, "positive milestone number"):
                     self.run_main(ISSUE_MILESTONE_NUMBER=value)
 
-    def test_workflows_pass_the_variable_without_a_default(self):
+    def test_workflows_pass_the_variable_without_a_default(self) -> None:
         for name in ("issue-metadata.yml", "daily-traffic.yml"):
             workflow = (ROOT / ".github/workflows" / name).read_text(encoding="utf-8")
             with self.subTest(workflow=name):
                 self.assertIn("ISSUE_MILESTONE_NUMBER: ${{ vars.ISSUE_MILESTONE_NUMBER }}", workflow)
                 self.assertNotIn("vars.ISSUE_MILESTONE_NUMBER ||", workflow)
 
-    def test_traffic_alert_checks_the_variable_before_any_early_exit(self):
+    def test_traffic_alert_checks_the_variable_before_any_early_exit(self) -> None:
         # Review of #120: a quiet day exits early; the check must come first.
         workflow = (ROOT / ".github/workflows/daily-traffic.yml").read_text(encoding="utf-8")
         step = workflow.split("      - name: Create alert issue on spike or new referrer\n", 1)[1]
         self.assertLess(step.index("raw_milestone = os.environ.get(\"ISSUE_MILESTONE_NUMBER\""),
                         step.index("sys.exit(0)"))
 
-    def test_pull_request_event_is_skipped_before_any_api_call(self):
+    def test_pull_request_event_is_skipped_before_any_api_call(self) -> None:
         with patch.object(policy, "api", side_effect=AssertionError("no API call expected")), \
                 patch.object(policy, "reconcile", side_effect=AssertionError("no reconcile expected")):
             self.assertEqual(self.run_main(ISSUE_NUMBER="38", ISSUE_IS_PULL_REQUEST="true"), 0)
 
-    def test_genuine_issue_event_is_reconciled(self):
+    def test_genuine_issue_event_is_reconciled(self) -> None:
         with patch.object(policy, "reconcile") as reconcile:
             self.assertEqual(self.run_main(ISSUE_NUMBER="41", ISSUE_IS_PULL_REQUEST=""), 0)
         reconcile.assert_called_once_with("owner/repo", 41, 2)
 
-    def test_sweep_reconciles_every_issue_and_no_pull_request(self):
+    def test_sweep_reconciles_every_issue_and_no_pull_request(self) -> None:
         pages = [[{"number": 1}, {"number": 38, "pull_request": {}}], [{"number": 41}]]
         with patch.object(policy, "api", return_value=pages) as api, \
                 patch.object(policy, "reconcile") as reconcile:
@@ -123,7 +127,7 @@ class IssueMetadataEntryTests(unittest.TestCase):
         api.assert_called_once_with("repos/owner/repo/issues?state=all&per_page=100", paginate=True)
         self.assertEqual([call.args[1] for call in reconcile.call_args_list], [1, 41])
 
-    def test_api_failure_reports_status_and_redacts_tokens(self):
+    def test_api_failure_reports_status_and_redacts_tokens(self) -> None:
         token = "ghs_" + "A" * 36
         failed = subprocess.CompletedProcess(
             [], 1, stdout='{"message": "Not Found", "note": "' + token + '"}',
@@ -137,10 +141,10 @@ class IssueMetadataEntryTests(unittest.TestCase):
         self.assertIn("[REDACTED]", message)
         self.assertNotIn(token, message)
 
-    def test_failure_detail_is_bounded(self):
+    def test_failure_detail_is_bounded(self) -> None:
         self.assertLessEqual(len(policy.failure_detail("x" * 5000)), policy.DETAIL_LIMIT + 3)
 
-    def test_workflow_passes_pull_request_flag_from_event_payload(self):
+    def test_workflow_passes_pull_request_flag_from_event_payload(self) -> None:
         workflow = (ROOT / ".github/workflows/issue-metadata.yml").read_text(encoding="utf-8")
         self.assertIn("ISSUE_IS_PULL_REQUEST: ${{ github.event.issue.pull_request && 'true' || '' }}",
                       workflow)

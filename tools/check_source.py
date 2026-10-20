@@ -95,7 +95,7 @@ def code_lines(text: str) -> list[tuple[int, str]]:
 
 def check_core_host_independence(path: str, text: str) -> list[str]:
     """Core code must not reach the Excel object model or UI; comments and strings may."""
-    findings = []
+    findings: list[str] = []
     for number, code in code_lines(text):
         if code.lstrip().startswith("Attribute "):
             continue
@@ -160,7 +160,7 @@ def check_workbook(root: Path, path: str) -> list[str]:
             bad_part = package.testzip()
             if bad_part is not None:
                 return [f"{path}: corrupt workbook member {bad_part}"]
-            references = []
+            references: list[str] = []
             for name in parts:
                 if name.endswith(".rels") or name == "[Content_Types].xml" or name == "xl/workbook.xml":
                     xml = ElementTree.fromstring(package.read(name))

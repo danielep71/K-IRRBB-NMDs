@@ -15,8 +15,10 @@ import math
 import re
 import sys
 import unittest
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
+from typing import Any, cast
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
@@ -51,15 +53,15 @@ def read(path: Path) -> str:
     return path.read_text(encoding="cp1252" if path.suffix == ".bas" else "utf-8")
 
 
-def constants(*paths: Path) -> dict[str, object]:
-    found: dict[str, object] = {}
+def constants(*paths: Path) -> dict[str, Any]:
+    found: dict[str, Any] = {}
     for path in paths:
         for name, literal in CONSTANT.findall(read(path)):
             found[name] = literal_value(literal, {})
     return found
 
 
-def literal_value(token: str, names: dict[str, object]) -> object:
+def literal_value(token: str, names: dict[str, Any]) -> Any:
     """Value of one VBA literal argument: string, number (with optional #), Boolean or constant."""
     if token.startswith('"'):
         return token[1:-1].replace('""', '"')
@@ -75,7 +77,7 @@ def literal_value(token: str, names: dict[str, object]) -> object:
     raise ValueError(f"not a literal: {token!r}")
 
 
-def expectations(path: Path = CORE_CASES) -> list[tuple[str, str, list[object]]]:
+def expectations(path: Path = CORE_CASES) -> list[tuple[str, str, list[Any]]]:
     """Every Expect* call as (case ID, helper, arguments); fails on a line it cannot read."""
     names = constants(CORE_PARSE)
     calls, case_id = [], None
@@ -137,13 +139,19 @@ def select_cases(text: str, procedure: str) -> set[str]:
 
 
 class Expectations(unittest.TestCase):
+    calls: list[tuple[str, str, list[Any]]]
+    codes: dict[str, Any]
+    ok: int
+    missing: int
+    invalid: int
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.calls = expectations()
         cls.codes = constants(CORE_PARSE)
         cls.ok, cls.missing, cls.invalid = (cls.codes[f"CORE_PARSE_{k}"] for k in ("OK", "MISSING", "INVALID"))
 
-    def of(self, helper: str) -> list[tuple[str, list[object]]]:
+    def of(self, helper: str) -> list[tuple[str, list[Any]]]:
         found = [(case, args) for case, name, args in self.calls if name == helper]
         self.assertTrue(found, f"no {helper} expectations")
         return found
@@ -228,7 +236,8 @@ class SourceConstants(unittest.TestCase):
         self.assertEqual((values["CORE_RATE_MIN"], values["CORE_RATE_MAX"]), reference.RATE_BOUNDS)
         self.assertIn("{1,%d}" % values["CORE_RATE_DECIMALS"], reference.RATE.pattern)
         self.assertEqual(set(values["CORE_CURRENCY_ALLOWLIST"].split(",")), reference.SUPPORTED_CURRENCIES)
-        segments = re.search(r"^\s*Case (\"[^\n]*)", read(CORE_CODES), re.MULTILINE).group(1)
+        segments = cast("re.Match[str]", re.search(r"^\s*Case (\"[^\n]*)", read(CORE_CODES),
+                                                   re.MULTILINE)).group(1)
         self.assertEqual(set(re.findall(r'"([A-Z_]+)"', segments)), reference.SEGMENTS)
 
     def test_no_case_error_is_vb_object_error_plus_1000(self) -> None:
@@ -245,7 +254,7 @@ class Registry(unittest.TestCase):
         self.assertEqual(select_cases(read(HARNESS), "Private Sub DispatchCase"), built)
         implemented = set()
         for path in sorted(HARNESS.parent.glob("TEST_*Cases.bas")):
-            entry = re.search(r"Public Sub (TEST_Run\w+Case)\(", read(path)).group(1)
+            entry = cast("re.Match[str]", re.search(r"Public Sub (TEST_Run\w+Case)\(", read(path))).group(1)
             implemented |= select_cases(read(path), f"Public Sub {entry}")
         self.assertEqual(implemented, built)
         declared = set(re.findall(r'Const C As String = "([A-Z0-9-]+)"',
@@ -255,6 +264,8 @@ class Registry(unittest.TestCase):
 
 class HashCases(unittest.TestCase):
     """Every SHA-256 literal in TEST_HashCases agrees with Python's hashlib."""
+
+    calls: list[tuple[str, str, list[Any]]]
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -288,17 +299,19 @@ class HashCases(unittest.TestCase):
 class DataCases(unittest.TestCase):
     """TEST_DataCases literals agree with the Python reading of DATA_CONTRACT.md; TEST_Fixtures is generated."""
 
+    calls: list[tuple[str, str, list[Any]]]
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.calls = expectations(DATA_CASES)
 
-    def args(self, helper: str) -> list[list[object]]:
+    def args(self, helper: str) -> list[list[Any]]:
         found = [args for _, name, args in self.calls if name == helper]
         self.assertTrue(found, helper)
         return found
 
     @staticmethod
-    def findings(reader, text: str) -> str:
+    def findings(reader: Callable[[Path], Any], text: str) -> str:
         import tempfile
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "input.csv"
@@ -336,7 +349,7 @@ class DataCases(unittest.TestCase):
                 path.write_text(text.replace("|", "\n") + "\n", encoding="ascii")
                 rows, errors = reference.read_accounts(path)
                 self.assertEqual(errors, [])
-                gaps = reference.missing_extracts(rows, reference.parse_date(first), reference.parse_date(last))
+                gaps = reference.missing_extracts(rows, reference.valid_date(first), reference.valid_date(last))
                 self.assertEqual(",".join(g["as_of_date"] for g in gaps), expected)
 
     def test_missing_extract(self) -> None:
@@ -346,8 +359,8 @@ class DataCases(unittest.TestCase):
             with self.subTest(fixture=fixture, month_end=month_end):
                 spec = json.loads((ROOT / "tests/expected/data_contract" / expected_file[fixture])
                                   .read_text(encoding="utf-8"))
-                first = reference.parse_date(spec["window"]["first"])
-                last = reference.parse_date(spec["window"]["last"])
+                first = reference.valid_date(spec["window"]["first"])
+                last = reference.valid_date(spec["window"]["last"])
                 rows, _ = reference.read_accounts(ROOT / "tests/fixtures/data_contract" / fixture)
                 kept = [(n, r) for n, r in rows if r["as_of_date"] != month_end]
                 self.assertEqual(reference.missing_extracts(kept, first, last),
@@ -360,7 +373,7 @@ class DataCases(unittest.TestCase):
                 path = Path(directory) / "input.csv"
                 path.write_text(text.replace("|", "\n") + "\n", encoding="ascii")
                 rows, _ = reference.read_accounts(path)
-                outcomes = reference.transition_outcomes(rows, reference.parse_date(first), reference.parse_date(last))
+                outcomes = reference.transition_outcomes(rows, reference.valid_date(first), reference.valid_date(last))
                 self.assertEqual(",".join(f'{o["account_id"]}|{o["origin"]}|{o["segment"]}|{o["outcome"]}'
                                           for o in outcomes), expected)
 
@@ -368,11 +381,13 @@ class DataCases(unittest.TestCase):
 class WorkbookLayout(unittest.TestCase):
     """WB-LAYOUT-01 literals equal the template generator's sheet and name contract."""
 
+    calls: list[tuple[str, str, list[Any]]]
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.calls = expectations(WORKBOOK_CASES)
 
-    def args(self, helper: str) -> list[list[object]]:
+    def args(self, helper: str) -> list[list[Any]]:
         return [args for _, name, args in self.calls if name == helper]
 
     def test_every_expect_line_is_read(self) -> None:
@@ -392,7 +407,7 @@ class WorkbookLayout(unittest.TestCase):
         self.assertEqual(self.args("ExpectCounts"), [[len(build_template.SHEETS), len(build_template.NAMES)]])
 
 
-def json_rows(value, prefix: str = "") -> list[tuple[str, float]]:
+def json_rows(value: Any, prefix: str = "") -> list[tuple[str, float]]:
     """Flatten an expected-file value the way make_expected.py does (dict keys, [i] indices)."""
     if isinstance(value, dict):
         return [row for k, v in value.items() for row in json_rows(v, f"{prefix}.{k}" if prefix else k)]
@@ -428,7 +443,8 @@ class DecayData(unittest.TestCase):
         import json
         sys.path.insert(0, str(DECAY_EXPECTED))
         try:
-            from vba_emit import emit_vba
+            # vba_emit is on sys.path only at runtime, so mypy cannot resolve it.
+            from vba_emit import emit_vba  # type: ignore[import-not-found]
         finally:
             sys.path.remove(str(DECAY_EXPECTED))
         order = list(dict.fromkeys(re.findall(r'v\(\d+, 1\) = "([^"]+)": v\(\d+, 2\)', read(DECAY_DATA))))
