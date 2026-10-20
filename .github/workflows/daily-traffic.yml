@@ -520,6 +520,17 @@ jobs:
           import subprocess
           import sys
 
+          # Explicit milestone number: other open milestones do not make alerts ambiguous.
+          # No fallback, and checked before any early exit, so an unset variable fails
+          # every run instead of only the first one that raises an alert (#117).
+          raw_milestone = os.environ.get("ISSUE_MILESTONE_NUMBER", "").strip()
+          if not raw_milestone:
+              raise RuntimeError("Repository variable ISSUE_MILESTONE_NUMBER is not set; "
+                                 "set it to the number of the active milestone")
+          if not raw_milestone.isdigit() or int(raw_milestone) < 1:
+              raise ValueError("ISSUE_MILESTONE_NUMBER must be a positive milestone number")
+          milestone_number = int(raw_milestone)
+
           def read_csv(path):
               if not os.path.exists(path):
                   return []
@@ -690,15 +701,6 @@ jobs:
               "4. Consider adding a short README CTA asking users to star the repository if they are using the project",
           ])
 
-          # Explicit milestone number: other open milestones do not make alerts ambiguous.
-          # No fallback: an unset variable must not select a retired milestone (#117).
-          raw_milestone = os.environ.get("ISSUE_MILESTONE_NUMBER", "").strip()
-          if not raw_milestone:
-              raise RuntimeError("Repository variable ISSUE_MILESTONE_NUMBER is not set; "
-                                 "set it to the number of the active milestone")
-          if not raw_milestone.isdigit() or int(raw_milestone) < 1:
-              raise ValueError("ISSUE_MILESTONE_NUMBER must be a positive milestone number")
-          milestone_number = int(raw_milestone)
           milestone_result = subprocess.run(
               ["gh", "api", f"repos/{os.environ['GITHUB_REPOSITORY']}/milestones/{milestone_number}"],
               capture_output=True, text=True, check=True

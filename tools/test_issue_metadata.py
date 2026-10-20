@@ -98,6 +98,13 @@ class IssueMetadataEntryTests(unittest.TestCase):
                 self.assertIn("ISSUE_MILESTONE_NUMBER: ${{ vars.ISSUE_MILESTONE_NUMBER }}", workflow)
                 self.assertNotIn("vars.ISSUE_MILESTONE_NUMBER ||", workflow)
 
+    def test_traffic_alert_checks_the_variable_before_any_early_exit(self):
+        # Review of #120: a quiet day exits early; the check must come first.
+        workflow = (ROOT / ".github/workflows/daily-traffic.yml").read_text(encoding="utf-8")
+        step = workflow.split("      - name: Create alert issue on spike or new referrer\n", 1)[1]
+        self.assertLess(step.index("raw_milestone = os.environ.get(\"ISSUE_MILESTONE_NUMBER\""),
+                        step.index("sys.exit(0)"))
+
     def test_pull_request_event_is_skipped_before_any_api_call(self):
         with patch.object(policy, "api", side_effect=AssertionError("no API call expected")), \
                 patch.object(policy, "reconcile", side_effect=AssertionError("no reconcile expected")):
