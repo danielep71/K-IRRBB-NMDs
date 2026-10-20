@@ -153,6 +153,23 @@ the comparison never runs Excel.
 
 Label reconciliation scripts and workflows mirror the SACCR label policy and run from the default branch `main`; see [`docs/LABELS.md`](../docs/LABELS.md).
 
+## Dependency updates
+
+`.github/dependabot.yml` asks Dependabot for weekly version updates of the
+GitHub Actions pinned in the workflows, as in VBA-SACCR-Toolkit. They are
+opened against the active release branch (`target-branch`) and labelled `ci`
+and `P3`. Dependabot reads this file from the default branch, so it takes
+effect once the file reaches `main`. Update `target-branch` whenever a new
+release branch is opened ([`RELEASING.md`](../RELEASING.md)).
+
+Review each update pull request like any other:
+
+1. Check the new version's release notes and the commit it pins. The pin must
+   stay a full 40-character SHA with the version as a trailing comment.
+2. Let **Repository integrity** run and confirm it is green.
+3. Squash-merge it. Nothing is merged or approved automatically, and
+   Dependabot alerts are never dismissed automatically.
+
 Ruff and mypy settings in `pyproject.toml` are optional development targets, not
 CI checks or verified compliance. The required CI command remains the portable
 standard-library gate runner above.

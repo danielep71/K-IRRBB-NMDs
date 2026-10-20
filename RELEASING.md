@@ -120,7 +120,8 @@ integrity** check.
    a squash of `main` into the release branch is not used: the ruleset allows
    only squash, which would cut the shared history. At a milestone closeout,
    open the next `release/vX.Y.Z` branch from the merge commit instead, and
-   point the docs and `ISSUE_MILESTONE_NUMBER` at its milestone.
+   point the docs, `ISSUE_MILESTONE_NUMBER` and the Dependabot `target-branch`
+   in `.github/dependabot.yml` at it.
 
    **If the next release branch already exists**, as `release/v0.3.0` does,
    it is not recreated. The owner merges the merge commit into it locally with

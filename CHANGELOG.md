@@ -254,6 +254,10 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- Dependabot proposes weekly updates of the pinned GitHub Actions as pull
+  requests against the active release branch, labelled `ci` and `P3`, as in
+  VBA-SACCR-Toolkit; `actions/upload-artifact` is updated to v7.0.2 and every
+  action pin carries its version comment (#116).
 - The project is named K-IRRBB, like its sibling K-SACCR: the README heading,
   the governance documents, the PR template, the traffic alert and the title
   on the workbook's Readme sheet use the new name. The repository was
