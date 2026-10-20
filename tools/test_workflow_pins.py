@@ -11,7 +11,9 @@ USES = re.compile(r"^\s*(?:-\s+)?uses:\s*(\S+)(.*)$", re.M)
 
 class WorkflowPinTests(unittest.TestCase):
     def test_every_action_is_pinned_by_full_sha_with_its_version(self) -> None:
-        workflows = sorted((ROOT / ".github/workflows").glob("*.yml"))
+        # GitHub accepts both extensions for workflow files.
+        folder = ROOT / ".github/workflows"
+        workflows = sorted([*folder.glob("*.yml"), *folder.glob("*.yaml")])
         self.assertTrue(workflows)
         for path in workflows:
             for match in USES.finditer(path.read_text(encoding="utf-8")):
