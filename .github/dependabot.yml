@@ -1,0 +1,22 @@
+# Version updates for the GitHub Actions pinned in .github/workflows/.
+# Adapted from VBA-SACCR-Toolkit. Every update arrives as a pull request for
+# review; nothing merges automatically. See tools/README.md -> "Dependency
+# updates".
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    # Work flows through the active release branch, never straight into main.
+    # Update this value when a new release branch is opened.
+    target-branch: "release/v0.2.0"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Rome"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(actions)"
+    labels:
+      - "ci"
+      - "P3"
