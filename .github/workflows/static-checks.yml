@@ -1,5 +1,8 @@
 name: Static repository checks
+run-name: Static checks — ${{ github.ref_name }} @ ${{ github.sha }}
 
+# Static source and tooling checks only; no VBA compilation or Excel execution.
+# Quality steps follow VBA-SACCR-Toolkit (#115).
 on:
   pull_request:
     branches:
@@ -18,11 +21,22 @@ concurrency:
   group: static-checks-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   repository-integrity:
     name: Repository integrity
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    env:
+      PYTHONUTF8: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      # Quality tool versions; the Python packages are hash-locked in
+      # tools/requirements-quality-ci.txt and the actionlint archive by checksum.
+      ACTIONLINT_VERSION: "1.7.12"
+      ACTIONLINT_LINUX_AMD64_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -42,11 +56,86 @@ jobs:
             args+=(--base "$PR_BASE_SHA")
           fi
           python tools/check.py "${args[@]}"
+      # The quality steps below run even when an earlier check failed, so one run
+      # reports every problem. Any failing step fails the job.
+      - name: Install pinned Python quality tools
+        if: ${{ !cancelled() }}
+        run: |
+          mkdir -p test-results
+          python -m pip install \
+            --disable-pip-version-check \
+            --only-binary=:all: \
+            --require-hashes \
+            -r tools/requirements-quality-ci.txt
+          {
+            python --version
+            ruff --version
+            mypy --version
+          } | tee test-results/python-quality-versions.txt
+      - name: Lint Python tooling (ruff)
+        if: ${{ !cancelled() }}
+        run: |
+          set -o pipefail
+          ruff check tools 2>&1 | tee test-results/ruff.txt
+          # Prove the complexity ceiling in pyproject.toml is active: a synthetic
+          # complexity-15 function passes and one at 16 is rejected.
+          probe() {
+            python3 -c 'import sys; n = int(sys.argv[1]); print("def probe(x):\n" + "".join(f"    if x == {i}:\n        return {i}\n" for i in range(n - 1)) + "    return -1")' "$1" |
+              ruff check --no-cache --select C901 --stdin-filename tools/complexity_probe.py -
+          }
+          probe 15 2>&1 | tee -a test-results/ruff.txt
+          if probe 16 > test-results/ruff-probe-16.txt 2>&1; then
+            echo "::error::Ruff accepted a synthetic complexity-16 function"
+            exit 1
+          fi
+          tee -a test-results/ruff.txt < test-results/ruff-probe-16.txt
+          grep -F "is too complex (16 > 15)" test-results/ruff-probe-16.txt
+      - name: Type-check Python tooling (mypy --strict)
+        if: ${{ !cancelled() }}
+        run: |
+          set -o pipefail
+          mypy 2>&1 | tee test-results/mypy.txt
+          # Prove strict mode is active: an annotated function passes and the same
+          # function without annotations is rejected.
+          probe=test-results/strict_probe.py
+          printf 'def probe(value: int) -> int:\n    return value\n' > "$probe"
+          mypy --no-pretty "$probe" 2>&1 | tee -a test-results/mypy.txt
+          printf 'def probe(value):\n    return value\n' > "$probe"
+          if mypy --no-pretty "$probe" > test-results/mypy-probe.txt 2>&1; then
+            echo "::error::mypy accepted an unannotated function"
+            exit 1
+          fi
+          tee -a test-results/mypy.txt < test-results/mypy-probe.txt
+          grep -F "[no-untyped-def]" test-results/mypy-probe.txt
+      - name: Validate workflows (actionlint)
+        if: ${{ !cancelled() }}
+        run: |
+          validator_dir="${RUNNER_TEMP}/actionlint-${ACTIONLINT_VERSION}"
+          archive="${validator_dir}/actionlint.tar.gz"
+          validator="${validator_dir}/actionlint"
+          mkdir -p "$validator_dir" test-results
+          curl \
+            --fail \
+            --location \
+            --proto '=https' \
+            --retry 3 \
+            --retry-all-errors \
+            --show-error \
+            --silent \
+            --tlsv1.2 \
+            --output "$archive" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          printf '%s  %s\n' "$ACTIONLINT_LINUX_AMD64_SHA256" "$archive" \
+            | sha256sum --check --strict
+          tar --no-same-owner -xzf "$archive" -C "$validator_dir" actionlint
+          "$validator" -version | tee test-results/actionlint-version.txt
+          set -o pipefail
+          "$validator" -no-color 2>&1 | tee test-results/actionlint.txt
       - name: Upload static evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: repository-checks-${{ github.sha }}-${{ github.run_id }}
+          name: static-checks-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: test-results/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30

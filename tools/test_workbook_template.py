@@ -14,6 +14,7 @@ import unittest
 import zipfile
 from datetime import date
 from pathlib import Path
+from typing import cast
 from xml.etree import ElementTree
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,6 +41,9 @@ def table(heading: str) -> list[list[str]]:
 
 
 class Template(unittest.TestCase):
+    blob: bytes
+    package: zipfile.ZipFile
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.blob = build_template.TEMPLATE.read_bytes()
@@ -52,14 +56,14 @@ class Template(unittest.TestCase):
         index = [s.name for s in build_template.SHEETS].index(name) + 1
         return self.xml(f"xl/worksheets/sheet{index}.xml")
 
-    def strings(self) -> list[str]:
+    def strings(self) -> list[str | None]:
         return [si.findtext("m:t", namespaces=NS) for si in self.xml("xl/sharedStrings.xml")]
 
     def value(self, sheet: str, ref: str) -> str | None:
         cell = self.sheet(sheet).find(f".//m:c[@r='{ref}']", NS)
         if cell is None or cell.find("m:v", NS) is None:
             return None
-        return self.strings()[int(cell.findtext("m:v", namespaces=NS))]
+        return self.strings()[int(cast(str, cell.findtext("m:v", namespaces=NS)))]
 
     def test_committed_template_is_the_generator_output(self) -> None:
         self.assertEqual(build_template.members(self.blob), build_template.members(build_template.package()),
@@ -78,8 +82,8 @@ class Template(unittest.TestCase):
     def test_shared_string_counts(self) -> None:
         table = self.xml("xl/sharedStrings.xml")
         references = sum(len(self.sheet(s.name).findall(".//m:c[@t='s']", NS)) for s in build_template.SHEETS)
-        self.assertEqual(int(table.get("count")), references)
-        self.assertEqual(int(table.get("uniqueCount")), len(table))
+        self.assertEqual(int(cast(str, table.get("count"))), references)
+        self.assertEqual(int(cast(str, table.get("uniqueCount"))), len(table))
         self.assertLess(len(table), references)
 
     def test_no_cell_formulas(self) -> None:
@@ -92,10 +96,13 @@ class Template(unittest.TestCase):
         generated = [[s.name, s.code_name, s.role, s.owner, s.status] for s in build_template.SHEETS]
         self.assertEqual(documented, generated)
         workbook = self.xml("xl/workbook.xml")
-        self.assertEqual([e.get("name") for e in workbook.find("m:sheets", NS)], [s.name for s in build_template.SHEETS])
-        self.assertEqual(workbook.find("m:workbookPr", NS).get("codeName"), "ThisWorkbook")
+        self.assertEqual([e.get("name") for e in cast(ElementTree.Element, workbook.find("m:sheets", NS))],
+                         [s.name for s in build_template.SHEETS])
+        self.assertEqual(cast(ElementTree.Element, workbook.find("m:workbookPr", NS)).get("codeName"),
+                         "ThisWorkbook")
         for s in build_template.SHEETS:
-            self.assertEqual(self.sheet(s.name).find("m:sheetPr", NS).get("codeName"), s.code_name)
+            self.assertEqual(cast(ElementTree.Element, self.sheet(s.name).find("m:sheetPr", NS)).get("codeName"),
+                             s.code_name)
 
     def test_readme_maps_every_sheet(self) -> None:
         for row, s in enumerate(build_template.SHEETS, 13):
@@ -113,8 +120,9 @@ class Template(unittest.TestCase):
                 sheet, ref = refers.split("!")
                 documented[name] = (sheet, ref)
         self.assertEqual(documented, build_template.NAMES)
-        defined = {e.get("name"): e.text for e in self.xml("xl/workbook.xml").find("m:definedNames", NS)
-                   if not e.get("name").startswith("_xlnm.")}
+        defined = {e.get("name"): e.text
+                   for e in cast(ElementTree.Element, self.xml("xl/workbook.xml").find("m:definedNames", NS))
+                   if not cast(str, e.get("name")).startswith("_xlnm.")}
         self.assertEqual(defined, {n: f"{s}!{r}" for n, (s, r) in build_template.NAMES.items()})
 
     def test_presentation_merges_do_not_cover_runtime_areas(self) -> None:
@@ -126,7 +134,7 @@ class Template(unittest.TestCase):
 
         for s in build_template.SHEETS:
             for merge in self.sheet(s.name).findall("m:mergeCells/m:mergeCell", NS):
-                r1, c1, r2, c2 = bounds(merge.get("ref"))
+                r1, c1, r2, c2 = bounds(cast(str, merge.get("ref")))
                 for name, (sheet, area) in build_template.NAMES.items():
                     if sheet != s.name or name == "Readme_SourceCommit":
                         continue  # The build stamp intentionally spans B:E.
@@ -135,7 +143,7 @@ class Template(unittest.TestCase):
                                      f"{s.name}!{merge.get('ref')} overlaps {name}")
 
     def test_printing_preserves_growing_output_areas(self) -> None:
-        names = list(self.xml("xl/workbook.xml").find("m:definedNames", NS))
+        names = list(cast(ElementTree.Element, self.xml("xl/workbook.xml").find("m:definedNames", NS)))
         for index, s in enumerate(build_template.SHEETS):
             local = {e.get("name"): e.text for e in names if e.get("localSheetId") == str(index)}
             self.assertIn("_xlnm.Print_Titles", local)
@@ -143,7 +151,8 @@ class Template(unittest.TestCase):
                 self.assertNotIn("_xlnm.Print_Area", local, "fixed areas would truncate later output rows")
             else:
                 self.assertIn("_xlnm.Print_Area", local)
-            self.assertEqual(self.sheet(s.name).find("m:pageSetup", NS).get("orientation"), "landscape")
+            self.assertEqual(cast(ElementTree.Element, self.sheet(s.name).find("m:pageSetup", NS)).get("orientation"),
+                             "landscape")
 
     def test_every_output_sheet_starts_not_current(self) -> None:
         for s in build_template.SHEETS:
@@ -152,11 +161,12 @@ class Template(unittest.TestCase):
             with self.subTest(sheet=s.name):
                 self.assertEqual(build_template.NAMES[f"{s.name}_Status"], (s.name, "$B$3"))
                 status = self.value(s.name, "B3")
-                self.assertTrue(status.startswith("NOT RUN"), status)
+                self.assertTrue(cast(str, status).startswith("NOT RUN"), status)
                 rules = self.sheet(s.name).findall("m:conditionalFormatting[@sqref='B3']/m:cfRule", NS)
                 self.assertEqual(len(rules), 3)
             if s.status.startswith("Placeholder"):
-                self.assertTrue(self.value(s.name, "A5").startswith("Reserved: no function writes this sheet"))
+                self.assertTrue(cast(str, self.value(s.name, "A5"))
+                                .startswith("Reserved: no function writes this sheet"))
 
     def test_validation_lists_follow_the_data_contract(self) -> None:
         self.assertEqual({code for code, _ in build_template.SEGMENTS}, reference.SEGMENTS)
@@ -173,11 +183,12 @@ class Template(unittest.TestCase):
 
     def test_checks_names_cover_the_harness_areas(self) -> None:
         source = HARNESS.read_text(encoding="cp1252")
-        case_row = int(re.search(r"CASE_ROW As Long = (\d+)", source).group(1))
-        assert_col = int(re.search(r"ASSERT_COL As Long = (\d+)", source).group(1))
-        case_rows = int(re.search(r"\.Cells\(CASE_ROW \+ (\d+), 6\)\)\.ClearContents", source).group(1))
-        assert_rows = int(re.search(r"\.Cells\(CASE_ROW \+ (\d+), ASSERT_COL \+ 6\)\)\.ClearContents",
-                                    source).group(1))
+        case_row = int(cast("re.Match[str]", re.search(r"CASE_ROW As Long = (\d+)", source)).group(1))
+        assert_col = int(cast("re.Match[str]", re.search(r"ASSERT_COL As Long = (\d+)", source)).group(1))
+        case_rows = int(cast("re.Match[str]", re.search(r"\.Cells\(CASE_ROW \+ (\d+), 6\)\)\.ClearContents",
+                                                        source)).group(1))
+        assert_rows = int(cast("re.Match[str]", re.search(
+            r"\.Cells\(CASE_ROW \+ (\d+), ASSERT_COL \+ 6\)\)\.ClearContents", source)).group(1))
         column = "ABCDEFGHIJKLMN"
         self.assertEqual(build_template.NAMES["Checks_Cases"],
                          ("Checks", f"$A${case_row}:$F${case_row + case_rows}"))

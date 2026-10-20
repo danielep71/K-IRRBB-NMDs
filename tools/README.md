@@ -153,6 +153,43 @@ the comparison never runs Excel.
 
 Label reconciliation scripts and workflows mirror the SACCR label policy and run from the default branch `main`; see [`docs/LABELS.md`](../docs/LABELS.md).
 
-Ruff and mypy settings in `pyproject.toml` are optional development targets, not
-CI checks or verified compliance. The required CI command remains the portable
-standard-library gate runner above.
+## Dependency updates
+
+`.github/dependabot.yml` asks Dependabot for weekly version updates of the
+GitHub Actions pinned in the workflows, as in VBA-SACCR-Toolkit. They are
+opened against the active release branch (`target-branch`) and labelled `ci`
+and `P3`. Dependabot reads this file from the default branch, so it takes
+effect once the file reaches `main`. Update `target-branch` whenever a new
+release branch is opened ([`RELEASING.md`](../RELEASING.md)).
+
+Review each update pull request like any other:
+
+1. Check the new version's release notes and the commit it pins. The pin must
+   stay a full 40-character SHA with the version as a trailing comment.
+2. Let **Repository integrity** run and confirm it is green.
+3. Squash-merge it. Nothing is merged or approved automatically, and
+   Dependabot alerts are never dismissed automatically.
+
+## Quality gates
+
+After the portable gates above, the **Repository integrity** job installs Ruff
+and mypy from the hash-locked `tools/requirements-quality-ci.txt` (CPython 3.10,
+wheels only) and runs, as in VBA-SACCR-Toolkit:
+
+- `ruff check tools` with the settings in `pyproject.toml`, plus a probe that
+  proves the complexity ceiling of 15 is active;
+- `mypy --strict` on every module in `tools/`, tests included, plus a probe that
+  proves strict mode is active;
+- actionlint 1.7.12 on every workflow, downloaded and checked against its
+  SHA-256.
+
+The quality steps run even when an earlier step failed, so one run reports
+every problem. To change a tool version, update its hash or checksum in
+`tools/requirements-quality-ci.txt` or the workflow `env` in one reviewed pull
+request; Dependabot does not cover them. Locally:
+
+```shell
+python -m pip install --only-binary=:all: --require-hashes -r tools/requirements-quality-ci.txt
+ruff check tools
+mypy
+```
