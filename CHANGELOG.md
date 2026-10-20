@@ -257,9 +257,11 @@ Use only the categories needed by a release.
 - The project is named K-IRRBB, like its sibling K-SACCR: the README heading,
   the governance documents, the PR template, the traffic alert and the title
   on the workbook's Readme sheet use the new name. The repository was
-  subsequently renamed to `K-IRRBB_Behavioral_Models`, and clone instructions,
-  badges, issue and milestone links and security/help links follow;
-  identifiers, file names and the `IRRBB_` prefix are unchanged.
+  subsequently renamed, from `VBA-IRRBB-Toolkit` through
+  `K-IRRBB_Behavioral_Models` to `K-IRRBB-NMDs`; clone instructions, badges,
+  issue and milestone links and security/help links follow, and GitHub
+  redirects the earlier names. Identifiers, file names and the `IRRBB_`
+  prefix are unchanged.
 - The workbook template follows the maintainer's SACCR visual identity:
   black-and-gold `K-IRRBB` branding, blue title bands, Aptos typography,
   distinct input/output headers, colored tabs, consistent spacing and landscape
@@ -435,7 +437,7 @@ Use only the categories needed by a release.
   variable or concatenated ProgIDs that could previously hide Excel access.
   External COM automation belongs in host adapters; these names are reserved
   in core code even for non-Excel objects. Comments and strings remain allowed
-  ([#22](https://github.com/danielep71/K-IRRBB_Behavioral_Models/issues/22)).
+  ([#22](https://github.com/danielep71/K-IRRBB-NMDs/issues/22)).
 - Continued comments now recognize VBA whitespace, including tabs, and require
   the continuation underscore immediately before the newline.
 
@@ -464,4 +466,4 @@ Use only the categories needed by a release.
 
 ---
 
-[Unreleased]: https://github.com/danielep71/K-IRRBB_Behavioral_Models/compare/main...release/v0.2.0
+[Unreleased]: https://github.com/danielep71/K-IRRBB-NMDs/compare/main...release/v0.2.0
