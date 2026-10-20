@@ -77,6 +77,34 @@ class IssueMetadataEntryTests(unittest.TestCase):
         with patch.dict(os.environ, environment, clear=True):
             return policy.main()
 
+    def test_unset_or_invalid_milestone_variable_fails_before_any_api_call(self):
+        # #117: no fallback to milestone 1, the closed v0.1.0.
+        with patch.object(policy, "api", side_effect=AssertionError("no API call expected")), \
+                patch.object(policy, "reconcile", side_effect=AssertionError("no reconcile expected")):
+            for value in ("", "  "):
+                with self.subTest(value=value), self.assertRaisesRegex(RuntimeError, "is not set"):
+                    self.run_main(ISSUE_MILESTONE_NUMBER=value)
+            with patch.dict(os.environ, {"GITHUB_REPOSITORY": "owner/repo"}, clear=True):
+                with self.assertRaisesRegex(RuntimeError, "is not set"):
+                    policy.main()
+            for value in ("0", "-2", "v0.2.0"):
+                with self.subTest(value=value), self.assertRaisesRegex(ValueError, "positive milestone number"):
+                    self.run_main(ISSUE_MILESTONE_NUMBER=value)
+
+    def test_workflows_pass_the_variable_without_a_default(self):
+        for name in ("issue-metadata.yml", "daily-traffic.yml"):
+            workflow = (ROOT / ".github/workflows" / name).read_text(encoding="utf-8")
+            with self.subTest(workflow=name):
+                self.assertIn("ISSUE_MILESTONE_NUMBER: ${{ vars.ISSUE_MILESTONE_NUMBER }}", workflow)
+                self.assertNotIn("vars.ISSUE_MILESTONE_NUMBER ||", workflow)
+
+    def test_traffic_alert_checks_the_variable_before_any_early_exit(self):
+        # Review of #120: a quiet day exits early; the check must come first.
+        workflow = (ROOT / ".github/workflows/daily-traffic.yml").read_text(encoding="utf-8")
+        step = workflow.split("      - name: Create alert issue on spike or new referrer\n", 1)[1]
+        self.assertLess(step.index("raw_milestone = os.environ.get(\"ISSUE_MILESTONE_NUMBER\""),
+                        step.index("sys.exit(0)"))
+
     def test_pull_request_event_is_skipped_before_any_api_call(self):
         with patch.object(policy, "api", side_effect=AssertionError("no API call expected")), \
                 patch.object(policy, "reconcile", side_effect=AssertionError("no reconcile expected")):
