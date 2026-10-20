@@ -509,7 +509,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          ISSUE_MILESTONE_NUMBER: ${{ vars.ISSUE_MILESTONE_NUMBER || '1' }}
+          ISSUE_MILESTONE_NUMBER: ${{ vars.ISSUE_MILESTONE_NUMBER }}
         run: |
           set -euo pipefail
 
@@ -691,9 +691,14 @@ jobs:
           ])
 
           # Explicit milestone number: other open milestones do not make alerts ambiguous.
-          milestone_number = int(os.environ["ISSUE_MILESTONE_NUMBER"])
-          if milestone_number < 1:
-              raise ValueError("ISSUE_MILESTONE_NUMBER must be positive")
+          # No fallback: an unset variable must not select a retired milestone (#117).
+          raw_milestone = os.environ.get("ISSUE_MILESTONE_NUMBER", "").strip()
+          if not raw_milestone:
+              raise RuntimeError("Repository variable ISSUE_MILESTONE_NUMBER is not set; "
+                                 "set it to the number of the active milestone")
+          if not raw_milestone.isdigit() or int(raw_milestone) < 1:
+              raise ValueError("ISSUE_MILESTONE_NUMBER must be a positive milestone number")
+          milestone_number = int(raw_milestone)
           milestone_result = subprocess.run(
               ["gh", "api", f"repos/{os.environ['GITHUB_REPOSITORY']}/milestones/{milestone_number}"],
               capture_output=True, text=True, check=True
