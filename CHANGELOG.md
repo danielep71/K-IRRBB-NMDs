@@ -94,6 +94,12 @@ Use only the categories needed by a release.
 
 ## [Unreleased]
 
+### Repository identity
+
+- Rename the GitHub repository to `K-IRRBB_behavioral_models` and update clone
+  instructions, badges, issue and milestone links, and security/help links.
+  The display brand remains **K-IRRBB**.
+
 ### Presentation
 
 - Align the workbook with the maintainer's SACCR visual identity: black-and-gold
@@ -242,7 +248,7 @@ Use only the categories needed by a release.
 - The project is named K-IRRBB, like its sibling K-SACCR: the README heading,
   the governance documents, the PR template, the traffic alert and the title
   on the workbook's Readme sheet use the new name. The repository keeps the
-  name VBA-IRRBB-Toolkit, and identifiers, file names and the `IRRBB_` prefix
+  name K-IRRBB_behavioral_models, and identifiers, file names and the `IRRBB_` prefix
   are unchanged.
 - The data contract now states that dates have a year from 1900 to 9999 (the
   Excel date system) and that a decimal has digits on both sides of any `.`
@@ -404,7 +410,7 @@ Use only the categories needed by a release.
   variable or concatenated ProgIDs that could previously hide Excel access.
   External COM automation belongs in host adapters; these names are reserved
   in core code even for non-Excel objects. Comments and strings remain allowed
-  ([#22](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/22)).
+  ([#22](https://github.com/danielep71/K-IRRBB_behavioral_models/issues/22)).
 - Continued comments now recognize VBA whitespace, including tabs, and require
   the continuation underscore immediately before the newline.
 
@@ -421,4 +427,4 @@ Use only the categories needed by a release.
 
 ---
 
-[Unreleased]: https://github.com/danielep71/VBA-IRRBB-Toolkit/compare/main...release/v0.2.0
+[Unreleased]: https://github.com/danielep71/K-IRRBB_behavioral_models/compare/main...release/v0.2.0

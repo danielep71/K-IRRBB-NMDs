@@ -6,7 +6,7 @@
 
 [![Excel VBA](https://img.shields.io/badge/Excel_VBA-Windows-217346?style=for-the-badge&logo=microsoft-excel&logoColor=white)](INSTALLATION.md)
 [![Status](https://img.shields.io/badge/Status-v0.2.0%20in%20progress-6e7781?style=for-the-badge)](#status)
-[![Development](https://img.shields.io/badge/Development-release%2Fv0.2.0-6f42c1?style=for-the-badge)](https://github.com/danielep71/VBA-IRRBB-Toolkit/tree/release/v0.2.0)
+[![Development](https://img.shields.io/badge/Development-release%2Fv0.2.0-6f42c1?style=for-the-badge)](https://github.com/danielep71/K-IRRBB_behavioral_models/tree/release/v0.2.0)
 [![License](https://img.shields.io/badge/License-MPL--2.0-2ea44f?style=for-the-badge)](LICENSE)
 
 <br>
@@ -78,8 +78,8 @@ Planned cross-cutting functionality includes data validation, calibration, histo
 ## 🛠️ Getting started
 
 ```shell
-git clone https://github.com/danielep71/VBA-IRRBB-Toolkit.git
-cd VBA-IRRBB-Toolkit
+git clone https://github.com/danielep71/K-IRRBB_behavioral_models.git
+cd K-IRRBB_behavioral_models
 git switch release/v0.2.0
 python tools/check.py
 ```
