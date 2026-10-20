@@ -272,9 +272,9 @@ Use only the categories needed by a release.
 
 ### Documentation
 
-- Social preview image `docs/assets/IRRBB_social_preview.png`, generated from
-  `IRRBB_social_preview.html` in the layout of VBA-SACCR-Toolkit and
-  MKT-FTRB-SA, and shown at the top of the root README. Its figures are the
+- Social preview image `docs/assets/IRRBB_social_preview.png`, titled
+  K-IRRBB and generated from `IRRBB_social_preview.html` in the layout of
+  K-SACCR and K-FRTB-SA, and shown at the top of the root README. Its figures are the
   decay reference case `DEC-E2E-01` (draft, on `release/v0.3.0`) and the REG-1
   core-deposit caps; `docs/assets/README.md` records each source and how to
   regenerate the image.

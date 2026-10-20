@@ -37,6 +37,8 @@ laid out like the social previews of VBA-SACCR-Toolkit and MKT-FTRB-SA.
   `bt_rate`).
 - **Models:** the three model families of the root README; only decay exists,
   as a draft.
+- **Name:** the title is K-IRRBB, in the naming of the sibling toolkits
+  K-SACCR and K-FRTB-SA; the subject, IRRBB, is spelled out beneath it.
 - **Status:** the pill names the version in progress, "In progress 0.2.0";
   update it with each release.
 
