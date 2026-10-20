@@ -10,8 +10,10 @@ import json
 import math
 import re
 import unittest
+from collections.abc import Collection, Iterator
 from datetime import date
 from pathlib import Path
+from typing import Any, cast
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests" / "fixtures" / "data_contract"
@@ -31,6 +33,8 @@ BALANCE = re.compile(r"^-?\d+(\.\d{1,4})?$")
 RATE = re.compile(r"^-?\d+(\.\d{1,8})?$")
 RATE_BOUNDS = (-0.05, 0.25)
 OUTLIER_RATIO = 10.0
+# Locally valid rows with their file line numbers, as read_accounts returns them.
+Panel = list[tuple[int, dict[str, str]]]
 
 
 def parse_date(text: str) -> date | None:
@@ -44,6 +48,11 @@ def parse_date(text: str) -> date | None:
         return date(year, month, day)
     except ValueError:
         return None
+
+
+def valid_date(text: str) -> date:
+    """parse_date of a date the row rules already accepted, so never None."""
+    return cast(date, parse_date(text))
 
 
 def is_month_end(day: date) -> bool:
@@ -66,10 +75,10 @@ def next_month_end(day: date) -> date:
 
 def known_closure(observed: list[dict[str, str]]) -> date | None:
     """Earliest recorded close_date on any of an account's rows (E11 makes them agree)."""
-    return min((parse_date(r["close_date"]) for r in observed if r["close_date"]), default=None)
+    return min((valid_date(r["close_date"]) for r in observed if r["close_date"]), default=None)
 
 
-def row_error(row: dict[str, str], currencies=SUPPORTED_CURRENCIES) -> str | None:
+def row_error(row: dict[str, str], currencies: Collection[str] = SUPPORTED_CURRENCIES) -> str | None:
     """First failing row rule, in the contract's order."""
     if any(not row[name] for name in REQUIRED):
         return "E03"
@@ -99,7 +108,8 @@ def row_error(row: dict[str, str], currencies=SUPPORTED_CURRENCIES) -> str | Non
     return None
 
 
-def read_accounts(path: Path, currencies=SUPPORTED_CURRENCIES) -> tuple[list[tuple[int, dict[str, str]]], list[dict]]:
+def read_accounts(path: Path, currencies: Collection[str] = SUPPORTED_CURRENCIES
+                  ) -> tuple[Panel, list[dict[str, Any]]]:
     lines = path.read_text(encoding="ascii").splitlines()
     if not lines or lines[0].split(",") != ACCOUNT_FIELDS:
         return [], [{"line": 1, "code": "E01"}]
@@ -118,12 +128,13 @@ def read_accounts(path: Path, currencies=SUPPORTED_CURRENCIES) -> tuple[list[tup
     # Cross-row rules use every locally valid row, so a duplicate or a currency
     # change still contributes its dates; they apply in the contract's order
     # E11, E10, E05, E08, and are independent of input order for history dates.
-    dates = {}
+    dates: dict[str, dict[str, set[str]]] = {}
     for _, row in rows:
         history = dates.setdefault(row["account_id"], {"open_date": set(), "close_date": set()})
         for field in history:
             if row[field]:
                 history[field].add(row[field])
+    currency: dict[str, str]
     accepted, seen, currency = [], set(), {}
     for number, row in rows:
         history = dates[row["account_id"]]
@@ -150,11 +161,12 @@ def read_accounts(path: Path, currencies=SUPPORTED_CURRENCIES) -> tuple[list[tup
     return accepted, sorted(errors, key=lambda error: error["line"])
 
 
-def read_market_rates(path: Path, currencies=SUPPORTED_CURRENCIES) -> list[dict]:
+def read_market_rates(path: Path, currencies: Collection[str] = SUPPORTED_CURRENCIES) -> list[dict[str, Any]]:
     """Validate required fields, exact shape and invariants of each market series."""
     lines = path.read_text(encoding="ascii").splitlines()
     if not lines or lines[0].split(",") != RATE_FIELDS:
         return [{"line": 1, "code": "E01"}]
+    series: dict[str, tuple[str, str]]
     errors, seen, series = [], set(), {}
     for number, line in enumerate(lines[1:], 2):
         values = line.split(",")
@@ -189,20 +201,22 @@ def read_market_rates(path: Path, currencies=SUPPORTED_CURRENCIES) -> list[dict]
     return errors
 
 
-def warnings_and_totals(rows, first: date, last: date) -> tuple[list[dict], list[dict]]:
+def warnings_and_totals(rows: Panel, first: date, last: date
+                        ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    history: dict[str, list[dict[str, str]]]
     warnings, history = [], {}
     for _, row in rows:
-        as_of = parse_date(row["as_of_date"])
+        as_of = valid_date(row["as_of_date"])
         if not first <= as_of <= last:
             warnings.append({"code": "W06", "account_id": row["account_id"], "as_of_date": row["as_of_date"]})
             continue
         history.setdefault(row["account_id"], []).append(row)
-    totals: dict[tuple[str, str, str], list] = {}
+    totals: dict[tuple[str, str, str], list[Any]] = {}
     for account, observed in sorted(history.items()):
         observed.sort(key=lambda r: r["as_of_date"])
         previous = None
         for row in observed:
-            as_of = parse_date(row["as_of_date"])
+            as_of = valid_date(row["as_of_date"])
             balance = float(row["balance"])
             cell = totals.setdefault((row["as_of_date"], row["segment"], row["currency"]), [0, []])
             cell[0] += 1
@@ -210,9 +224,9 @@ def warnings_and_totals(rows, first: date, last: date) -> tuple[list[dict], list
             if balance == 0:
                 warnings.append({"code": "W02", "account_id": account, "as_of_date": row["as_of_date"]})
             if previous is not None:
-                gap = month_index(as_of) - month_index(parse_date(previous["as_of_date"]))
+                gap = month_index(as_of) - month_index(valid_date(previous["as_of_date"]))
                 for missing in range(1, gap):
-                    index = month_index(parse_date(previous["as_of_date"])) + missing
+                    index = month_index(valid_date(previous["as_of_date"])) + missing
                     year, month = divmod(index, 12)
                     day = date(year, month + 1, calendar.monthrange(year, month + 1)[1])
                     warnings.append({"code": "W01", "account_id": account, "as_of_date": day.isoformat()})
@@ -223,18 +237,18 @@ def warnings_and_totals(rows, first: date, last: date) -> tuple[list[dict], list
                         1 / OUTLIER_RATIO <= balance / before <= OUTLIER_RATIO):
                     warnings.append({"code": "W04", "account_id": account, "as_of_date": row["as_of_date"]})
             previous = row
-        stopped = parse_date(observed[-1]["as_of_date"])
+        stopped = valid_date(observed[-1]["as_of_date"])
         closed = known_closure(observed)
         if stopped < last and not (closed and stopped < closed <= next_month_end(stopped)):
             warnings.append({"code": "W05", "account_id": account, "as_of_date": observed[-1]["as_of_date"]})
     total_rows = [{"as_of_date": d, "segment": s, "currency": c, "accounts": n, "balance": math.fsum(b)}
                   for (d, s, c), (n, b) in totals.items()]
-    def order(w: dict) -> tuple:
+    def order(w: dict[str, Any]) -> tuple[str, str, str]:
         return (w["code"], w["account_id"], w["as_of_date"])
     return sorted(warnings, key=order), sorted(total_rows, key=lambda t: (t["as_of_date"], t["segment"], t["currency"]))
 
 
-def missing_extracts(rows, first: date, last: date) -> list[dict]:
+def missing_extracts(rows: Panel, first: date, last: date) -> list[dict[str, Any]]:
     """E12: every month end of the window must have at least one account row."""
     present = {parse_date(row["as_of_date"]) for _, row in rows}
     missing = []
@@ -245,16 +259,16 @@ def missing_extracts(rows, first: date, last: date) -> list[dict]:
     return missing
 
 
-def transition_outcomes(rows, first: date, last: date) -> list[dict]:
+def transition_outcomes(rows: Panel, first: date, last: date) -> list[dict[str, Any]]:
     """Outcome of the transition from each observed month end, per DATA_CONTRACT.md#outcomes."""
     history: dict[str, list[dict[str, str]]] = {}
     for _, row in rows:
-        if first <= parse_date(row["as_of_date"]) <= last:
+        if first <= valid_date(row["as_of_date"]) <= last:
             history.setdefault(row["account_id"], []).append(row)
     outcomes = []
     for account, observed in sorted(history.items()):
         observed.sort(key=lambda r: r["as_of_date"])
-        dates = [parse_date(r["as_of_date"]) for r in observed]
+        dates = [valid_date(r["as_of_date"]) for r in observed]
         closed = known_closure(observed)
         for index, (origin, row) in enumerate(zip(dates, observed)):
             later = index + 1 < len(dates)
@@ -263,7 +277,7 @@ def transition_outcomes(rows, first: date, last: date) -> list[dict]:
                 outcome = "end_of_sample"
             elif later and dates[index + 1] == following:
                 outcome = "observed"
-            elif closed and origin < closed <= following:
+            elif closed and origin < closed <= cast(date, following):  # origin < last here
                 outcome = "closure"
             elif later:
                 outcome = "gap"
@@ -278,14 +292,14 @@ OUTCOME_COLUMNS = {"observed": "observed", "closure": "closures", "gap": "gaps",
                    "end_of_sample": "end_of_sample"}
 
 
-def outcome_lineage(rows, first: date, last: date) -> list[dict]:
+def outcome_lineage(rows: Panel, first: date, last: date) -> list[dict[str, Any]]:
     """Per month end, segment and currency: transition outcomes, the last balance of censored
     disappearances, and the accounts whose close_date the point-in-time view at that origin masks,
     counted under the segment and currency of their latest row in the view (DATA_CONTRACT.md#outcomes)."""
     by_row = {(r["account_id"], r["as_of_date"]): r for _, r in rows}
-    cells: dict[tuple[str, str, str], dict] = {}
+    cells: dict[tuple[str, str, str], dict[str, Any]] = {}
 
-    def cell(month: str, segment: str, currency: str) -> dict:
+    def cell(month: str, segment: str, currency: str) -> dict[str, Any]:
         return cells.setdefault((month, segment, currency), {**{k: 0 for k in OUTCOME_COLUMNS.values()},
                                                              "censored_balance": [], "close_dates_masked": 0})
 
@@ -301,8 +315,8 @@ def outcome_lineage(rows, first: date, last: date) -> list[dict]:
         for row in sorted(point_in_time_view(rows, origin, first), key=lambda r: r["as_of_date"]):
             latest[row["account_id"]] = row
         masked = {r["account_id"] for _, r in rows
-                  if first <= parse_date(r["as_of_date"]) <= origin and r["close_date"]
-                  and parse_date(r["close_date"]) > origin}
+                  if first <= valid_date(r["as_of_date"]) <= origin and r["close_date"]
+                  and valid_date(r["close_date"]) > origin}
         for account in masked:
             cell(origin.isoformat(), latest[account]["segment"], latest[account]["currency"])["close_dates_masked"] += 1
     return [{"month_end": m, "segment": s, "currency": c, **{k: v for k, v in values.items() if k != "censored_balance"},
@@ -310,25 +324,25 @@ def outcome_lineage(rows, first: date, last: date) -> list[dict]:
             for (m, s, c), values in sorted(cells.items())]
 
 
-def point_in_time_view(rows, origin: date, first: date | None = None) -> list[dict[str, str]]:
+def point_in_time_view(rows: Panel, origin: date, first: date | None = None) -> list[dict[str, str]]:
     """Rows dated on or before the origin (and from the window start, if given), with any
     close_date learned later masked."""
     view = []
     for _, row in rows:
-        if parse_date(row["as_of_date"]) <= origin and (first is None or parse_date(row["as_of_date"]) >= first):
+        if valid_date(row["as_of_date"]) <= origin and (first is None or valid_date(row["as_of_date"]) >= first):
             visible = dict(row)
-            if visible["close_date"] and parse_date(visible["close_date"]) > origin:
+            if visible["close_date"] and valid_date(visible["close_date"]) > origin:
                 visible["close_date"] = ""
             view.append(visible)
     return view
 
 
-def predictors(view: list[dict[str, str]], origin: date) -> dict[str, tuple]:
+def predictors(view: list[dict[str, str]], origin: date) -> dict[str, tuple[str | None, ...]]:
     """Every per-account input a model may use at the origin, taken from the view only."""
     current = {r["account_id"]: r for r in view if parse_date(r["as_of_date"]) == origin}
     previous = {r["account_id"]: r for r in view
-                if month_index(parse_date(r["as_of_date"])) == month_index(origin) - 1}
-    features = {}
+                if month_index(valid_date(r["as_of_date"])) == month_index(origin) - 1}
+    features: dict[str, tuple[str | None, ...]] = {}
     for account, row in sorted(current.items()):
         known_close = min((r["close_date"] for r in view
                            if r["account_id"] == account and r["close_date"]), default="")
@@ -338,12 +352,12 @@ def predictors(view: list[dict[str, str]], origin: date) -> dict[str, tuple]:
     return features
 
 
-def change_information_after(rows, origin: date):
+def change_information_after(rows: Panel, origin: date) -> Panel:
     """Alter, add and remove everything learned after the origin; keep everything known at it."""
     changed = []
     for number, row in rows:
         row = dict(row)
-        if parse_date(row["as_of_date"]) > origin:
+        if valid_date(row["as_of_date"]) > origin:
             if row["account_id"][-1] in "13579":
                 continue
             row["balance"] = f"{float(row['balance']) * 3 + 1:.2f}"
@@ -364,10 +378,10 @@ class PointInTimeAvailability(unittest.TestCase):
     """#32: transition outcomes, masking of later-learned closures, leakage and E12."""
 
     expected = json.loads((EXPECTED / "availability_outcomes.json").read_text(encoding="utf-8"))
-    first = parse_date(expected["window"]["first"])
-    last = parse_date(expected["window"]["last"])
+    first = valid_date(expected["window"]["first"])
+    last = valid_date(expected["window"]["last"])
 
-    def origins(self):
+    def origins(self) -> Iterator[date]:
         day = self.first
         while day <= self.last:
             yield day
@@ -421,7 +435,7 @@ class PointInTimeAvailability(unittest.TestCase):
     def test_later_closure_dates_are_masked_at_earlier_origins(self) -> None:
         rows, _ = read_accounts(ROOT / self.expected["fixture"])
         for origin, visible in self.expected["visible_close_dates"].items():
-            view = point_in_time_view(rows, parse_date(origin))
+            view = point_in_time_view(rows, valid_date(origin))
             self.assertEqual({r["account_id"]: r["close_date"] for r in view if r["close_date"]}, visible,
                              origin)
 
@@ -466,8 +480,8 @@ class PointInTimeAvailability(unittest.TestCase):
 
     def test_without_masking_the_same_change_would_leak(self) -> None:
         rows, _ = read_accounts(ROOT / self.expected["fixture"])
-        def unmasked(panel: list) -> list:
-            return [dict(r) for _, r in panel if parse_date(r["as_of_date"]) <= self.first]
+        def unmasked(panel: Panel) -> list[dict[str, str]]:
+            return [dict(r) for _, r in panel if valid_date(r["as_of_date"]) <= self.first]
         altered = change_information_after(rows, self.first)
         self.assertNotEqual(predictors(unmasked(altered), self.first),
                             predictors(unmasked(rows), self.first))
@@ -487,8 +501,8 @@ class DataContractFixtures(unittest.TestCase):
         self.assertEqual(len(rows), expected["rows"])
         self.assertEqual(len({r["account_id"] for _, r in rows}), expected["accounts"])
         warnings, totals = warnings_and_totals(
-            rows, parse_date(expected["window"]["first"]), parse_date(expected["window"]["last"]))
-        def order(w: dict) -> tuple:
+            rows, valid_date(expected["window"]["first"]), valid_date(expected["window"]["last"]))
+        def order(w: dict[str, Any]) -> tuple[str, str, str]:
             return (w["code"], w["account_id"], w["as_of_date"])
         self.assertEqual(warnings, sorted(expected["warnings"], key=order))
         want = sorted(expected["totals"], key=lambda t: (t["as_of_date"], t["segment"], t["currency"]))

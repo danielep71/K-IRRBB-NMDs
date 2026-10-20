@@ -14,6 +14,7 @@ import sys
 import unittest
 import zipfile
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools" / "devbuild"))
@@ -104,7 +105,7 @@ class CompoundFile:
         return b"".join(self._sector(s) for s in self._chain(start, self.fat))
 
     @staticmethod
-    def _entry(raw: bytes) -> dict:
+    def _entry(raw: bytes) -> dict[str, Any]:
         name_length = struct.unpack_from("<H", raw, 64)[0]
         return {"name": raw[:max(0, name_length - 2)].decode("utf-16-le"), "kind": raw[66],
                 "left": struct.unpack_from("<I", raw, 68)[0], "right": struct.unpack_from("<I", raw, 72)[0],
@@ -222,8 +223,8 @@ class LargePanel(unittest.TestCase):
             self.assertEqual(errors, [])
             self.assertEqual(len(rows), 120)
             self.assertEqual(reference.read_market_rates(rates), [])
-            self.assertEqual(reference.missing_extracts(rows, reference.parse_date(first),
-                                                        reference.parse_date(last)), [])
+            self.assertEqual(reference.missing_extracts(rows, reference.valid_date(first),
+                                                        reference.valid_date(last)), [])
             self.assertEqual(panel.read_bytes(), again[0].read_bytes())
 
 

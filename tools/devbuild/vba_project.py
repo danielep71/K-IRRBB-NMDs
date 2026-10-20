@@ -14,6 +14,7 @@ import random
 import struct
 import uuid
 from dataclasses import dataclass
+from typing import Any
 
 ENDOFCHAIN = 0xFFFFFFFE
 FREESECT = 0xFFFFFFFF
@@ -277,12 +278,13 @@ def _cfb_key(e: _Entry) -> tuple[int, str]:
 
 # Writes the MS-CFB layout in one pass (directory, FAT, mini stream); its
 # branches are the format's cases, which a split would only scatter.
-def write_cfb(tree: dict) -> bytes:  # noqa: C901
+def write_cfb(tree: dict[str, Any]) -> bytes:  # noqa: C901
     """tree: {name: bytes | dict}; returns compound file bytes."""
     root = _Entry("Root Entry", 5, children=[])
     flat: list[_Entry] = [root]
 
-    def build(parent: _Entry, node: dict) -> None:
+    def build(parent: _Entry, node: dict[str, Any]) -> None:
+        assert parent.children is not None  # build() only receives storage entries
         for name, value in node.items():
             if isinstance(value, dict):
                 e = _Entry(name, 1, children=[])

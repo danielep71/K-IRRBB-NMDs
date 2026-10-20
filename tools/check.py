@@ -6,6 +6,7 @@ import argparse
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 from _gatelib import git_text, write_json, write_text
 
@@ -46,7 +47,7 @@ def main() -> int:
     passed = all(r["exit_code"] == 0 for r in results) and (not args.ci or not dirty)
     if args.ci and dirty:
         print("FAIL: CI candidate must have a clean working tree", flush=True)
-    report = {
+    report: dict[str, Any] = {
         "schema_version": 1, "candidate_sha": sha, "dirty": dirty,
         "status": "pass" if passed else "fail", "checks": results,
         "scope": "Static source and repository checks; Excel and IRRBB models NOT executed."

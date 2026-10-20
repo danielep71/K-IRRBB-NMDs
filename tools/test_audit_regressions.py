@@ -15,33 +15,33 @@ from test_review_regressions import CORE_PARTS
 
 
 class LexerRegressions(unittest.TestCase):
-    def test_commented_label_does_not_resolve_jump(self):
+    def test_commented_label_does_not_resolve_jump(self) -> None:
         for prefix in ("' example", "Rem example", "x = 1: Rem example"):
             for space in (" ", "\t", "\x19", "\u3000"):
                 with self.subTest(prefix=prefix, space=space):
                     findings = jumps("Fixture.bas", f"Public Sub Test()\nGoTo Missing\n{prefix}{space}_\nMissing:\nEnd Sub\n")
                     self.assertTrue(any(f.get("target") == "Missing" for f in findings), findings)
 
-    def test_commented_declaration_is_not_public_api(self):
+    def test_commented_declaration_is_not_public_api(self) -> None:
         entries, findings = parse_component("src/modules/IRRBB_Test.bas",
                                              "' example _\nPublic Const Fake As Long = 1\n", True)
         self.assertEqual(entries, [])
         self.assertEqual(findings, [])
 
-    def test_commented_conditional_directive_and_declare_are_ignored(self):
+    def test_commented_conditional_directive_and_declare_are_ignored(self) -> None:
         for hidden in ("#If UNKNOWN Then", 'Public Declare Function F Lib "x" () As Long'):
             self.assertEqual(conditionals("Fixture.bas", "Rem note _\n" + hidden + "\n"), [])
 
-    def test_real_code_after_comment_chain_retains_line_number(self):
+    def test_real_code_after_comment_chain_retains_line_number(self) -> None:
         findings = conditionals("Fixture.bas", "' note _\nstill a comment _\nmore comment\n"
                                'Public Declare Function F Lib "x" () As Long\n')
         self.assertEqual([f["line"] for f in findings], [4])
 
-    def test_directive_code_continuation_is_supported(self):
+    def test_directive_code_continuation_is_supported(self) -> None:
         self.assertEqual(conditionals("Fixture.bas", "#If VBA7 And _\nWin64 Then\n"
                          'Public Declare PtrSafe Function F Lib "x" () As Long\n#End If\n'), [])
 
-    def test_string_literals_and_non_continuations(self):
+    def test_string_literals_and_non_continuations(self) -> None:
         self.assertEqual(jumps("Fixture.bas", 'Public Sub Test()\ns = "Rem _": GoTo Valid\nValid:\nEnd Sub'), [])
         for suffix in (" _ ", "\u00a0_", "\v_", "\f_"):
             self.assertTrue(conditionals("Fixture.bas", "' note" + suffix + "\n"
@@ -49,7 +49,7 @@ class LexerRegressions(unittest.TestCase):
 
 
 class PackageRegressions(unittest.TestCase):
-    def test_utf16_and_character_references_cannot_hide_forbidden_targets(self):
+    def test_utf16_and_character_references_cannot_hide_forbidden_targets(self) -> None:
         helper = packages.WorkbookPackageTests()
         for part, attr, value in (("_rels/.rels", "Target", "docProps/core.xml"),
                                   ("xl/_rels/workbook.xml.rels", "Target", "vbaProject.bin"),
@@ -60,7 +60,7 @@ class PackageRegressions(unittest.TestCase):
         self.assertTrue(helper.check_parts({**CORE_PARTS, "_rels/.rels":
                        '<Root><Item Target="docPr&#111;ps/core.xml"/></Root>'}))
 
-    def test_tracked_workbook_outside_exact_template_path_fails(self):
+    def test_tracked_workbook_outside_exact_template_path_fails(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             for path, allowed in (("Unexpected.xlsx", False), ("src/workbook/Other.xlsx", False),
                                   ("src/workbook/IRRBB_Template.xlsm", False),
