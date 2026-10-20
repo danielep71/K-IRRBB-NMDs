@@ -22,16 +22,20 @@ the GitHub milestones. The reference roadmap was approved on October 9,
 
 ## 📖 How to read these guides
 
-Each file covers purpose, rationale, activities and observable outcomes,
-dependencies, a synthetic example, completion criteria, and references.
-Activities break down the approved scope into practical work; they do not
-certify that a feature is already available. The listed criteria are not
-a record of completed tests.
+Each guide follows the schema of its GitHub milestone description, in the
+same order: 🎯 **Objective** (with why it matters), 📦 **Scope**, 🏁 **Exit
+criteria** (with a synthetic example acceptance case), 🔗 **Tracked issues and
+dependency** (with references), 🚫 **Not in scope** and 🧪 **Release
+evidence**. A milestone description and its guide state the same scope and
+criteria; the guide adds the rationale, the example and the links. Scope
+breaks the approved work into practical activities; it does not certify that
+a feature is already available. Exit criteria are ticked only for a closed
+milestone and are not a record of completed tests.
 
 GitHub issues hold current status, ownership, priority, and closure evidence.
 These guides do not duplicate percentages or counters that would become
-outdated. Each tracking section identifies issues known on October 9, 2026,
-and work that still needs a detailed implementation issue.
+outdated. Each tracking section names the issues known when the guide was
+last revised and the work that still needs a detailed implementation issue.
 
 ## 🔗 Dependencies: delivery order and prerequisites
 
@@ -44,7 +48,7 @@ the user workflow. v0.9.0 consolidates the evidence before v1.0.0 acceptance.
 
 The methodological amendments [#32–#37](../methodology/MODEL_CONTRACTS.md)
 must precede the affected implementations. Umbrella issue
-[#26](https://github.com/danielep71/K-IRRBB_behavioral_models/issues/26), assigned
+[#26](https://github.com/danielep71/K-IRRBB_Behavioral_Models/issues/26), assigned
 to v0.7.0, does not defer the earlier models' prerequisites to that version.
 
 ## 🧪 Common completion requirements

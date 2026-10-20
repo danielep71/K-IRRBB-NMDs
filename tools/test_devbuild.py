@@ -243,11 +243,38 @@ class DevelopmentWorkbook(unittest.TestCase):
             with self.subTest(document_module=sheet.code_name):
                 self.assertIn(f"Attribute VB_Name = \"{sheet.code_name}\"",
                               decompress(cfb.read(f"VBA/{sheet.code_name}")).decode("cp1252"))
+        # The document modules come from src/workbook/*.cls, the files the
+        # synchronizer imports; they hold the standard document attributes.
+        for name, workbook in [("ThisWorkbook", True)] + [(s.code_name, False)
+                                                          for s in build_dev_workbook.build_template.SHEETS]:
+            with self.subTest(document_source=name):
+                self.assertEqual(build_dev_workbook.document_source(name).source,
+                                 vba_project.document_module(name, workbook).source)
+                code = decompress(cfb.read(f"VBA/{name}")).decode("cp1252")
+                self.assertTrue(code.rstrip("\r\n").endswith("Option Explicit"), code)
         for path in build_dev_workbook.components():
             with self.subTest(component=path.stem):
                 source = decompress(cfb.read(f"VBA/{path.stem}")).decode("cp1252")
                 expected = path.read_bytes().decode("cp1252").replace("\r\n", "\n").replace("\n", "\r\n")
                 self.assertEqual(source.rstrip("\r\n"), expected.rstrip("\r\n"))
+
+    def test_component_manifest_matches_the_builder(self) -> None:
+        # tools/vba-projects.json is the component list of the synchronizer
+        # and the export comparison: its development configuration is what
+        # the builder embeds, its production one the src/ modules only, and
+        # its document modules the template's CodeNames.
+        import json
+        sys.path.insert(0, str(ROOT / "tools" / "devbuild"))
+        import build_dev_workbook
+        manifest = json.loads((ROOT / "tools" / "vba-projects.json").read_text(encoding="utf-8"))
+        configurations = manifest["configurations"]
+        built = {p.relative_to(ROOT).as_posix() for p in build_dev_workbook.components()}
+        self.assertEqual(set(configurations["development"]["modules"]), built)
+        self.assertEqual(set(configurations["production"]["modules"]),
+                         {p for p in built if p.startswith("src/")})
+        self.assertEqual(manifest["document_modules"],
+                         ["src/workbook/ThisWorkbook.cls"]
+                         + [f"src/workbook/{s.code_name}.cls" for s in build_dev_workbook.build_template.SHEETS])
 
 
 if __name__ == "__main__":

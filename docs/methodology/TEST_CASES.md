@@ -18,7 +18,7 @@ evidence protocol is in [`VALIDATION_PLAN.md`](VALIDATION_PLAN.md).
 
 > [!NOTE]
 > The rate and stable-amount cases below are **registered, not built**; the
-> decay cases are *Built (VBA)* on `release/v0.3.0`, pending review in #36. The data contract cases
+> decay cases are *Built (VBA)*, pending review in #36. The data contract cases
 > are *built*: their fixtures and expected files exist and are checked on every
 > run of `python tools/check.py`. Cases marked *Built (VBA)* have a VBA
 > implementation run by `TEST_Harness.RunTests` in Excel; their literal

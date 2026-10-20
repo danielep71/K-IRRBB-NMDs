@@ -2,7 +2,7 @@
 
 # 📜 Changelog
 
-### Release history for the IRRBB behavioral-model toolkit in Excel/VBA
+### Release history for K-IRRBB, IRRBB behavioral models in Excel/VBA
 
 [![Format](https://img.shields.io/badge/Format-Keep_a_Changelog-0969da?style=flat-square)](https://keepachangelog.com/en/1.1.0/)
 [![Versioning](https://img.shields.io/badge/Versioning-SemVer-6f42c1?style=flat-square)](https://semver.org/spec/v2.0.0.html)
@@ -18,7 +18,7 @@
 
 ---
 
-All notable changes to the **K-IRRBB** are documented here.
+All notable changes to **K-IRRBB** are documented here.
 
 This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and [Semantic Versioning](https://semver.org/spec/v2.0.0.html). It records
@@ -94,17 +94,25 @@ Use only the categories needed by a release.
 
 ## [Unreleased]
 
-### Repository identity
-
-- Rename the repository to `K-IRRBB_behavioral_models`; align documentation,
-  clone commands, GitHub links, workflow messages and the workbook title with
-  the **K-IRRBB** display brand.
-
 > Not yet released. Development takes place on the active release branch,
 > `release/v0.2.0`; changes to `main` require an explicit owner instruction.
 
 ### Added
 
+- Workbook synchronization and source round trip (#6), following
+  VBA-SACCR-Toolkit: `tools/Sync-IRRBB-VBA.ps1` with the launchers
+  `Sync-IRRBB-VBA.cmd` (drag a workbook onto it to import the checkout's source)
+  and `Sync-IRRBB-VBA-Downloads.cmd` (import modules from a folder, by default
+  Downloads, without changing the checkout) updates the VBA project of an
+  existing `.xlsm` in production or development mode without touching sheets;
+  `tools/Export-IRRBB-VBA.ps1` exports a workbook's components with an
+  `export-manifest.json`, and `tools/compare_vba_export.py` checks them against
+  the source of one commit. `tools/vba-projects.json` lists both workbooks'
+  components. The document modules `ThisWorkbook.cls` and one `sh<Sheet>.cls`
+  per template sheet are now source files in `src/workbook/`; the development
+  builder embeds them. `check_source.py` requires every component to lie in a
+  synchronized directory and the document modules to match the template's
+  CodeNames; `docs/EXCEL_EVIDENCE.md` adds the round trip as stage 6.
 - **Decay model** per `MODEL_CONTRACTS.md` (draft `DECAY-1.0-draft`, not
   validated; review in #36): host-independent core `CORE_Math`, `CORE_Decay`
   and `CORE_Overlay`, and the public facade `IRRBB_Decay` (`IRRBB_DecayFit`,
@@ -246,6 +254,21 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- The project is named K-IRRBB, like its sibling K-SACCR: the README heading,
+  the governance documents, the PR template, the traffic alert and the title
+  on the workbook's Readme sheet use the new name. The repository was
+  subsequently renamed to `K-IRRBB_Behavioral_Models`, and clone instructions,
+  badges, issue and milestone links and security/help links follow;
+  identifiers, file names and the `IRRBB_` prefix are unchanged.
+- The workbook template follows the maintainer's SACCR visual identity:
+  black-and-gold `K-IRRBB` branding, blue title bands, Aptos typography,
+  distinct input/output headers, colored tabs, consistent spacing and landscape
+  print setup, with a short Readme workflow, section labels on DataSummary and
+  Checks, and readable amount, count and diagnostic formats. Development-workbook buttons share the
+  palette and avoid the status block. The template remains reproducible from
+  its generator; sheet order, CodeNames, named ranges, validations, status rules
+  and calculation behavior are unchanged. Native Excel visual verification is
+  still required.
 - The data contract now states that dates have a year from 1900 to 9999 (the
   Excel date system) and that a decimal has digits on both sides of any `.`
   (#8).
@@ -260,6 +283,10 @@ Use only the categories needed by a release.
 
 ### Security
 
+- The synchronizer and the export script need Excel's *Trust access to the VBA
+  project object model*; `SECURITY.md` says to enable it only while running
+  them. The development-workbook builder still needs neither Excel automation
+  nor that setting (#6).
 - `.gitignore` now keeps local data, extracts, snapshots and parameter
   exports out of Git (rooted `private/`, `local-data/`, `extracts/`,
   `snapshots/`, `exports/` and `parameter-exports/` folders), ignores binary
@@ -275,8 +302,20 @@ Use only the categories needed by a release.
 
 ### Documentation
 
-- Data-contract amendment for point-in-time data (#32), decided by the owner
-  on 2026-10-09: a back-filled `close_date` is accepted but masked in the
+- The milestone guides in `docs/Milestones/` follow one schema, the same as
+  the GitHub milestone descriptions: Objective, Scope, Exit criteria, Tracked
+  issues and dependency, Not in scope and Release evidence. Each keeps its
+  rationale, a synthetic acceptance case and its references; the v0.3.0 guide
+  names the open decay decisions of #36 and the missing `DecayExample` sheet,
+  and the v0.4.0 and v0.5.0 guides name their registered cases.
+- Social preview image `docs/assets/IRRBB_social_preview.png`, titled
+  K-IRRBB and generated from `IRRBB_social_preview.html` in the layout of
+  K-SACCR and K-FRTB-SA, and shown at the top of the root README. Its figures are the
+  decay reference case `DEC-E2E-01` (draft, #36) and the REG-1
+  core-deposit caps; `docs/assets/README.md` records each source and how to
+  regenerate the image.
+- Data-contract amendment for point-in-time data (#32), decided on
+  2026-10-09: a back-filled `close_date` is accepted but masked in the
   point-in-time view at earlier forecast origins, and closures are assumed
   reported by the month end in which they occur (attested per import, recorded
   in the lineage); only a recorded closure is a
@@ -357,11 +396,12 @@ Use only the categories needed by a release.
   benchmarks accompany each model, and Stable-Decay composition is explicit.
 - Accepted host/data/model records now have direct evidence links; unresolved
   model interpretation and reproducibility requirements are tracked in #26.
-- `RELEASING.md` describes integration through pull requests only: always
-  open it from an integration branch (never the release branch, which would be
-  deleted on merge), bring a moved `main` into it first, merge into `main`
-  with a merge commit, and bring the release branch level with a second PR
-  from `main`, also merged with a merge commit.
+- `RELEASING.md` and `CONTRIBUTING.md` follow the rulesets copied from
+  VBA-SACCR-Toolkit: task PRs are squash-merged into the release branch, the
+  release branch is merged into `main` with a merge commit from its own PR, and
+  the owner then fast-forwards the release branch, which cannot be deleted, to
+  the merge commit. VBA may be merged into the release branch before Excel
+  evidence exists; nothing is released without it.
 - Documentation prepared for public visibility (#42): `SECURITY.md` routes
   reports through GitHub private vulnerability reporting, with email as the
   fallback; `docs/TRAFFIC.md` states that the traffic branch is public and
@@ -381,9 +421,9 @@ Use only the categories needed by a release.
   these structural checks do not certify Excel compatibility.
 - Traffic history labels the repository count `open_issues_and_prs`, including
   pull requests, and preserves values when migrating the old CSV column.
-- Traffic alert issues are now created in the repository's single open
-  milestone, so every issue carries a milestone; the run fails if there is
-  no open milestone or more than one.
+- Traffic alert issues are now created in a milestone, so every issue
+  carries one: the milestone named by the repository variable
+  `ISSUE_MILESTONE_NUMBER`, which must be open; the run fails otherwise.
 - The data-contract reference check applies the cross-row history rule
   (`E11`) before duplicate (`E05`) and currency-change (`E08`) rules and to
   every affected row, as `DATA_CONTRACT.md` orders them; duplicates and
@@ -395,7 +435,7 @@ Use only the categories needed by a release.
   variable or concatenated ProgIDs that could previously hide Excel access.
   External COM automation belongs in host adapters; these names are reserved
   in core code even for non-Excel objects. Comments and strings remain allowed
-  ([#22](https://github.com/danielep71/K-IRRBB_behavioral_models/issues/22)).
+  ([#22](https://github.com/danielep71/K-IRRBB_Behavioral_Models/issues/22)).
 - Continued comments now recognize VBA whitespace, including tabs, and require
   the continuation underscore immediately before the newline.
 
@@ -415,11 +455,13 @@ Use only the categories needed by a release.
   treatment of censored disappearances (`W05`) in the aggregate series, the
   break-date convention, the median path, the diagnostic settings and the
   backtest horizons 1 to 12.
+- No Excel compile or run has been recorded for the VBA source; the
+  LibreOffice proxy runs are not Excel evidence.
 - No automated check compiles VBA, runs Excel or validates a model; passing CI
   is not evidence of correct IRRBB calculations.
-- The methodology is a roadmap, not a validated specification, and its
-  regulatory reference register is not yet populated.
+- The methodology is a roadmap, not a validated specification. Of its
+  regulatory references, only `REG-1` and `REG-3` are verified.
 
 ---
 
-[Unreleased]: https://github.com/danielep71/K-IRRBB_behavioral_models/compare/main...release/v0.2.0
+[Unreleased]: https://github.com/danielep71/K-IRRBB_Behavioral_Models/compare/main...release/v0.2.0

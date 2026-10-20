@@ -113,8 +113,37 @@ class Template(unittest.TestCase):
                 sheet, ref = refers.split("!")
                 documented[name] = (sheet, ref)
         self.assertEqual(documented, build_template.NAMES)
-        defined = {e.get("name"): e.text for e in self.xml("xl/workbook.xml").find("m:definedNames", NS)}
+        defined = {e.get("name"): e.text for e in self.xml("xl/workbook.xml").find("m:definedNames", NS)
+                   if not e.get("name").startswith("_xlnm.")}
         self.assertEqual(defined, {n: f"{s}!{r}" for n, (s, r) in build_template.NAMES.items()})
+
+    def test_presentation_merges_do_not_cover_runtime_areas(self) -> None:
+        def bounds(area: str) -> tuple[int, int, int, int]:
+            ends = area.replace("$", "").split(":")
+            r1, c1 = build_template._cell_key(ends[0])
+            r2, c2 = build_template._cell_key(ends[-1])
+            return r1, c1, r2, c2
+
+        for s in build_template.SHEETS:
+            for merge in self.sheet(s.name).findall("m:mergeCells/m:mergeCell", NS):
+                r1, c1, r2, c2 = bounds(merge.get("ref"))
+                for name, (sheet, area) in build_template.NAMES.items():
+                    if sheet != s.name or name == "Readme_SourceCommit":
+                        continue  # The build stamp intentionally spans B:E.
+                    a1, b1, a2, b2 = bounds(area)
+                    self.assertFalse(r1 <= a2 and a1 <= r2 and c1 <= b2 and b1 <= c2,
+                                     f"{s.name}!{merge.get('ref')} overlaps {name}")
+
+    def test_printing_preserves_growing_output_areas(self) -> None:
+        names = list(self.xml("xl/workbook.xml").find("m:definedNames", NS))
+        for index, s in enumerate(build_template.SHEETS):
+            local = {e.get("name"): e.text for e in names if e.get("localSheetId") == str(index)}
+            self.assertIn("_xlnm.Print_Titles", local)
+            if s.role == "Output":
+                self.assertNotIn("_xlnm.Print_Area", local, "fixed areas would truncate later output rows")
+            else:
+                self.assertIn("_xlnm.Print_Area", local)
+            self.assertEqual(self.sheet(s.name).find("m:pageSetup", NS).get("orientation"), "landscape")
 
     def test_every_output_sheet_starts_not_current(self) -> None:
         for s in build_template.SHEETS:

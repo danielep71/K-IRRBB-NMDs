@@ -41,7 +41,7 @@ Excel process are not isolated security sandboxes.
 
 ## 📦 Supported versions
 
-The K-IRRBB is **pre-release**. No version has been released, so no
+K-IRRBB is **pre-release**. No version has been released, so no
 version carries production security support.
 
 | Source state | Security support |
@@ -88,7 +88,7 @@ the report.
 
 ## ⏱️ Response process
 
-The K-IRRBB is maintained by one person; targets are best-effort, not a
+K-IRRBB is maintained by one person; targets are best-effort, not a
 contractual SLA.
 
 | Stage | Target |
@@ -126,7 +126,7 @@ impact.
 
 ### In scope
 
-- source in this repository, including exported VBA once it is added;
+- source in this repository, including the exported VBA;
 - repository-owned validation tooling in [`tools/`](tools/README.md);
 - GitHub Actions workflows, their permissions and pinned actions; and
 - security or integrity behavior introduced by project code.
@@ -162,6 +162,17 @@ impact.
   All actions are pinned to full commit SHAs. See
   [`tools/README.md`](tools/README.md), [`docs/LABELS.md`](docs/LABELS.md) and
   [`docs/TRAFFIC.md`](docs/TRAFFIC.md).
+- **Local tooling.** `tools/Sync-IRRBB-VBA.ps1` (with its `.cmd` launchers)
+  and `tools/Export-IRRBB-VBA.ps1` drive the user's own Excel through COM and
+  need Excel's *Trust access to the VBA project object model*. That setting
+  lets any code with access to Excel's object model read and change VBA
+  projects, so enable it only while running these scripts, on a machine you
+  control, and turn it off afterwards. The scripts run Excel with macros
+  disabled, never change Excel or Trust Center settings themselves, import only
+  repository components (or, with `-SourceDir`, files that declare a repository
+  component name or a project prefix, after confirmation), and change only the
+  VBA project of the workbook given. The development-workbook builder
+  (`tools/devbuild/`) needs neither Excel automation nor that setting.
 - **Artifacts.** No workbook, add-in or other binary is distributed. Office
   packages are ignored by Git unless an exact path is re-included.
 
