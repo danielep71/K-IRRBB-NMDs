@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: "Private security reports"
-    url: "https://github.com/danielep71/VBA-IRRBB-Toolkit/security"
+    url: "https://github.com/danielep71/K-IRRBB_behavioral_models/security"
     about: "Do not post sensitive data in a public issue."
   - name: "Developer setup"
-    url: "https://github.com/danielep71/VBA-IRRBB-Toolkit/blob/main/INSTALLATION.md"
+    url: "https://github.com/danielep71/K-IRRBB_behavioral_models/blob/main/INSTALLATION.md"
     about: "Build, static checks, Excel evidence and future import."

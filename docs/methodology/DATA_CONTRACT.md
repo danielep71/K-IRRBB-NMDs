@@ -26,13 +26,13 @@ model definitions are in [`README.md`](README.md); validation obligations in
 > [!IMPORTANT]
 > This contract was **accepted by the owner on 2026-10-08 in issue #4**,
 > including the [decisions](#decisions) below; see the
-> [acceptance record](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/4#issuecomment-6068526038).
+> [acceptance record](https://github.com/danielep71/K-IRRBB_behavioral_models/issues/4#issuecomment-6068526038).
 > The point-in-time, closure and censoring amendment was decided by the owner
-> on 2026-10-09 in [#32](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/32)
+> on 2026-10-09 in [#32](https://github.com/danielep71/K-IRRBB_behavioral_models/issues/32)
 > ([decisions 6–8](#decisions)); the import time zone on 2026-10-13 in
-> [#71](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/71)
+> [#71](https://github.com/danielep71/K-IRRBB_behavioral_models/issues/71)
 > ([decision 9](#decisions)). Other audit amendments remain tracked in
-> [#26](https://github.com/danielep71/VBA-IRRBB-Toolkit/issues/26). Only synthetic data is ever
+> [#26](https://github.com/danielep71/K-IRRBB_behavioral_models/issues/26). Only synthetic data is ever
 > committed or attached. Real data is loaded locally
 > and never enters Git, issues or pull requests.
 
