@@ -272,6 +272,12 @@ Use only the categories needed by a release.
 
 ### Documentation
 
+- Social preview image `docs/assets/IRRBB_social_preview.png`, generated from
+  `IRRBB_social_preview.html` in the layout of VBA-SACCR-Toolkit and
+  MKT-FTRB-SA, and shown at the top of the root README. Its figures are the
+  decay reference case `DEC-E2E-01` (draft, on `release/v0.3.0`) and the REG-1
+  core-deposit caps; `docs/assets/README.md` records each source and how to
+  regenerate the image.
 - Data-contract amendment for point-in-time data (#32), decided by the owner
   on 2026-10-09: a back-filled `close_date` is accepted but masked in the
   point-in-time view at earlier forecast origins, and closures are assumed
