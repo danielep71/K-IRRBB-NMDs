@@ -14,8 +14,7 @@ README (1280 x 640 px, under GitHub's 1 MB limit). It is a promotional image,
 laid out like the social previews of VBA-SACCR-Toolkit and MKT-FTRB-SA.
 
 - **Figures:** the decay card and the curve show the reference case
-  `DEC-E2E-01` (`tests/expected/decay/DEC-E2E-01.json`, on `release/v0.3.0`
-  and `main`): the synthetic retail transactional series `RET_TX`, estimated
+  `DEC-E2E-01` (`tests/expected/decay/DEC-E2E-01.json`): the synthetic retail transactional series `RET_TX`, estimated
   from 2012-01-31 to 2022-12-31, at 99% confidence, in EUR millions. Balance at
   t0 396.1 (`b0`), MPA after 12 and 120 months 364.3 and 304.1 (`mpa12`,
   `mpa120`), mean life 100.9 months (`mean_life`), non-core share 2.4%

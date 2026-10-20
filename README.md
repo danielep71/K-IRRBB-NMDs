@@ -49,9 +49,10 @@ Planned cross-cutting functionality includes data validation, calibration, histo
 
 **v0.2.0 – Workbook, data and Excel tests (in progress).** The [v0.1.0 foundation](docs/Milestones/v0.1.0.md), closed on 2026-10-09, established source layout, documentation, issue governance, CI and static source checks; v0.2.0 builds the first workbook, data import and Excel test harness. Neither delivers pricing, econometric fitting, a production workbook or certified IRRBB outputs.
 
+- **Decay model (draft, not validated, milestone v0.3.0):** core, public facade `IRRBB_Decay`, harness cases and example, reviewed on `release/v0.3.0` and present here since this branch was levelled with `main`; built to [`MODEL_CONTRACTS.md`](docs/methodology/MODEL_CONTRACTS.md#decay-model) and under review in [#36](https://github.com/danielep71/K-IRRBB_behavioral_models/issues/36); no Excel evidence is recorded yet. Rate and stable-amount models are not built.
 - Application profile: an Excel workbook will be the end-user deliverable, assembled from reviewed exported VBA source.
-- Production calculations live in `src/core/` without direct Excel object dependencies; at present the data import's parsing, validation, summaries and fingerprint.
-- `src/modules/` exposes the documented public facade (the data import, listed in [`docs/PUBLIC_API.txt`](docs/PUBLIC_API.txt)); `src/workbook/` contains host glue only.
+- Production calculations live in `src/core/` without direct Excel object dependencies; at present the data import's parsing, validation, summaries and fingerprint, and the draft decay calculations.
+- `src/modules/` exposes the documented public facade (the data import and the draft decay model, listed in [`docs/PUBLIC_API.txt`](docs/PUBLIC_API.txt)); `src/workbook/` contains host glue only.
 - `tests/` holds synthetic fixtures, expected results and the VBA regression harness; evidence from a real Excel run must be separately recorded.
 - No client data, confidential third-party material, vendor source code or customer-specific models are allowed in Git; the repository and its history are public.
 

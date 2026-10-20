@@ -547,7 +547,8 @@ try {
         (Join-Path $repoFullPath "src\core"),
         (Join-Path $repoFullPath "src\modules"),
         (Join-Path $repoFullPath "src\workbook"),
-        (Join-Path $repoFullPath "tests\modules")
+        (Join-Path $repoFullPath "tests\modules"),
+        (Join-Path $repoFullPath "examples\modules")
     )
 
     foreach ($root in $sourceRoots) {

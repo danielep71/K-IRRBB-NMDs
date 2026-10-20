@@ -94,7 +94,7 @@ data, not that the models are correct. It consists of:
    trust mechanism;
 2. running the harness entry point `TEST_Harness.RunTests` (the **Run tests**
    button on `Checks`) and copying its status block (`Checks!A3:B11`) and case
-   table (`Checks!A13:F46`) into the log; and
+   table (`Checks!A13:F48`) into the log; and
 3. checking that `Calculation`, `EnableEvents`, `ScreenUpdating` and
    `DisplayAlerts` are the same after the run as before it.
 
