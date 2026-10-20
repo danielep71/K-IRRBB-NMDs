@@ -69,7 +69,7 @@ Passing static checks is **not** evidence of correct IRRBB calculations.
 ## 🖥️ Supported hosts
 
 Decided by the owner on 2026-10-08; see the
-[acceptance record in #3](https://github.com/danielep71/K-IRRBB_behavioral_models/issues/3#issuecomment-6068524873).
+[acceptance record in #3](https://github.com/danielep71/K-IRRBB_Behavioral_Models/issues/3#issuecomment-6068524873).
 
 | Host | Support level | Evidence required |
 | --- | --- | --- |
@@ -112,8 +112,8 @@ tested until such a record exists; none does yet.
 Use a **Git clone**:
 
 ```sh
-git clone https://github.com/danielep71/K-IRRBB_behavioral_models.git
-cd K-IRRBB_behavioral_models
+git clone https://github.com/danielep71/K-IRRBB_Behavioral_Models.git
+cd K-IRRBB_Behavioral_Models
 git switch release/v0.2.0
 ```
 
