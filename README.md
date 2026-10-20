@@ -1,17 +1,27 @@
 <div align="center">
 
-# 🏦 K-IRRBB — Behavioral Models
+# 🏦 K-IRRBB
 
-### Interest Rate Risk in the Banking Book | behavioral modeling, calibration and independent testing
+### IRRBB behavioral models in Excel/VBA | Interest Rate Risk in the Banking Book: modeling, calibration and independent testing
 
 [![Excel VBA](https://img.shields.io/badge/Excel_VBA-Windows-217346?style=for-the-badge&logo=microsoft-excel&logoColor=white)](INSTALLATION.md)
 [![Status](https://img.shields.io/badge/Status-v0.2.0%20in%20progress-6e7781?style=for-the-badge)](#status)
-[![Development](https://img.shields.io/badge/Development-release%2Fv0.2.0-6f42c1?style=for-the-badge)](https://github.com/danielep71/K-IRRBB_behavioral_models/tree/release/v0.2.0)
+[![Development](https://img.shields.io/badge/Development-release%2Fv0.2.0-6f42c1?style=for-the-badge)](https://github.com/danielep71/K-IRRBB_Behavioral_Models/tree/release/v0.2.0)
 [![License](https://img.shields.io/badge/License-MPL--2.0-2ea44f?style=for-the-badge)](LICENSE)
 
 <br>
 
 **Source-first · Host-independent calculation core · Synthetic data only · Auditable model results**
+
+---
+
+<p align="center">
+  <img width="100%"
+       alt="K-IRRBB: decay reference case DEC-E2E-01 on a synthetic retail transactional series, its minimum probable amount, the REG-1 core-deposit caps and the out-of-sample backtest"
+       src="docs/assets/IRRBB_social_preview.png">
+</p>
+
+---
 
 </div>
 
@@ -39,10 +49,10 @@ Planned cross-cutting functionality includes data validation, calibration, histo
 
 **v0.2.0 – Workbook, data and Excel tests (in progress).** The [v0.1.0 foundation](docs/Milestones/v0.1.0.md), closed on 2026-10-09, established source layout, documentation, issue governance, CI and static source checks; v0.2.0 builds the first workbook, data import and Excel test harness. Neither delivers pricing, econometric fitting, a production workbook or certified IRRBB outputs.
 
-- **Decay model (draft, not validated, on `release/v0.3.0`):** core, public facade `IRRBB_Decay`, harness cases and example, built to [`MODEL_CONTRACTS.md`](docs/methodology/MODEL_CONTRACTS.md#decay-model) and under review in [#36](https://github.com/danielep71/K-IRRBB_behavioral_models/issues/36); no Excel evidence is recorded yet. Rate and stable-amount models are not built.
+- **Decay model (draft, not validated, milestone v0.3.0):** core, public facade `IRRBB_Decay`, harness cases and example, reviewed on `release/v0.3.0` and present here since this branch was levelled with `main`; built to [`MODEL_CONTRACTS.md`](docs/methodology/MODEL_CONTRACTS.md#decay-model) and under review in [#36](https://github.com/danielep71/K-IRRBB_Behavioral_Models/issues/36); no Excel evidence is recorded yet. Rate and stable-amount models are not built.
 - Application profile: an Excel workbook will be the end-user deliverable, assembled from reviewed exported VBA source.
-- Production calculations live in `src/core/` without direct Excel object dependencies; at present the data import's parsing, validation, summaries and fingerprint.
-- `src/modules/` exposes the documented public facade (the data import, listed in [`docs/PUBLIC_API.txt`](docs/PUBLIC_API.txt)); `src/workbook/` contains host glue only.
+- Production calculations live in `src/core/` without direct Excel object dependencies; at present the data import's parsing, validation, summaries and fingerprint, and the draft decay calculations.
+- `src/modules/` exposes the documented public facade (the data import and the draft decay model, listed in [`docs/PUBLIC_API.txt`](docs/PUBLIC_API.txt)); `src/workbook/` contains host glue only.
 - `tests/` holds synthetic fixtures, expected results and the VBA regression harness; evidence from a real Excel run must be separately recorded.
 - No client data, confidential third-party material, vendor source code or customer-specific models are allowed in Git; the repository and its history are public.
 
@@ -69,13 +79,13 @@ Planned cross-cutting functionality includes data validation, calibration, histo
 ## 🛠️ Getting started
 
 ```shell
-git clone https://github.com/danielep71/K-IRRBB_behavioral_models.git
-cd K-IRRBB_behavioral_models
+git clone https://github.com/danielep71/K-IRRBB_Behavioral_Models.git
+cd K-IRRBB_Behavioral_Models
 git switch release/v0.2.0
 python tools/check.py
 ```
 
-Git and Python 3.10+ are needed for the static checks. A Windows 64-bit Excel host is intended for future workbook import, compile and execution. **Passing Python checks does not imply VBA compilation or model validation.**
+Git and Python 3.10+ are needed for the static checks. A Windows 64-bit Excel host is needed for workbook import, compile and the regression harness. **Passing Python checks does not imply VBA compilation or model validation.**
 
 ## 🔒 Data, confidentiality and provenance
 

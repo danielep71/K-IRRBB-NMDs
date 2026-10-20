@@ -2,7 +2,7 @@
 
 # 📦 Installation and Developer Setup
 
-### Set up, validate, and later import the K-IRRBB into Excel
+### Set up, validate, and later import K-IRRBB into Excel
 
 [![Status](https://img.shields.io/badge/Status-In_development-d97706?style=flat-square)](#current-status)
 [![Checks](https://img.shields.io/badge/Checks-python_tools%2Fcheck.py-0969da?style=flat-square)](#run-the-checks)
@@ -33,16 +33,18 @@ and removal**. Contribution workflow is owned by
 
 Milestone **v0.2.0 – Workbook, data and Excel tests** is in progress;
 **v0.1.0 – Repository foundation** closed on 2026-10-09. There is **no
-IRRBB release** and **no model to run in Excel yet**: the repository holds
-documentation, issue governance, CI, static source checks, the first core
-parsing modules and the regression harness.
+IRRBB release** and **no validated model**: the repository holds
+documentation, issue governance, CI, static source checks, the data import
+(core, public facade and workbook adapter), the workbook template, the
+synchronizer and source round trip, the regression harness and the draft
+decay model under review in #36.
 
 | Topic | Status |
 | --- | --- |
 | VBA source layout | Defined in [`docs/REPOSITORY_STRUCTURE.md`](docs/REPOSITORY_STRUCTURE.md) |
 | VBA conventions | Defined in [`docs/VBA_HOUSE_STYLE.md`](docs/VBA_HOUSE_STYLE.md) |
 | Static checks | Available: `python tools/check.py` |
-| VBA source | `src/core/`: CORE_Parse (dates, decimals, rates), CORE_Codes (segments, currency allowlist, identifiers), CORE_Sha256 (data fingerprint) and CORE_Import (validation, summary, outcomes and point-in-time view of the data files); `src/modules/IRRBB_Import` (public import from files) and `src/workbook/WB_Import` (runs the import from `Config` into `DataSummary`), #71; draft decay model (CORE_Math, CORE_Decay, CORE_Overlay, facade `src/modules/IRRBB_Decay`) under review in #36 |
+| VBA source | `src/core/`: CORE_Parse (dates, decimals, rates), CORE_Codes (segments, currency allowlist, identifiers), CORE_Sha256 (data fingerprint) and CORE_Import (validation, summary, outcomes and point-in-time view of the data files); `src/modules/IRRBB_Import` (public import from files) and `src/workbook/WB_Import` (runs the import from `Config` into `DataSummary`), #71; the draft decay model CORE_Math, CORE_Decay, CORE_Overlay and `src/modules/IRRBB_Decay` (#36, not validated) |
 | Workbook template | [`src/workbook/IRRBB_Template.xlsx`](src/workbook/IRRBB_Template.xlsx), macro-free, generated from source; layout in [`docs/WORKBOOK_CONTRACT.md`](docs/WORKBOOK_CONTRACT.md) (#5); not yet opened in Excel |
 | Regression harness | `tests/modules/` (#8): runs from a [development workbook](#development-workbook); no Excel run recorded yet |
 | Supported hosts and references | Decided in issue #3; see [supported hosts](#supported-hosts) |
@@ -60,14 +62,14 @@ Passing static checks is **not** evidence of correct IRRBB calculations.
 | Git | Cloning and all repository work |
 | Python 3.10 or later | `python tools/check.py`; standard library only, no packages |
 | Node.js 20 or later | Optional: local label-catalog checks |
-| Microsoft Excel for Windows | **Future** VBA import, compile and model execution; see [supported hosts](#supported-hosts); not needed for static checks |
+| Microsoft Excel for Windows | VBA import, compile, the regression harness and the data import, and later the models; see [supported hosts](#supported-hosts); not needed for static checks |
 
 <a id="supported-hosts"></a>
 
 ## 🖥️ Supported hosts
 
-Decided by the owner on 2026-10-08; see the
-[acceptance record in #3](https://github.com/danielep71/K-IRRBB_behavioral_models/issues/3#issuecomment-6068524873).
+Decided on 2026-10-08; see the
+[acceptance record in #3](https://github.com/danielep71/K-IRRBB_Behavioral_Models/issues/3#issuecomment-6068524873).
 
 | Host | Support level | Evidence required |
 | --- | --- | --- |
@@ -110,8 +112,8 @@ tested until such a record exists; none does yet.
 Use a **Git clone**:
 
 ```sh
-git clone https://github.com/danielep71/K-IRRBB_behavioral_models.git
-cd K-IRRBB_behavioral_models
+git clone https://github.com/danielep71/K-IRRBB_Behavioral_Models.git
+cd K-IRRBB_Behavioral_Models
 git switch release/v0.2.0
 ```
 
@@ -182,20 +184,31 @@ appears on `DataSummary`. Details and the
 LibreOffice early-warning run are in
 [`tools/devbuild/README.md`](tools/devbuild/README.md).
 
+<a id="updating-an-existing-workbook"></a>
+
+### Updating an existing workbook
+
+To bring a workbook saved from the template (or an earlier build) up to the
+source of the checkout, close it and drag it onto `tools/Sync-IRRBB-VBA.cmd`.
+The synchronizer asks whether it is a production or a development workbook and
+replaces the VBA components from `src/` (and, for development, `tests/` and
+`examples/`) without touching sheets or data. To try modules downloaded for a
+review without copying them into the checkout, use
+`tools/Sync-IRRBB-VBA-Downloads.cmd` instead. Both need Windows Excel with
+**Trust access to the VBA project object model** enabled; see
+[`tools/README.md`](tools/README.md#local-vba-synchronization). Afterwards run
+**Debug → Compile VBAProject** and enter the commit in `Readme!B5` as in step 6
+below.
+
 ### Manual import
 
-Use these steps when the builder cannot be used. Components at present:
+Use these steps when neither the builder nor the synchronizer can be used. Components at present:
 `src/core/CORE_Codes.bas`, `src/core/CORE_Parse.bas`,
-`src/core/CORE_Import.bas`, `src/core/CORE_Sha256.bas`, `src/core/CORE_Math.bas`,
-`src/core/CORE_Decay.bas`, `src/core/CORE_Overlay.bas`, `src/modules/IRRBB_Import.bas`,
-`src/modules/IRRBB_Decay.bas`, `src/workbook/WB_Import.bas`; development only:
-`tests/modules/TEST_Harness.bas`,
+`src/core/CORE_Import.bas`, `src/core/CORE_Sha256.bas`, `src/modules/IRRBB_Import.bas`,
+`src/workbook/WB_Import.bas`; development only: `tests/modules/TEST_Harness.bas`,
 `tests/modules/TEST_CoreCases.bas`, `tests/modules/TEST_WorkbookCases.bas`,
 `tests/modules/TEST_DataCases.bas`, `tests/modules/TEST_Fixtures.bas`,
-`tests/modules/TEST_ImportCases.bas`, `tests/modules/TEST_HashCases.bas`,
-`tests/modules/TEST_DecayData.bas`, `tests/modules/TEST_DecayCases.bas` and
-`examples/modules/EX_DecayExample.bas` (it reads a `DecayExample` sheet that
-the template does not have yet, #36).
+`tests/modules/TEST_ImportCases.bas`, `tests/modules/TEST_HashCases.bas`.
 
 1. Start from **one exact commit** in a Git checkout, so `.bas`, `.cls` and
    `.frm` files have CRLF line endings. Never mix components from different
@@ -207,12 +220,13 @@ the template does not have yet, #36).
    committed.
 3. Open the VBE (**Alt+F11**) and check that **Tools → References** lists only
    the [four default references](#vba-references).
-4. Import in dependency order: `src/core/`, then `src/classes/`, then
-   `src/modules/`, then the standard modules in `src/workbook/`, then
-   `src/forms/` (each `.frm` with its `.frx`). For a development workbook only,
-   add `tests/` and `examples/` modules.
-5. Paste document-module code (`ThisWorkbook`, sheet modules) into the existing
-   module instead of importing it, which would create a duplicate class.
+4. Import in dependency order: `src/core/`, then `src/classes/` (none exist
+   yet), then `src/modules/`, then the standard modules in `src/workbook/`,
+   then `src/forms/` (none yet; each `.frm` with its `.frx`). For a development
+   workbook only, add the `tests/` and `examples/` modules.
+5. Paste the code of the document modules (`src/workbook/ThisWorkbook.cls` and
+   the sheet modules `src/workbook/sh*.cls`) into the existing module instead
+   of importing it, which would create a duplicate class.
 6. Run **Debug → Compile VBAProject**; it must complete with no error.
    Enter the 40-digit commit of the imported source in `Readme` cell `B5`
    (`Readme_SourceCommit`); the data import refuses to run without it, since
@@ -226,6 +240,11 @@ Do not paste source into arbitrarily named modules: the component name
 match the file name.
 
 ### Exporting changes back
+
+To check a workbook against a commit without changing the checkout, export it
+with `tools/Export-IRRBB-VBA.ps1` and compare with `tools/compare_vba_export.py`
+([source round trip](tools/README.md#source-round-trip)). To bring an edit made
+in the VBE back into the repository:
 
 1. In the VBE, export each changed component over its file in the checkout, in
    the same folder.

@@ -2,7 +2,7 @@
 
 # 📗 Workbook Contract
 
-### Sheets, CodeNames, named areas and result status of the IRRBB workbook
+### Sheets, CodeNames, named areas and result status of the K-IRRBB workbook
 
 [![Template](https://img.shields.io/badge/Template-macro--free_xlsx-217346?style=flat-square)](#template)
 [![Source](https://img.shields.io/badge/Built-from_source-1d76db?style=flat-square)](#build)
@@ -51,7 +51,11 @@ no function.
 - **Owner** is the only writer. *User* cells are typed by the user (or set by a
   picker VBA opens); *VBA* areas are written only by VBA; *Builder* is the
   build stamp written when the workbook is built from source.
-- Every sheet starts with its title in `A1` and its purpose in `A2`.
+- Every sheet starts with the `K-IRRBB` brand strip in `A1` and its title in
+  `A2`. The purpose is in `A3` on input/documentation sheets and `D3` on output
+  sheets, leaving the output status in `B3`. Presentation merges never cover
+  input or runtime output areas. All existing workbook-scoped names and their
+  addresses remain unchanged.
 
 <a id="names"></a>
 
@@ -140,6 +144,41 @@ last row and the cut is stated in the status block.
   and status block; result tables start at row 13 (headers) and are defined
   when the function that writes them is built.
 
+### Visual identity
+
+The workbook follows the maintainer's SACCR template visual identity: Aptos,
+a black brand strip with gold `K-IRRBB` lettering, a blue title band and
+consistent spacing. The reference is `VBA-SACCR-Toolkit`'s
+`src/workbook/SACCR_Template.xlsx` at commit
+`cf31de00e283f44e7a8b990dc53d7f231a4bf652`; only presentation conventions are
+adapted, not its model content or workbook layout.
+
+| Element | Style |
+| --- | --- |
+| Brand strip | Black `#000000`, gold text `#FFC000`, 14 pt |
+| Sheet title | Blue `#265A99`, white bold text, 18 pt |
+| Input table headers | Navy `#1F3864`, white bold text, 11 pt |
+| Output table headers | Blue `#2E75B6`, white bold text, 11 pt |
+| Body / notes | Aptos 10 pt / 9 pt; secondary text `#595959` |
+| Editable inputs | Yellow `#FFF2CC`, thin gray `#BFBFBF` borders |
+| Tabs | Documentation navy; inputs gold `#BF9000`; outputs blue; regression tests green `#548235` |
+| Amounts / counts | `#,##0.00` / `#,##0`; display precision does not change stored values |
+| Diagnostic differences / tolerances | Scientific notation `0.00E+00`, retaining visibility of small nonzero values |
+| Dates / timestamps | `yyyy-mm-dd` / `yyyy-mm-dd hh:mm:ss`; imported ISO text remains text |
+
+Gridlines are hidden. Output statuses keep the existing amber/green/red rules.
+Readme includes a short workflow and the sheet-readiness map. DataSummary
+labels totals, findings, warnings, lineage and outcomes; Checks labels cases
+and assertions. Placeholder sheets remain explicitly unavailable.
+
+Print setup uses A4 landscape and repeating title/header rows. Readme and
+input sheets have bounded print areas; output sheets have no fixed print area
+so later VBA results are not omitted. Wide output tables print across pages
+at readable widths instead of shrinking all columns onto one page.
+Column number formats provide defaults for future values without allocating
+thousands of blank result rows. VBA can still assign text formats where the
+data contract requires text.
+
 <a id="template"></a>
 <a id="build"></a>
 
@@ -158,7 +197,10 @@ adds document properties and rewrites the package.
 
 The development workbook (`tools/devbuild/build_dev_workbook.py`) is this
 template plus a build stamp on `Readme`, a **Run tests** button on `Checks` and
-the VBA project assembled from source.
+the VBA project assembled from source. Development buttons use the same navy
+and blue palette and Aptos lettering. The Checks button sits outside the status
+and purpose blocks. Development evidence instructions start at Readme row 34,
+after the workflow, and never overwrite the sheet map or build-stamp cells.
 
 <a id="evidence"></a>
 

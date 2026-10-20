@@ -8,9 +8,11 @@ The workbook is the template of issue #5 (tools/workbook/build_template.py)
 with a build stamp on the Readme sheet, a Run tests button on Checks and a VBA
 project assembled from one commit: every .bas in src/core, src/modules,
 src/workbook, tests/modules and examples/modules is embedded unchanged (CRLF),
-with document modules for ThisWorkbook and each sheet, so Excel compiles the
-project from source on open. It is the owner-chosen import route of issue #6
-and the vehicle for the harness evidence of issue #8. Standard library only.
+with the document modules of src/workbook (ThisWorkbook.cls and one .cls per
+sheet), so Excel compiles the project from source on open. It needs no Trust
+access to the VBA project object model, unlike tools/Sync-IRRBB-VBA.ps1, which
+updates an existing workbook (issue #6). It is the vehicle for the harness
+evidence of issue #8. Standard library only.
 """
 from __future__ import annotations
 
@@ -26,15 +28,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "workbook"))
 import build_template  # noqa: E402
-from vba_project import Module, build_vba_project, document_module  # noqa: E402
+from vba_project import Module, build_vba_project  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 COMPONENT_DIRS = ["src/core", "src/modules", "src/workbook", "tests/modules", "examples/modules"]
 BUTTONS = {
-    "Config": [("Choose account file", "WB_ChooseAccountsFile", 0, 13, "1F3A5F"),
-               ("Choose rate file", "WB_ChooseRatesFile", 0, 16, "1F3A5F"),
-               ("Import data", "WB_ImportData", 0, 19, "2E7D7A")],
-    "Checks": [("Run tests", "RunTests", 1, 3, "2E7D7A")],
+    "Config": [("Choose account file", "WB_ChooseAccountsFile", 0, 13, build_template.NAVY),
+               ("Choose rate file", "WB_ChooseRatesFile", 0, 16, build_template.NAVY),
+               ("Import data", "WB_ImportData", 0, 19, build_template.OUTPUT_BLUE)],
+    "Checks": [("Run tests", "RunTests", 6, 5, build_template.OUTPUT_BLUE)],
 }
 EVIDENCE_STEPS = [
     "Evidence steps (docs/EXCEL_EVIDENCE.md, INSTALLATION.md):",
@@ -50,6 +52,16 @@ EVIDENCE_STEPS = [
 
 def git(*args: str) -> str:
     return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, check=True).stdout.strip()
+
+
+def document_source(name: str) -> Module:
+    """The document module src/workbook/<name>.cls without the VERSION/BEGIN/END
+    block the VBE writes before the attributes of an exported class."""
+    raw = (ROOT / "src" / "workbook" / f"{name}.cls").read_bytes().decode("cp1252")
+    lines = raw.replace("\r\n", "\n").split("\n")
+    start = next(i for i, line in enumerate(lines) if line.startswith("Attribute "))
+    text = "\r\n".join(lines[start:])
+    return Module(name, text if text.endswith("\r\n") else text + "\r\n", document=True)
 
 
 def components() -> list[Path]:
@@ -73,7 +85,7 @@ def build(target: Path) -> None:
     xlsx = build_template.package(stamp, EVIDENCE_STEPS)
 
     sheets = build_template.SHEETS
-    modules = [document_module("ThisWorkbook", True)] + [document_module(s.code_name, False) for s in sheets]
+    modules = [document_source("ThisWorkbook")] + [document_source(s.code_name) for s in sheets]
     for path in comps:
         text = path.read_bytes().decode("cp1252").replace("\r\n", "\n").replace("\n", "\r\n")
         modules.append(Module(path.stem, text if text.endswith("\r\n") else text + "\r\n"))
@@ -89,7 +101,8 @@ def button_anchor(idx: int, label: str, macro: str, col: int, row: int, color: s
             f'<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></a:xfrm><a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom>'
             f'<a:solidFill><a:srgbClr val="{color}"/></a:solidFill><a:ln><a:noFill/></a:ln></xdr:spPr>'
             f'<xdr:txBody><a:bodyPr vertOverflow="clip" rtlCol="0" anchor="ctr"/><a:lstStyle/><a:p><a:pPr algn="ctr"/>'
-            f'<a:r><a:rPr lang="en-US" sz="1100" b="1"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:rPr>'
+            f'<a:r><a:rPr lang="en-US" sz="1100" b="1"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>'
+            f'<a:latin typeface="Aptos"/></a:rPr>'
             f'<a:t>{label}</a:t></a:r></a:p></xdr:txBody></xdr:sp><xdr:clientData/></xdr:twoCellAnchor>')
 
 
@@ -128,7 +141,7 @@ def inject(xlsx: bytes, vba_bin: bytes, out: Path, sheet_names: list[str]) -> No
                            'schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdBtn" '
                            'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" '
                            f'Target="../drawings/{dname}"/></Relationships>').encode()
-        sheet, count = re.subn(r"(<pageMargins[^>]*/>)", r'\1<drawing r:id="rIdBtn"/>', sheet, count=1)
+        sheet, count = re.subn(r"(<pageSetup[^>]*/>)", r'\1<drawing r:id="rIdBtn"/>', sheet, count=1)
         if not count:
             raise RuntimeError(f"cannot place the drawing in {sheet_path}")
         files[sheet_path] = sheet.encode()
