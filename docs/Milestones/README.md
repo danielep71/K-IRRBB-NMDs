@@ -48,7 +48,7 @@ the user workflow. v0.9.0 consolidates the evidence before v1.0.0 acceptance.
 
 The methodological amendments [#32–#37](../methodology/MODEL_CONTRACTS.md)
 must precede the affected implementations. Umbrella issue
-[#26](https://github.com/danielep71/K-IRRBB_Behavioral_Models/issues/26), assigned
+[#26](https://github.com/danielep71/K-IRRBB-NMDs/issues/26), assigned
 to v0.7.0, does not defer the earlier models' prerequisites to that version.
 
 ## 🧪 Common completion requirements
