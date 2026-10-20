@@ -68,7 +68,7 @@ Passing static checks is **not** evidence of correct IRRBB calculations.
 
 ## 🖥️ Supported hosts
 
-Decided by the owner on 2026-10-08; see the
+Decided on 2026-10-08; see the
 [acceptance record in #3](https://github.com/danielep71/K-IRRBB_Behavioral_Models/issues/3#issuecomment-6068524873).
 
 | Host | Support level | Evidence required |
