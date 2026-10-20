@@ -94,24 +94,6 @@ Use only the categories needed by a release.
 
 ## [Unreleased]
 
-### Repository identity
-
-- Rename the GitHub repository to `K-IRRBB_behavioral_models` and update clone
-  instructions, badges, issue and milestone links, and security/help links.
-  The display brand remains **K-IRRBB**.
-
-### Presentation
-
-- Align the workbook with the maintainer's SACCR visual identity: black-and-gold
-  `K-IRRBB` branding, blue title bands, Aptos typography, distinct input/output
-  headers, colored tabs, consistent spacing and landscape print setup. Add a
-  short Readme workflow, section labels on DataSummary and Checks, and readable
-  amount, count and diagnostic formats. Development-workbook buttons share the
-  palette and avoid the status block. The template remains reproducible from
-  its generator; sheet order, CodeNames, named ranges, validations, status rules
-  and calculation behavior are unchanged. Native Excel visual verification is
-  still required.
-
 > Not yet released. Development takes place on the active release branch,
 > `release/v0.2.0`; changes to `main` require an explicit owner instruction.
 
@@ -275,8 +257,18 @@ Use only the categories needed by a release.
 - The project is named K-IRRBB, like its sibling K-SACCR: the README heading,
   the governance documents, the PR template, the traffic alert and the title
   on the workbook's Readme sheet use the new name. The repository was
-  subsequently renamed to `K-IRRBB_behavioral_models`; identifiers, file names
-  and the `IRRBB_` prefix are unchanged.
+  subsequently renamed to `K-IRRBB_behavioral_models`, and clone instructions,
+  badges, issue and milestone links and security/help links follow;
+  identifiers, file names and the `IRRBB_` prefix are unchanged.
+- The workbook template follows the maintainer's SACCR visual identity:
+  black-and-gold `K-IRRBB` branding, blue title bands, Aptos typography,
+  distinct input/output headers, colored tabs, consistent spacing and landscape
+  print setup, with a short Readme workflow, section labels on DataSummary and
+  Checks, and readable amount, count and diagnostic formats. Development-workbook buttons share the
+  palette and avoid the status block. The template remains reproducible from
+  its generator; sheet order, CodeNames, named ranges, validations, status rules
+  and calculation behavior are unchanged. Native Excel visual verification is
+  still required.
 - The data contract now states that dates have a year from 1900 to 9999 (the
   Excel date system) and that a decimal has digits on both sides of any `.`
   (#8).
@@ -423,9 +415,9 @@ Use only the categories needed by a release.
   these structural checks do not certify Excel compatibility.
 - Traffic history labels the repository count `open_issues_and_prs`, including
   pull requests, and preserves values when migrating the old CSV column.
-- Traffic alert issues are now created in the repository's single open
-  milestone, so every issue carries a milestone; the run fails if there is
-  no open milestone or more than one.
+- Traffic alert issues are now created in a milestone, so every issue
+  carries one: the milestone named by the repository variable
+  `ISSUE_MILESTONE_NUMBER`, which must be open; the run fails otherwise.
 - The data-contract reference check applies the cross-row history rule
   (`E11`) before duplicate (`E05`) and currency-change (`E08`) rules and to
   every affected row, as `DATA_CONTRACT.md` orders them; duplicates and

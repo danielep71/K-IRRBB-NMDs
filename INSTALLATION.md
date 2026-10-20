@@ -33,16 +33,18 @@ and removal**. Contribution workflow is owned by
 
 Milestone **v0.2.0 – Workbook, data and Excel tests** is in progress;
 **v0.1.0 – Repository foundation** closed on 2026-10-09. There is **no
-IRRBB release** and **no model to run in Excel yet**: the repository holds
-documentation, issue governance, CI, static source checks, the first core
-parsing modules and the regression harness.
+IRRBB release** and **no validated model**: the repository holds
+documentation, issue governance, CI, static source checks, the data import
+(core, public facade and workbook adapter), the workbook template, the
+synchronizer and source round trip, the regression harness and the draft
+decay model under review in #36.
 
 | Topic | Status |
 | --- | --- |
 | VBA source layout | Defined in [`docs/REPOSITORY_STRUCTURE.md`](docs/REPOSITORY_STRUCTURE.md) |
 | VBA conventions | Defined in [`docs/VBA_HOUSE_STYLE.md`](docs/VBA_HOUSE_STYLE.md) |
 | Static checks | Available: `python tools/check.py` |
-| VBA source | `src/core/`: CORE_Parse (dates, decimals, rates), CORE_Codes (segments, currency allowlist, identifiers), CORE_Sha256 (data fingerprint) and CORE_Import (validation, summary, outcomes and point-in-time view of the data files); `src/modules/IRRBB_Import` (public import from files) and `src/workbook/WB_Import` (runs the import from `Config` into `DataSummary`), #71; no model yet |
+| VBA source | `src/core/`: CORE_Parse (dates, decimals, rates), CORE_Codes (segments, currency allowlist, identifiers), CORE_Sha256 (data fingerprint) and CORE_Import (validation, summary, outcomes and point-in-time view of the data files); `src/modules/IRRBB_Import` (public import from files) and `src/workbook/WB_Import` (runs the import from `Config` into `DataSummary`), #71; the draft decay model CORE_Math, CORE_Decay, CORE_Overlay and `src/modules/IRRBB_Decay` (#36, not validated) |
 | Workbook template | [`src/workbook/IRRBB_Template.xlsx`](src/workbook/IRRBB_Template.xlsx), macro-free, generated from source; layout in [`docs/WORKBOOK_CONTRACT.md`](docs/WORKBOOK_CONTRACT.md) (#5); not yet opened in Excel |
 | Regression harness | `tests/modules/` (#8): runs from a [development workbook](#development-workbook); no Excel run recorded yet |
 | Supported hosts and references | Decided in issue #3; see [supported hosts](#supported-hosts) |
@@ -221,8 +223,7 @@ Use these steps when neither the builder nor the synchronizer can be used. Compo
 4. Import in dependency order: `src/core/`, then `src/classes/` (none exist
    yet), then `src/modules/`, then the standard modules in `src/workbook/`,
    then `src/forms/` (none yet; each `.frm` with its `.frx`). For a development
-   workbook only, add the `tests/` modules (and `examples/` modules, when
-   present).
+   workbook only, add the `tests/` and `examples/` modules.
 5. Paste the code of the document modules (`src/workbook/ThisWorkbook.cls` and
    the sheet modules `src/workbook/sh*.cls`) into the existing module instead
    of importing it, which would create a duplicate class.

@@ -7,7 +7,7 @@
 [![Release model](https://img.shields.io/badge/Release-Exact_source-0969da?style=flat-square)](#release-invariants)
 [![Versioning](https://img.shields.io/badge/Versioning-SemVer-3f4551?style=flat-square)](CHANGELOG.md#date-and-version-rules)
 [![Status](https://img.shields.io/badge/Status-Pre--release-6e7781?style=flat-square)](#current-status)
-[![Security](https://img.shields.io/badge/Security-Private-d73a49?style=flat-square)](SECURITY.md)
+[![Reporting](https://img.shields.io/badge/Reporting-Private-d97706?style=flat-square)](SECURITY.md#reporting-a-vulnerability)
 
 <br>
 
@@ -50,7 +50,7 @@ artifact. The v0.1.0 foundation milestone closed without producing a release.
 | Branch | Role |
 | --- | --- |
 | `release/<version>` | Active integration branch. Task PRs are squash-merged into it after review and green checks. |
-| `release/v0.3.0` | Opened early to hold the reviewed decay prototype (#36); takes no other work until v0.2.0 is released. |
+| `release/v0.3.0` | Opened early for the decay prototype (#36, #94). That work was integrated into `main` (#97) and reached `release/v0.2.0` when it was levelled with `main`. Takes no other work until v0.2.0 is released; it is levelled after each integration (step 4 below). |
 | `main` | Default branch. Receives the release branch only through an owner-requested PR merged with a merge commit. |
 | Task branches | One per change, from the release branch: `fix/<issue>-<slug>`, `docs/<slug>`, `test/<slug>`. |
 
