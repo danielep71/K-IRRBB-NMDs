@@ -34,8 +34,8 @@ written by [`VBA_HOUSE_STYLE.md`](VBA_HOUSE_STYLE.md); model definitions by
 
 ## 🧭 Profile decision
 
-**K-IRRBB uses the `application` profile.** Decided by the owner on
-2026-10-08 in issue #2.
+**K-IRRBB uses the `application` profile.** Decided on 2026-10-08
+in issue #2.
 
 | Question | Answer for K-IRRBB |
 | --- | --- |

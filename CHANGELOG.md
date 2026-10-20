@@ -314,8 +314,8 @@ Use only the categories needed by a release.
   decay reference case `DEC-E2E-01` (draft, #36) and the REG-1
   core-deposit caps; `docs/assets/README.md` records each source and how to
   regenerate the image.
-- Data-contract amendment for point-in-time data (#32), decided by the owner
-  on 2026-10-09: a back-filled `close_date` is accepted but masked in the
+- Data-contract amendment for point-in-time data (#32), decided on
+  2026-10-09: a back-filled `close_date` is accepted but masked in the
   point-in-time view at earlier forecast origins, and closures are assumed
   reported by the month end in which they occur (attested per import, recorded
   in the lineage); only a recorded closure is a
