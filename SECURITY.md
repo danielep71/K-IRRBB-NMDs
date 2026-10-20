@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🔒 IRRBB Toolkit Security Policy
+# 🔒 K-IRRBB Security Policy
 
 ### Interest Rate Risk in the Banking Book — behavioral models in Excel/VBA
 
@@ -41,7 +41,7 @@ Excel process are not isolated security sandboxes.
 
 ## 📦 Supported versions
 
-The IRRBB Toolkit is **pre-release**. No version has been released, so no
+The K-IRRBB is **pre-release**. No version has been released, so no
 version carries production security support.
 
 | Source state | Security support |
@@ -64,7 +64,7 @@ message, sample workbook, screenshot or release note.
 Report through GitHub private vulnerability reporting: **Security → Report a
 vulnerability** on the repository. If that is unavailable to you, report by
 email to **danielep71@gmail.com** with the subject
-**Private security report — IRRBB Toolkit**.
+**Private security report — K-IRRBB**.
 
 Include only the information needed to assess the issue:
 
@@ -88,7 +88,7 @@ the report.
 
 ## ⏱️ Response process
 
-The IRRBB Toolkit is maintained by one person; targets are best-effort, not a
+The K-IRRBB is maintained by one person; targets are best-effort, not a
 contractual SLA.
 
 | Stage | Target |
@@ -224,7 +224,7 @@ Users should:
 - obtain source only from this repository and know which commit it is;
 - test with synthetic data in a controlled environment before using real data;
   and
-- understand that IRRBB Toolkit output is a modeling aid. It is not
+- understand that K-IRRBB output is a modeling aid. It is not
   regulatory approval, independent model validation or an authentication or
   authorization control.
 
