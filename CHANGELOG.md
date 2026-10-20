@@ -417,6 +417,10 @@ Use only the categories needed by a release.
   milestone 1, the closed v0.1.0, when the repository variable
   `ISSUE_MILESTONE_NUMBER` is unset; they fail with a message naming the
   variable, and a value that is not a positive number is rejected (#117).
+- The synchronizer drops procedure-level attribute lines (for example
+  `Attribute Worksheet_Change.VB_Description = ...`) from document modules
+  before pasting their code, where they would be invalid VBA; the code around
+  them is kept (#118).
 - The issue-metadata workflow no longer fails on issue events that GitHub
   raises for pull requests (#41): it skips them before reading the item, which
   its token, without pull-request access, cannot do. Failed API calls now log

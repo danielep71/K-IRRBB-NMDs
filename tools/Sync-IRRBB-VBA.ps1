@@ -220,13 +220,15 @@ function Get-VbaCodeBody {
 
     if ($lastAttribute -ge 0) {
         if (($lastAttribute + 1) -ge $lines.Count) { return "" }
-        return [string]::Join(
-            [Environment]::NewLine,
-            $lines[($lastAttribute + 1)..($lines.Count - 1)]
-        )
+        $lines = $lines[($lastAttribute + 1)..($lines.Count - 1)]
     }
 
-    return [string]::Join([Environment]::NewLine, $lines)
+    # A procedure-level attribute (Attribute Worksheet_Change.VB_Description
+    # = ...) sits inside its procedure, not in the header; pasted into the
+    # code module it would be invalid VBA, so it is dropped (#118). The
+    # member name may hold any code-page letter, so it is not restricted.
+    $code = @($lines | Where-Object { $_ -notmatch '^\s*Attribute\s+[^\s.=]+\.VB_' })
+    return [string]::Join([Environment]::NewLine, $code)
 }
 
 function Copy-WithCrlf {
