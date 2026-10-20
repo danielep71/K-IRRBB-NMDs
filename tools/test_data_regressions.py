@@ -6,8 +6,14 @@ import unittest
 from datetime import date
 from pathlib import Path
 
-from test_data_contract import (ACCOUNT_FIELDS, RATE_FIELDS, read_accounts,
-                                read_market_rates, row_error, warnings_and_totals)
+from test_data_contract import (
+    ACCOUNT_FIELDS,
+    RATE_FIELDS,
+    read_accounts,
+    read_market_rates,
+    row_error,
+    warnings_and_totals,
+)
 
 
 class DataRegressions(unittest.TestCase):

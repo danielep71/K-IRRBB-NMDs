@@ -170,6 +170,25 @@ Review each update pull request like any other:
 3. Squash-merge it. Nothing is merged or approved automatically, and
    Dependabot alerts are never dismissed automatically.
 
-Ruff and mypy settings in `pyproject.toml` are optional development targets, not
-CI checks or verified compliance. The required CI command remains the portable
-standard-library gate runner above.
+## Quality gates
+
+After the portable gates above, the **Repository integrity** job installs Ruff
+and mypy from the hash-locked `tools/requirements-quality-ci.txt` (CPython 3.10,
+wheels only) and runs, as in VBA-SACCR-Toolkit:
+
+- `ruff check tools` with the settings in `pyproject.toml`, plus a probe that
+  proves the complexity ceiling of 15 is active;
+- actionlint 1.7.12 on every workflow, downloaded and checked against its
+  SHA-256.
+
+The quality steps run even when an earlier step failed, so one run reports
+every problem. `mypy --strict` (configured in `pyproject.toml`) is not yet a
+gate: `tools/` still has type errors, and the gate is added once they are fixed
+(#115). To change a tool version, update its hash or checksum in
+`tools/requirements-quality-ci.txt` or the workflow `env` in one reviewed pull
+request; Dependabot does not cover them. Locally:
+
+```shell
+python -m pip install --only-binary=:all: --require-hashes -r tools/requirements-quality-ci.txt
+ruff check tools
+```

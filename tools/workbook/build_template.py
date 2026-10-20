@@ -133,7 +133,9 @@ TEMPLATE_STAMP = ["None: template without a VBA project", "Not built from source
                   "None", "Not applicable"]
 
 
-def _layout() -> None:
+# The template's cell-by-cell layout: its branches are per-sheet content, not
+# control logic, and build_template.py --check pins the output.
+def _layout() -> None:  # noqa: C901
     sheets = {s.name: s for s in SHEETS}
     for s in SHEETS:
         s.cells["A1"] = ("K-IRRBB", BRAND)

@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from check_source import check_changelog, check_version, VB_NAME, OPTION_EXPLICIT
+from check_source import OPTION_EXPLICIT, VB_NAME, check_changelog, check_version
 
 
 class SourceContracts(unittest.TestCase):
