@@ -413,6 +413,10 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The synchronizer drops procedure-level attribute lines (for example
+  `Attribute Worksheet_Change.VB_Description = ...`) from document modules
+  before pasting their code, where they would be invalid VBA; the code around
+  them is kept (#118).
 - The issue-metadata workflow no longer fails on issue events that GitHub
   raises for pull requests (#41): it skips them before reading the item, which
   its token, without pull-request access, cannot do. Failed API calls now log

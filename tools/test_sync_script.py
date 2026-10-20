@@ -71,6 +71,27 @@ class SyncScriptTests(unittest.TestCase):
         self.assertEqual(self.code_body(b""), "")
         self.assertEqual(self.code_body("Option Explicit\r\n' é\r\n".encode("cp1252")), "Option Explicit\n' é")
 
+    def test_document_code_drops_procedure_level_attributes(self) -> None:
+        # #118: a member attribute inside a procedure is removed; the code
+        # before and after it, and an "Attribute" word elsewhere, are kept.
+        code = ("Option Explicit\r\nPrivate Count As Long\r\n"
+                "Private Sub Worksheet_Change(ByVal Target As Range)\r\n"
+                "Attribute Worksheet_Change.VB_Description = \"Recalculate\"\r\n"
+                "    Count = Count + 1 ' Attribute VB_Name stays in a comment\r\n"
+                "End Sub\r\n"
+                "Public Property Get Value() As Long\r\n"
+                "  Attribute Value.VB_UserMemId = 0\r\n"
+                "    Value = Count\r\n"
+                "End Property\r\n")
+        expected = ("Option Explicit\nPrivate Count As Long\n"
+                    "Private Sub Worksheet_Change(ByVal Target As Range)\n"
+                    "    Count = Count + 1 ' Attribute VB_Name stays in a comment\n"
+                    "End Sub\n"
+                    "Public Property Get Value() As Long\n"
+                    "    Value = Count\n"
+                    "End Property")
+        self.assertEqual(self.code_body((HEADER + code).encode("cp1252")), expected)
+
     def write_module(self, folder: Path, file_name: str, header: str) -> None:
         (folder / file_name).write_bytes((header + "Option Explicit\r\n").encode("cp1252"))
 
