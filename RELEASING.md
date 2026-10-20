@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🚀 IRRBB Toolkit Release Guide
+# 🚀 K-IRRBB Release Guide
 
 ### Integration and release sequence for the IRRBB behavioral-model toolkit
 
