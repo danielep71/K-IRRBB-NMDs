@@ -69,7 +69,7 @@ class Sheet:
 
 SHEETS = [
     Sheet("Readme", "shReadme", "Documentation", "Builder", "Implemented: sheet map and build stamp",
-          "IRRBB Toolkit", "Workbook for IRRBB behavioral models. This sheet maps every sheet and records the build."),
+          "K-IRRBB", "Workbook for IRRBB behavioral models. This sheet maps every sheet and records the build."),
     Sheet("Config", "shConfig", "Input", "User", "Implemented: run settings read by the data importer (#71)",
           "Run settings", "Data files, data window, rate series and attestation for one run (DATA_CONTRACT.md)."),
     Sheet("Segments", "shSegments", "Input", "User",

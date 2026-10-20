@@ -2,7 +2,7 @@
 
 # 📗 Workbook Contract
 
-### Sheets, CodeNames, named areas and result status of the IRRBB workbook
+### Sheets, CodeNames, named areas and result status of the K-IRRBB workbook
 
 [![Template](https://img.shields.io/badge/Template-macro--free_xlsx-217346?style=flat-square)](#template)
 [![Source](https://img.shields.io/badge/Built-from_source-1d76db?style=flat-square)](#build)

@@ -1,6 +1,6 @@
 # 🖼️ Documentation images
 
-The images in this directory illustrate the IRRBB toolkit. They do not certify
+The images in this directory illustrate K-IRRBB. They do not certify
 any model or replace the [methodology](../methodology/README.md), which holds
 the model contracts, the test cases and the regulatory sources.
 
@@ -37,7 +37,7 @@ laid out like the social previews of VBA-SACCR-Toolkit and MKT-FTRB-SA.
   `bt_rate`).
 - **Models:** the three model families of the root README; only decay exists,
   as a draft.
-- **Name:** the title is K-IRRBB, in the naming of the sibling toolkits
+- **Name:** the title is the project name, K-IRRBB, as for the sibling toolkits
   K-SACCR and K-FRTB-SA; the subject, IRRBB, is spelled out beneath it.
 - **Status:** the pill names the version in progress, "In progress 0.2.0";
   update it with each release.

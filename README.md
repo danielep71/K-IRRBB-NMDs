@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🏦 IRRBB Behavioral Models — Excel/VBA Toolkit
+# 🏦 K-IRRBB
 
-### Interest Rate Risk in the Banking Book | behavioral modeling, calibration and independent testing
+### IRRBB behavioral models in Excel/VBA | Interest Rate Risk in the Banking Book: modeling, calibration and independent testing
 
 [![Excel VBA](https://img.shields.io/badge/Excel_VBA-Windows-217346?style=for-the-badge&logo=microsoft-excel&logoColor=white)](INSTALLATION.md)
 [![Status](https://img.shields.io/badge/Status-v0.2.0%20in%20progress-6e7781?style=for-the-badge)](#status)
@@ -29,7 +29,7 @@
 
 ## ✨ Purpose
 
-**VBA-IRRBB-Toolkit** is an Excel/VBA **application project** intended to develop transparent, independently testable tools for behavioral assumptions in Interest Rate Risk in the Banking Book (IRRBB). It addresses the modeling of non-maturity deposits (NMDs) and, where applicable, demand-side balances, with an emphasis on reproducible calculations, model risk management and ALM parameter export.
+**K-IRRBB** is an Excel/VBA **application project** intended to develop transparent, independently testable tools for behavioral assumptions in Interest Rate Risk in the Banking Book (IRRBB). It addresses the modeling of non-maturity deposits (NMDs) and, where applicable, demand-side balances, with an emphasis on reproducible calculations, model risk management and ALM parameter export.
 
 The planned scope has three distinct model families:
 

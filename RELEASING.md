@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🚀 IRRBB Toolkit Release Guide
+# 🚀 K-IRRBB Release Guide
 
-### Integration and release sequence for the IRRBB behavioral-model toolkit
+### Integration and release sequence for K-IRRBB
 
 [![Release model](https://img.shields.io/badge/Release-Exact_source-0969da?style=flat-square)](#release-invariants)
 [![Versioning](https://img.shields.io/badge/Versioning-SemVer-3f4551?style=flat-square)](CHANGELOG.md#date-and-version-rules)
