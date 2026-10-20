@@ -229,7 +229,8 @@ def warnings_and_totals(rows, first: date, last: date) -> tuple[list[dict], list
             warnings.append({"code": "W05", "account_id": account, "as_of_date": observed[-1]["as_of_date"]})
     total_rows = [{"as_of_date": d, "segment": s, "currency": c, "accounts": n, "balance": math.fsum(b)}
                   for (d, s, c), (n, b) in totals.items()]
-    order = lambda w: (w["code"], w["account_id"], w["as_of_date"])
+    def order(w: dict) -> tuple:
+        return (w["code"], w["account_id"], w["as_of_date"])
     return sorted(warnings, key=order), sorted(total_rows, key=lambda t: (t["as_of_date"], t["segment"], t["currency"]))
 
 
@@ -404,8 +405,9 @@ class PointInTimeAvailability(unittest.TestCase):
                     outcomes = sum(line[k] for k in OUTCOME_COLUMNS.values())
                     self.assertEqual(outcomes, accounts.get(key, 0))
                     self.assertTrue(outcomes > 0 or line["close_dates_masked"] > 0)
-            self.assertEqual({k for k in accounts}, {(l["month_end"], l["segment"], l["currency"])
-                                                      for l in lineage if sum(l[k] for k in OUTCOME_COLUMNS.values())})
+            self.assertEqual({k for k in accounts}, {(line["month_end"], line["segment"], line["currency"])
+                                                      for line in lineage
+                                                      if sum(line[k] for k in OUTCOME_COLUMNS.values())})
             for index in range(month_index(first), month_index(last) + 1):
                 origin = month_end(index)
                 view = point_in_time_view(rows, origin, first)
@@ -413,8 +415,8 @@ class PointInTimeAvailability(unittest.TestCase):
                 hidden = {r["account_id"] for r in view if original[(r["account_id"], r["as_of_date"])]
                           and not r["close_date"]}
                 with self.subTest(case=name, origin=origin):
-                    self.assertEqual(sum(l["close_dates_masked"] for l in lineage
-                                         if l["month_end"] == origin.isoformat()), len(hidden))
+                    self.assertEqual(sum(line["close_dates_masked"] for line in lineage
+                                         if line["month_end"] == origin.isoformat()), len(hidden))
 
     def test_later_closure_dates_are_masked_at_earlier_origins(self) -> None:
         rows, _ = read_accounts(ROOT / self.expected["fixture"])
@@ -464,7 +466,8 @@ class PointInTimeAvailability(unittest.TestCase):
 
     def test_without_masking_the_same_change_would_leak(self) -> None:
         rows, _ = read_accounts(ROOT / self.expected["fixture"])
-        unmasked = lambda panel: [dict(r) for _, r in panel if parse_date(r["as_of_date"]) <= self.first]
+        def unmasked(panel: list) -> list:
+            return [dict(r) for _, r in panel if parse_date(r["as_of_date"]) <= self.first]
         altered = change_information_after(rows, self.first)
         self.assertNotEqual(predictors(unmasked(altered), self.first),
                             predictors(unmasked(rows), self.first))
@@ -485,7 +488,8 @@ class DataContractFixtures(unittest.TestCase):
         self.assertEqual(len({r["account_id"] for _, r in rows}), expected["accounts"])
         warnings, totals = warnings_and_totals(
             rows, parse_date(expected["window"]["first"]), parse_date(expected["window"]["last"]))
-        order = lambda w: (w["code"], w["account_id"], w["as_of_date"])
+        def order(w: dict) -> tuple:
+            return (w["code"], w["account_id"], w["as_of_date"])
         self.assertEqual(warnings, sorted(expected["warnings"], key=order))
         want = sorted(expected["totals"], key=lambda t: (t["as_of_date"], t["segment"], t["currency"]))
         self.assertEqual([{k: v for k, v in t.items() if k != "balance"} for t in totals],

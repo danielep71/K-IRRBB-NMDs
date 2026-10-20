@@ -8,7 +8,6 @@ is built from the template generator and read back too.
 """
 from __future__ import annotations
 
-import io
 import random
 import struct
 import sys
@@ -212,6 +211,7 @@ class ProjectStorage(unittest.TestCase):
 class LargePanel(unittest.TestCase):
     def test_generated_panel_follows_the_contract(self) -> None:
         import tempfile
+
         import make_large_panel
         sys.path.insert(0, str(ROOT / "tools"))
         import test_data_contract as reference

@@ -7,10 +7,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 import check_source
+import test_review_regressions as packages
 from check_vba_conditionals import analyze_component as conditionals
 from check_vba_jumps import analyze_component as jumps
 from check_vba_public_api import parse_component
-import test_review_regressions as packages
 from test_review_regressions import CORE_PARTS
 
 

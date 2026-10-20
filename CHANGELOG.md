@@ -254,6 +254,11 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- CI now installs Ruff and mypy from the hash-locked
+  `tools/requirements-quality-ci.txt` and runs `ruff check tools` with a
+  complexity-ceiling probe, and checksum-verified actionlint 1.7.12 on the
+  workflows, as VBA-SACCR-Toolkit does; `tools/` is clean under Ruff. The
+  `mypy --strict` gate follows once `tools/` passes it (#115).
 - Dependabot proposes weekly updates of the pinned GitHub Actions as pull
   requests against the active release branch, labelled `ci` and `P3`, as in
   VBA-SACCR-Toolkit; `actions/upload-artifact` is updated to v7.0.2 and every

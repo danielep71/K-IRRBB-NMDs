@@ -1,7 +1,8 @@
 # Quality settings for the repository's Python tooling (tools/).
 # Adapted from EXCEL-VBA-PROJECT-TEMPLATE b903fe44. The tooling itself needs only
-# the standard library. Ruff and mypy are OPTIONAL development targets;
-# they are not installed or enforced by CI, and compliance is not yet claimed.
+# the standard library. CI installs Ruff and mypy from the hash-locked
+# tools/requirements-quality-ci.txt and enforces Ruff; mypy --strict is
+# enforced once tools/ passes it (#115).
 
 [tool.ruff]
 target-version = "py310"
@@ -20,5 +21,5 @@ files = ["tools"]
 pretty = true
 show_error_codes = true
 warn_unused_configs = true
-# Desired development configuration, not an established CI guarantee.
+# The target configuration; not yet a CI gate (#115).
 strict = true

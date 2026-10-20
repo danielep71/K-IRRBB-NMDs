@@ -45,7 +45,9 @@ def compress(data: bytes) -> bytes:
     return bytes(out)
 
 
-def _compress_chunk(chunk: bytes) -> bytes:
+# The MS-OVBA chunk compression algorithm as one loop, kept in the
+# specification's shape so it can be checked against it step by step.
+def _compress_chunk(chunk: bytes) -> bytes:  # noqa: C901
     body = bytearray()
     cur = 0
     n = len(chunk)
@@ -273,7 +275,9 @@ def _cfb_key(e: _Entry) -> tuple[int, str]:
     return (len(e.name), e.name.upper())
 
 
-def write_cfb(tree: dict) -> bytes:
+# Writes the MS-CFB layout in one pass (directory, FAT, mini stream); its
+# branches are the format's cases, which a split would only scatter.
+def write_cfb(tree: dict) -> bytes:  # noqa: C901
     """tree: {name: bytes | dict}; returns compound file bytes."""
     root = _Entry("Root Entry", 5, children=[])
     flat: list[_Entry] = [root]

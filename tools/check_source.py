@@ -2,15 +2,15 @@
 """Check exported VBA source, Git storage and CHANGELOG structure without Office."""
 from __future__ import annotations
 
-import re
 import lzma
+import re
 import sys
 import zipfile
 import zlib
-from xml.etree import ElementTree
 from datetime import date
 from pathlib import Path
 from typing import Any
+from xml.etree import ElementTree
 
 from _gatelib import git_bytes, parse_report_args, run_gate, tracked_files
 from _vba_lex import physical_lines
