@@ -247,9 +247,9 @@ Use only the categories needed by a release.
 
 - The project is named K-IRRBB, like its sibling K-SACCR: the README heading,
   the governance documents, the PR template, the traffic alert and the title
-  on the workbook's Readme sheet use the new name. The repository keeps the
-  name K-IRRBB_behavioral_models, and identifiers, file names and the `IRRBB_` prefix
-  are unchanged.
+  on the workbook's Readme sheet use the new name. The repository was
+  subsequently renamed to `K-IRRBB_behavioral_models`; identifiers, file names
+  and the `IRRBB_` prefix are unchanged.
 - The data contract now states that dates have a year from 1900 to 9999 (the
   Excel date system) and that a decimal has digits on both sides of any `.`
   (#8).
