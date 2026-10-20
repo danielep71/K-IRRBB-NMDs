@@ -661,7 +661,7 @@ jobs:
           # Built line by line: multi-line lists inside a dedented f-string
           # would defeat textwrap.dedent and indent most of the body.
           body = "\n".join([
-              "Automated traffic alert for **VBA-IRRBB-Toolkit**.",
+              "Automated traffic alert for **K-IRRBB**.",
               "",
               "Trigger reason:",
               ", ".join(reasons),

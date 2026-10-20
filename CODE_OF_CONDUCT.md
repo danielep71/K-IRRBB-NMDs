@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🧭 IRRBB Toolkit Code of Conduct
+# 🧭 K-IRRBB Code of Conduct
 
 ### Interest Rate Risk in the Banking Book — behavioral models in Excel/VBA
 
@@ -87,7 +87,7 @@ Disagreement is allowed. Abuse is not.
 
 ## 🔐 Data, privacy and confidentiality
 
-The IRRBB Toolkit models customer deposit behavior, so real inputs are almost
+K-IRRBB models customer deposit behavior, so real inputs are almost
 always confidential. Do not upload such material to support a discussion or
 contribution, including:
 
@@ -188,7 +188,7 @@ argument without new evidence is not constructive.
 
 ## 🙏 Project scale and response expectations
 
-The IRRBB Toolkit is maintained by one person. Response times are best-effort.
+K-IRRBB is maintained by one person. Response times are best-effort.
 Complex matters may require a particular Office/Windows environment or manual
 validation. Reasonable delay is not dismissal, and demands for immediate action
 do not replace evidence.

@@ -2,7 +2,7 @@
 
 # 📦 Installation and Developer Setup
 
-### Set up, validate, and later import the IRRBB Toolkit into Excel
+### Set up, validate, and later import K-IRRBB into Excel
 
 [![Status](https://img.shields.io/badge/Status-In_development-d97706?style=flat-square)](#current-status)
 [![Checks](https://img.shields.io/badge/Checks-python_tools%2Fcheck.py-0969da?style=flat-square)](#run-the-checks)

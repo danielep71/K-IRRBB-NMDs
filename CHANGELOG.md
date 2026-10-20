@@ -2,7 +2,7 @@
 
 # 📜 Changelog
 
-### Release history for the IRRBB behavioral-model toolkit in Excel/VBA
+### Release history for K-IRRBB, IRRBB behavioral models in Excel/VBA
 
 [![Format](https://img.shields.io/badge/Format-Keep_a_Changelog-0969da?style=flat-square)](https://keepachangelog.com/en/1.1.0/)
 [![Versioning](https://img.shields.io/badge/Versioning-SemVer-6f42c1?style=flat-square)](https://semver.org/spec/v2.0.0.html)
@@ -18,7 +18,7 @@
 
 ---
 
-All notable changes to the **IRRBB Toolkit** are documented here.
+All notable changes to **K-IRRBB** are documented here.
 
 This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and [Semantic Versioning](https://semver.org/spec/v2.0.0.html). It records
@@ -239,6 +239,11 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- The project is named K-IRRBB, like its sibling K-SACCR: the README heading,
+  the governance documents, the PR template, the traffic alert and the title
+  on the workbook's Readme sheet use the new name. The repository keeps the
+  name VBA-IRRBB-Toolkit, and identifiers, file names and the `IRRBB_` prefix
+  are unchanged.
 - The data contract now states that dates have a year from 1900 to 9999 (the
   Excel date system) and that a decimal has digits on both sides of any `.`
   (#8).
