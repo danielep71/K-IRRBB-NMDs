@@ -413,6 +413,10 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The issue-metadata and traffic-alert workflows no longer fall back to
+  milestone 1, the closed v0.1.0, when the repository variable
+  `ISSUE_MILESTONE_NUMBER` is unset; they fail with a message naming the
+  variable, and a value that is not a positive number is rejected (#117).
 - The synchronizer drops procedure-level attribute lines (for example
   `Attribute Worksheet_Change.VB_Description = ...`) from document modules
   before pasting their code, where they would be invalid VBA; the code around

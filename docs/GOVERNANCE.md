@@ -22,7 +22,8 @@ The trusted default-branch `issue-metadata.yml` workflow reconciles issue events
 and a daily sweep, including closed issues, and verifies the saved metadata.
 It preserves an existing milestone; missing milestones use repository variable
 `ISSUE_MILESTONE_NUMBER`, set to the active milestone, which must identify an
-open milestone; unset, it falls back to the closed `1` and fails.
+open milestone; there is no fallback, and an unset variable fails with a message
+naming it.
 It adds `P3` only when no priority exists; conflicting priorities retain the
 highest severity (`P1`, then `P2`, then `P3`). Other labels and assignees remain.
 A manual dispatch on the default branch performs a full sweep. Change the
