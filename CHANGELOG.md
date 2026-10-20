@@ -314,6 +314,10 @@ Use only the categories needed by a release.
 
 ### Documentation
 
+- The manual-import component list in `INSTALLATION.md` names every module of
+  `tools/vba-projects.json`, production and development, including the seven
+  decay and example modules it omitted; `tools/test_devbuild.py` keeps the two
+  equal.
 - The milestone guides in `docs/Milestones/` follow one schema, the same as
   the GitHub milestone descriptions: Objective, Scope, Exit criteria, Tracked
   issues and dependency, Not in scope and Release evidence. Each keeps its
