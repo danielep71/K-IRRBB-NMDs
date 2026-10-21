@@ -278,5 +278,22 @@ class DevelopmentWorkbook(unittest.TestCase):
                          + [f"src/workbook/{s.code_name}.cls" for s in build_dev_workbook.build_template.SHEETS])
 
 
+    def test_installation_lists_the_manifest_components(self) -> None:
+        # The manual-import list in INSTALLATION.md names exactly the modules of
+        # tools/vba-projects.json, production first, then development only.
+        import json
+        import re
+        manifest = json.loads((ROOT / "tools" / "vba-projects.json").read_text(encoding="utf-8"))
+        production = manifest["configurations"]["production"]["modules"]
+        development = [m for m in manifest["configurations"]["development"]["modules"]
+                       if m not in production]
+        text = (ROOT / "INSTALLATION.md").read_text(encoding="utf-8")
+        section = text.split("### Manual import", 1)[1].split("\n1. ", 1)[0]
+        listed_production, listed_development = (
+            re.findall(r"`([\w/]+\.bas)`", part)
+            for part in section.split("development only:", 1))
+        self.assertEqual(listed_production, production)
+        self.assertEqual(listed_development, development)
+
 if __name__ == "__main__":
     unittest.main()
