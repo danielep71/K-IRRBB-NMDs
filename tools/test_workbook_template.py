@@ -161,7 +161,10 @@ class Template(unittest.TestCase):
             with self.subTest(sheet=s.name):
                 self.assertEqual(build_template.NAMES[f"{s.name}_Status"], (s.name, "$B$3"))
                 status = self.value(s.name, "B3")
-                self.assertTrue(cast(str, status).startswith("NOT RUN"), status)
+                # docs/WORKBOOK_CONTRACT.md: only a placeholder is "not implemented".
+                expected = ("NOT RUN - not implemented" if s.status.startswith("Placeholder")
+                            else "NOT RUN")
+                self.assertEqual(status, expected)
                 rules = self.sheet(s.name).findall("m:conditionalFormatting[@sqref='B3']/m:cfRule", NS)
                 self.assertEqual(len(rules), 3)
             if s.status.startswith("Placeholder"):

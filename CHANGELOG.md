@@ -427,6 +427,16 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The workbook template gives DataSummary, which the data import writes, the
+  status `NOT RUN` instead of `NOT RUN - not implemented`; only placeholder
+  sheets now say they are not implemented, as `docs/WORKBOOK_CONTRACT.md`
+  states. `TEST_DecayCases` raises the harness's `TEST_ERR_NO_CASE` for an
+  unknown case, as the other case modules do.
+- Comments that no longer matched the code, or came from the project template
+  or VBA-SACCR-Toolkit unadapted, are corrected across the VBA source, tests,
+  Python tooling, workflows, the synchronizer and the repository control files;
+  `.gitattributes` marks `docs/assets/` as documentation instead of `assets/`
+  and `images/`, which do not exist.
 - The issue-metadata and traffic-alert workflows no longer fall back to
   milestone 1, the closed v0.1.0, when the repository variable
   `ISSUE_MILESTONE_NUMBER` is unset; they fail with a message naming the

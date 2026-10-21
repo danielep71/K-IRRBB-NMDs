@@ -67,7 +67,7 @@ Public Sub RunDecayExample()
     IRRBB_DecayOverlay CStr(ws.Range("B3").Value), mpa, ov, ovInfo, ovLabel
     IRRBB_DecayBacktest dates, bal, fit, ws.Range("B7").Value, CLng(ws.Range("B11").Value), pairs, exceed, sm
 
-    ' Fit, diagnostics, overlay and backtest summaries (columns E:F and H:I).
+    ' Fit, diagnostics, overlay and backtest summaries (F3:G17 and I3:J13).
     ReDim block(1 To 15, 1 To 2)
     block(1, 1) = "mu (log/month)": block(1, 2) = fit(IRRBB_DF_MU_HAT)
     block(2, 1) = "mu* used": block(2, 2) = fit(IRRBB_DF_MU_STAR)

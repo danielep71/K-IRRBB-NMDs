@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Check exported VBA source, Git storage and CHANGELOG structure without Office."""
+"""Check VBA source, Git storage, the workbook template, synchronizer roots,
+CHANGELOG and VERSION without Office."""
 from __future__ import annotations
 
 import lzma
@@ -21,7 +22,8 @@ VBA_ENCODING = "cp1252"
 VB_NAME = re.compile(r'^Attribute VB_Name = "([^"]+)"\s*$', re.M)
 OPTION_EXPLICIT = re.compile(r"^[ \t]*Option[ \t]+Explicit[ \t]*(?:'.*)?$", re.M | re.I)
 OPTION_PRIVATE = re.compile(r"^[ \t]*Option[ \t]+Private[ \t]+Module[ \t]*(?:'.*)?$", re.M | re.I)
-# Role prefix of every standard module by home; see docs/VBA_HOUSE_STYLE.md.
+# Role prefix of standard modules in the core, facade and test homes; see
+# docs/VBA_HOUSE_STYLE.md.
 ROLE_PREFIXES = (("src/core/", "CORE_"), ("src/modules/", "IRRBB_"), ("tests/", "TEST_"))
 # Homes for VBA components; see docs/REPOSITORY_STRUCTURE.md.
 VBA_HOMES = ("src/core/", "src/modules/", "src/classes/", "src/workbook/", "src/forms/",
@@ -43,9 +45,10 @@ HOST_IDENTIFIER = re.compile(
 # Core cannot activate or attach to external COM objects, even via dynamic ProgIDs.
 AUTOMATION_IDENTIFIER = re.compile(r"\b(CreateObject|GetObject)\b", re.I)
 FORBIDDEN_PART = re.compile(r"(^|/)vbaProject\.bin$|^docProps/", re.I)
-# The synchronizer imports the VBA source of the directories in its
-# $sourceRoots list into a workbook; a component outside them would never
-# reach the workbook. Document modules in src/workbook/ update the code of
+# The synchronizer imports the components listed in tools/vba-projects.json and
+# scans the directories in its $sourceRoots list, requiring every component found
+# there to be listed; a component outside those directories would escape that
+# check. Document modules in src/workbook/ update the code of
 # existing sheets, so each needs its sheet in the template. Both files are
 # required: without them the checks below could not run.
 SYNC_SCRIPT = "tools/Sync-IRRBB-VBA.ps1"

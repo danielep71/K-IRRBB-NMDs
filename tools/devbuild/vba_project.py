@@ -2,7 +2,7 @@
 
 Implements, from the [MS-OVBA] and [MS-CFB] specifications:
   - the VBA compression algorithm (2.4.1),
-  - the dir stream (2.3.4.2), PROJECT / PROJECTwm streams (2.3.1),
+  - the dir stream (2.3.4.2), PROJECT (2.3.1) and PROJECTwm (2.3.3) streams,
   - the Data Encryption of CMG / DPB / GC (2.4.3),
   - a version-3 compound file writer (512-byte sectors, mini stream).
 _VBA_PROJECT is written with Version 0xFFFF and no performance cache, which

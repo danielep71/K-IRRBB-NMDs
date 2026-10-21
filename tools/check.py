@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run portable IRRBB source gates, as in the SACCR repository (never runs Excel)."""
+"""Run the portable K-IRRBB source gates, locally and in CI (never runs Excel)."""
 from __future__ import annotations
 
 import argparse

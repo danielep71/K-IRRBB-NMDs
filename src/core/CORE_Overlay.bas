@@ -70,7 +70,7 @@ End Function
 
 
 '------------------------------------------------------------------------------
-' CORE_Overlay
+' CORE_DecayOverlay
 '   segment        RET_TX, RET_NTX or WHS_NFC                               [in]
 '   mpa(0 To H)    fitted MPA path, mpa(0) = B0 > 0                         [in]
 '   overlay(0..H), ovInfo(1..11), ovLabel                                      [out]

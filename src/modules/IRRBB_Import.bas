@@ -27,8 +27,11 @@ Attribute VB_Name = "IRRBB_Import"
 ' ERRORS
 '   Error 5 for invalid settings (window not two month ends in order, empty
 '   path, closure reporting not attested, no commit stamp, no or an unknown or
-'   repeated segment selected, rate series not in the file);
-'   error 53 when a file does not exist; file-system errors pass through.
+'   repeated segment selected, rate series not in the file); error 5 from
+'   IRRBB_ImportFindings, IRRBB_ImportWarnings and IRRBB_ImportLineage before
+'   any import has completed (IRRBB_ImportTotals and IRRBB_ImportOutcomes then
+'   return the header row only); error 53 when a file does not exist;
+'   file-system errors pass through.
 '==============================================================================
 Option Explicit
 

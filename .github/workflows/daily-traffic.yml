@@ -4,11 +4,10 @@
 #   Reads the GitHub traffic API for this repository and appends a daily
 #   snapshot to CSV files on the orphan `traffic-history` branch, which the
 #   first run creates. It also writes data/badges/clones.json, visitors.json
-#   and visits.json there: shields.io endpoints for README badges, usable only
-#   once the repository is public, because shields.io cannot read a private
-#   repository.
+#   and visits.json there: shields.io endpoints for README badges, which
+#   shields.io can read because the repository is public.
 #
-#   Adapted from VBA-SACCR-Toolkit daily-traffic.yml at f62cb8c.
+#   Adapted from VBA-SACCR-Toolkit's daily-traffic.yml (file blob f62cb8c).
 #
 #   Data retention
 #     GitHub retains traffic data for 14 days only. This workflow exists to

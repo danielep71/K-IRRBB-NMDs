@@ -8,12 +8,14 @@ Attribute VB_Name = "TEST_ImportCases"
 '   The fixtures of TEST_Fixtures are written to temporary files (LF and CRLF,
 '   a file longer than one read chunk, a non-ASCII byte, an empty file), the
 '   run settings on Config are set, the import runs, and DataSummary is read
-'   back. The settings on Config and Segments are restored afterwards.
+'   back. When the case completes, the settings on Config and Segments and the
+'   Readme build stamp are restored; an unexpected error ends the case before
+'   that cleanup.
 '
 ' FILES
 '   Only in a new folder created for the run inside the system temporary
-'   folder; the case deletes the files it wrote and the folder, and nothing
-'   else. The import itself never writes a file.
+'   folder; when the case completes it deletes the files it wrote and the
+'   folder, and nothing else. The import itself never writes a file.
 '==============================================================================
 Option Explicit
 Option Private Module
@@ -107,6 +109,9 @@ Private Sub CaseImport()
     TEST_AssertText C, "segment left out: status", StatusText(), ACCEPTED
     CheckTotals C, "segment left out"
     TEST_AssertText C, "segment left out: lineage", LineageValue("Segments selected"), "RET_TX,WHS_NFC"
+
+    ' More settings the import refuses: an unknown rate series, no commit stamp,
+    ' a window date with a time of day.
     NamedRange("Segments_Include").Value = "Yes"
     RunImport accounts, rates, window(1), window(2), "GBP_1M", "Yes"
     TEST_AssertTrue C, "unknown rate series: reason", InStr(1, CellText("DataSummary_Info", 8, 1), "GBP_1M") > 0
