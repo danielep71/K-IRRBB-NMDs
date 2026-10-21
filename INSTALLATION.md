@@ -202,13 +202,18 @@ below.
 
 ### Manual import
 
-Use these steps when neither the builder nor the synchronizer can be used. Components at present:
-`src/core/CORE_Codes.bas`, `src/core/CORE_Parse.bas`,
-`src/core/CORE_Import.bas`, `src/core/CORE_Sha256.bas`, `src/modules/IRRBB_Import.bas`,
-`src/workbook/WB_Import.bas`; development only: `tests/modules/TEST_Harness.bas`,
-`tests/modules/TEST_CoreCases.bas`, `tests/modules/TEST_WorkbookCases.bas`,
-`tests/modules/TEST_DataCases.bas`, `tests/modules/TEST_Fixtures.bas`,
-`tests/modules/TEST_ImportCases.bas`, `tests/modules/TEST_HashCases.bas`.
+Use these steps when neither the builder nor the synchronizer can be used. The
+components are listed in [`tools/vba-projects.json`](tools/vba-projects.json);
+at present, production: `src/core/CORE_Codes.bas`, `src/core/CORE_Decay.bas`,
+`src/core/CORE_Import.bas`, `src/core/CORE_Math.bas`,
+`src/core/CORE_Overlay.bas`, `src/core/CORE_Parse.bas`,
+`src/core/CORE_Sha256.bas`, `src/modules/IRRBB_Decay.bas`,
+`src/modules/IRRBB_Import.bas`, `src/workbook/WB_Import.bas`; development only:
+`tests/modules/TEST_CoreCases.bas`, `tests/modules/TEST_DataCases.bas`,
+`tests/modules/TEST_DecayCases.bas`, `tests/modules/TEST_DecayData.bas`,
+`tests/modules/TEST_Fixtures.bas`, `tests/modules/TEST_Harness.bas`,
+`tests/modules/TEST_HashCases.bas`, `tests/modules/TEST_ImportCases.bas`,
+`tests/modules/TEST_WorkbookCases.bas`, `examples/modules/EX_DecayExample.bas`.
 
 1. Start from **one exact commit** in a Git checkout, so `.bas`, `.cls` and
    `.frm` files have CRLF line endings. Never mix components from different
