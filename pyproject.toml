@@ -1,6 +1,7 @@
 # Quality settings for the repository's Python tooling (tools/).
 # Adapted from EXCEL-VBA-PROJECT-TEMPLATE b903fe44. The tooling itself needs only
-# the standard library. CI installs Ruff and mypy from the hash-locked
+# the standard library, except the optional tools/devbuild/lo_smoke.py, which
+# needs LibreOffice's python3-uno. CI installs Ruff and mypy from the hash-locked
 # tools/requirements-quality-ci.txt and enforces both (#115).
 
 [tool.ruff]

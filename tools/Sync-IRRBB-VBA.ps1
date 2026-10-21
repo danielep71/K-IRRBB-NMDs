@@ -9,8 +9,9 @@ unless -Mode gives the answer:
 
 - Production: the host-independent core, the public facades and the
   workbook adapter (src\), for a workbook that is used with real data.
-- Development: the production modules and every test module
-  (tests\modules), for a workbook that runs the regression harness. The
+- Development: the production modules, every test module (tests\modules)
+  and every example module (examples\modules), for a workbook that runs the
+  regression harness. The
   tests write to the Checks sheet and import synthetic fixtures; never run
   them on real data.
 
@@ -608,7 +609,7 @@ try {
         if ([string]::IsNullOrWhiteSpace($syncMode)) {
             Write-Host "Which workbook is this?"
             Write-Host "  P = production: core, public facades and workbook adapter"
-            Write-Host "  D = development: production modules and every test module"
+            Write-Host "  D = development: production, test and example modules"
             Write-Host "      (the tests write to the Checks sheet)"
             $syncMode = ConvertTo-SyncMode -Answer (Read-Host "Production or development? [P/D]")
             if ($null -eq $syncMode) {
@@ -742,7 +743,7 @@ try {
             }
         )
         if ($testModules.Count -gt 0) {
-            Write-Warning ("This workbook already holds test modules, which a production " +
+            Write-Warning ("This workbook already holds test or example modules, which a production " +
                 "synchronization does not remove: " + ($testModules -join ", ") +
                 ". For a production workbook, build it from the template.")
         }

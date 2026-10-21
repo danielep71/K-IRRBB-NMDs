@@ -2,28 +2,23 @@
 # .editorconfig
 #------------------------------------------------------------------------------
 # PURPOSE
-#   Provide a portable editing baseline for Excel/VBA projects created from
-#   this template.
+#   Provide a portable editing baseline for K-IRRBB-NMDs; adapted from
+#   EXCEL-VBA-PROJECT-TEMPLATE.
 #
 # POLICY
 #   - Exported VBA source uses CRLF and 4-space indentation.
 #   - Documentation, GitHub configuration, and cross-platform tooling use LF.
-#   - YAML, JSON, CFF, XML, JavaScript, and R use 2-space indentation.
+#   - YAML, JSON and JavaScript use 2-space indentation.
 #   - Python and shell scripts use 4-space indentation.
 #   - Trailing whitespace is removed except in Markdown, where two trailing
 #     spaces can represent an explicit line break.
-#   - VBA source encoding is intentionally not forced. The VBE exports text
-#     using the Windows system code page; a repository should enable a Git
-#     working-tree encoding only after confirming that its source requires one.
+#   - VBA source is cp1252, as tools/check_source.py enforces. EditorConfig
+#     has no cp1252 charset value, so none is set for VBA files.
 #
 # RELATIONSHIP WITH .gitattributes
 #   .editorconfig controls how supporting editors create and save working-tree
 #   files. .gitattributes remains authoritative for Git normalization, binary
 #   classification, merge and diff behavior, Linguist, and release archives.
-#
-# CUSTOMIZATION
-#   Keep the VBA and repository-control rules. Optional tooling sections may be
-#   removed when a project does not use the corresponding file type.
 #==============================================================================
 
 root = true
@@ -44,7 +39,8 @@ tab_width = 4
 #------------------------------------------------------------------------------
 # EXPORTED VBA SOURCE
 #------------------------------------------------------------------------------
-# Do not set charset here: preserve the VBE/system-code-page export contract.
+# No charset here: the files are cp1252 (tools/check_source.py), which
+# EditorConfig cannot express.
 [*.{bas,cls,frm}]
 end_of_line = crlf
 indent_style = space
@@ -68,19 +64,6 @@ trim_trailing_whitespace = true
 
 
 #------------------------------------------------------------------------------
-# R TOOLING
-#------------------------------------------------------------------------------
-[*.{r,R}]
-charset = utf-8
-end_of_line = lf
-indent_style = space
-indent_size = 2
-tab_width = 2
-insert_final_newline = true
-trim_trailing_whitespace = true
-
-
-#------------------------------------------------------------------------------
 # NODE / JAVASCRIPT TOOLING
 #------------------------------------------------------------------------------
 [*.{js,mjs,cjs}]
@@ -97,28 +80,6 @@ trim_trailing_whitespace = true
 # GITHUB / STRUCTURED CONFIGURATION
 #------------------------------------------------------------------------------
 [*.{yml,yaml,json,jsonc}]
-charset = utf-8
-end_of_line = lf
-indent_style = space
-indent_size = 2
-tab_width = 2
-insert_final_newline = true
-trim_trailing_whitespace = true
-
-[CITATION.cff]
-charset = utf-8
-end_of_line = lf
-indent_style = space
-indent_size = 2
-tab_width = 2
-insert_final_newline = true
-trim_trailing_whitespace = true
-
-
-#------------------------------------------------------------------------------
-# RIBBONX AND OTHER XML
-#------------------------------------------------------------------------------
-[*.xml]
 charset = utf-8
 end_of_line = lf
 indent_style = space

@@ -394,7 +394,7 @@ def property_pair(first: dict[str, Any], second: dict[str, Any]) -> bool:
 def _parse_components(
     root: Path, components: dict[str, str]
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Parse every tracked configured component; every declaration is returned, flagged
+    """Parse every tracked component that has a role; every declaration is returned, flagged
     "supported" only for public-role components, which alone enter the manifest."""
     declarations: list[dict[str, Any]] = []
     findings: list[dict[str, Any]] = []

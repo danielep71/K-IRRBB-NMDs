@@ -33,7 +33,7 @@ Public Sub TEST_RunDecayCase(ByVal caseId As String)
         Case "OOS-LEAK-01": CaseLeak
         Case "OOS-SCORE-01": CaseScore
         Case Else
-            Err.Raise CORE_ERR_INPUT, "TEST_DecayCases.TEST_RunDecayCase", "No decay implementation for " & caseId & "."
+            Err.Raise TEST_ERR_NO_CASE, "TEST_DecayCases.TEST_RunDecayCase", "No VBA implementation for " & caseId & "."
     End Select
 End Sub
 

@@ -1,8 +1,8 @@
 #==============================================================================
-# Canonical Excel/VBA .gitattributes
+# K-IRRBB-NMDs .gitattributes
 #------------------------------------------------------------------------------
 # PURPOSE
-#   Define the canonical Git behavior for new Excel/VBA repositories created from this template.
+#   Define Git behavior for K-IRRBB-NMDs; adapted from EXCEL-VBA-PROJECT-TEMPLATE.
 #
 # POLICY
 #   - Exported VBA source is normalized in Git and checked out as CRLF.
@@ -88,13 +88,6 @@
 #------------------------------------------------------------------------------
 *.py    text eol=lf
 *.pyw   text eol=lf
-
-
-#------------------------------------------------------------------------------
-# R / MPFR TOOLING
-#------------------------------------------------------------------------------
-*.r     text eol=lf
-*.R     text eol=lf
 
 
 #------------------------------------------------------------------------------
@@ -238,9 +231,8 @@ Makefile        text eol=lf
 #------------------------------------------------------------------------------
 # GITHUB LANGUAGE REPORTING
 #------------------------------------------------------------------------------
-# These directories contain project documentation visuals, not vendored code.
-assets/**        linguist-documentation
-images/**        linguist-documentation
+# docs/assets holds the social preview image and its source, not vendored code.
+docs/assets/**   linguist-documentation
 
 
 #------------------------------------------------------------------------------
@@ -256,14 +248,9 @@ images/**        linguist-documentation
 
 
 #==============================================================================
-# OPTIONAL PER-REPOSITORY ENCODING POLICY
+# VBA SOURCE ENCODING
 #------------------------------------------------------------------------------
-# VBE exports use the Windows system code page. If non-ASCII VBA source is not
-# valid UTF-8 and every supported Git client handles working-tree-encoding,
-# consider enabling these rules after a dedicated round-trip and normalization
-# test. Leave them disabled for pure ASCII source.
-#
-#   *.bas  working-tree-encoding=windows-1252
-#   *.cls  working-tree-encoding=windows-1252
-#   *.frm  working-tree-encoding=windows-1252
+# VBA source is cp1252, as tools/check_source.py enforces, and is stored as
+# cp1252 bytes. working-tree-encoding is deliberately not set, so Git never
+# converts it.
 #==============================================================================

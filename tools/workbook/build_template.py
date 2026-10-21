@@ -32,9 +32,12 @@ REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 PKG_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
 ZIP_TIME = (1980, 1, 1, 0, 0, 0)
 
-# Status written to every output sheet's status cell (B3) before any run. Only a
-# status beginning "COMPLETE" marks the sheet's results as current.
+# Status in an output sheet's status cell (B3) before any run, per
+# docs/WORKBOOK_CONTRACT.md: placeholder sheets say they are not implemented,
+# implemented ones that they have not run. Only a status beginning "COMPLETE"
+# marks the sheet's results as current.
 NOT_IMPLEMENTED = "NOT RUN - not implemented"
+NOT_RUN = "NOT RUN"
 
 # Cell styles (index into cellXfs below).
 TITLE, PURPOSE, LABEL, HEADER, INPUT, INPUT_DATE, STATUS, STATUS_TIME, TEXT = range(1, 10)
@@ -143,7 +146,8 @@ def _layout() -> None:  # noqa: C901
         s.heights = {1: 24, 2: 27, 3: 30, 4: 24}
         if s.role == "Output":
             s.cells["A3"] = ("Status", LABEL)
-            s.cells["B3"] = (NOT_IMPLEMENTED, STATUS)
+            placeholder = s.status.startswith("Placeholder")
+            s.cells["B3"] = (NOT_IMPLEMENTED if placeholder else NOT_RUN, STATUS)
             s.cells["D3"] = (s.purpose, PURPOSE)
             s.widths = {"A": 24, "B": 44, "C": 3, "D": 16, "E": 16, "F": 16, "G": 16, "H": 16}
             s.merges.append("D3:H4")
@@ -264,7 +268,7 @@ def _layout() -> None:  # noqa: C901
     summary.print_columns = "AB"
 
     checks = sheets["Checks"]
-    checks.cells["B3"] = ("NOT RUN", STATUS)
+    checks.cells["B3"] = (NOT_RUN, STATUS)
     for row, label in enumerate(["Status", "Started", "Finished", "Source commit", "Host", "Cases", "Assertions",
                                  "Primary error", "Cleanup error"], 3):
         checks.cells[f"A{row}"] = (label, LABEL)
