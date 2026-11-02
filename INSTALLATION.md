@@ -114,11 +114,12 @@ Use a **Git clone**:
 ```sh
 git clone https://github.com/danielep71/K-IRRBB-NMDs.git
 cd K-IRRBB-NMDs
-git switch release/v0.2.0
+git switch release/vX.Y.Z   # the active release branch
 ```
 
-`release/v0.2.0` is the active development branch; `main` receives it only on
-the owner's request.
+Development happens on the active release branch, named in
+[`RELEASING.md`](RELEASING.md#current-status); `main` receives it only when I
+ask for an integration.
 
 Do not use **Code → Download ZIP**. `.gitattributes` excludes repository
 plumbing such as `.gitattributes`, `.gitignore`, `.editorconfig` and `.github/`

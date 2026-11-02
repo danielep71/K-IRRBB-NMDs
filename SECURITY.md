@@ -46,7 +46,7 @@ version carries production security support.
 
 | Source state | Security support |
 | --- | --- |
-| `release/v0.2.0` (active development) | ⚠️ Best effort |
+| The active release branch ([`RELEASING.md`](RELEASING.md#current-status)) | ⚠️ Best effort |
 | `main` | ⚠️ Best effort |
 | Modified copies or unofficial mirrors | ❌ Unsupported unless reproduced in official source |
 
