@@ -513,27 +513,37 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          ISSUE_MILESTONE_NUMBER: ${{ vars.ISSUE_MILESTONE_NUMBER }}
         run: |
           set -euo pipefail
 
           python3 << 'PY'
           import csv
+          import datetime
           import json
           import os
           import subprocess
           import sys
 
-          # Explicit milestone number: other open milestones do not make alerts ambiguous.
-          # No fallback, and checked before any early exit, so an unset variable fails
-          # every run instead of only the first one that raises an alert (#117).
-          raw_milestone = os.environ.get("ISSUE_MILESTONE_NUMBER", "").strip()
-          if not raw_milestone:
-              raise RuntimeError("Repository variable ISSUE_MILESTONE_NUMBER is not set; "
-                                 "set it to the number of the active milestone")
-          if not raw_milestone.isdigit() or int(raw_milestone) < 1:
-              raise ValueError("ISSUE_MILESTONE_NUMBER must be a positive milestone number")
-          milestone_number = int(raw_milestone)
+          # The active milestone: the open one with the earliest due date after today
+          # (UTC). Chosen before any early exit, so a missing milestone fails every run
+          # instead of only the first one that raises an alert.
+          def active_milestone(milestones, today):
+              dated = [m for m in milestones if m.get("state") == "open" and m.get("due_on")
+                       and m["due_on"][:10] > today]
+              if not dated:
+                  raise RuntimeError("No open milestone is due after today; give the next "
+                                     "milestone a due date so the alert can be filed under it")
+              return min(dated, key=lambda m: m["due_on"])
+
+          today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+          listed = subprocess.run(
+              ["gh", "api", f"repos/{os.environ['GITHUB_REPOSITORY']}/milestones"
+               "?state=open&sort=due_on&direction=asc&per_page=100"],
+              capture_output=True, text=True, check=True
+          )
+          selected = active_milestone(json.loads(listed.stdout), today)
+          milestone = selected["title"]
+          milestone_due = selected["due_on"][:10]
 
           def read_csv(path):
               if not os.path.exists(path):
@@ -673,6 +683,10 @@ jobs:
               print(f"Alert issue already exists for {current_date}")
               sys.exit(0)
 
+          # Issue triage needs a target end date before the milestone's due date.
+          target = min(datetime.date.fromisoformat(today) + datetime.timedelta(days=7),
+                       datetime.date.fromisoformat(milestone_due) - datetime.timedelta(days=1))
+
           # Built line by line: multi-line lists inside a dedented f-string
           # would defeat textwrap.dedent and indent most of the body.
           body = "\n".join([
@@ -703,16 +717,13 @@ jobs:
               "2. Check whether one of the referrers is a blog, forum, Reddit, StackOverflow, GitHub project, or newsletter",
               "3. Check which page, release, screenshot, source file, or README section is attracting traffic",
               "4. Consider adding a short README CTA asking users to star the repository if they are using the project",
+              "",
+              "## Dependencies",
+              "",
+              "None.",
+              "",
+              f"- Target end date: {target} (Europe/Rome)",
           ])
-
-          milestone_result = subprocess.run(
-              ["gh", "api", f"repos/{os.environ['GITHUB_REPOSITORY']}/milestones/{milestone_number}"],
-              capture_output=True, text=True, check=True
-          )
-          selected = json.loads(milestone_result.stdout)
-          if selected["state"] != "open":
-              raise RuntimeError("Configured traffic-alert milestone must be open")
-          milestone = selected["title"]
 
           created = subprocess.run(
               [
