@@ -83,6 +83,11 @@ class TargetDateTests(unittest.TestCase):
         empty = body.replace("2026-11-10", "_No response_")
         self.assertEqual(rules([issue(1, body=empty)]), [(1, "target-date")])
 
+    def test_a_level_two_heading_is_read(self) -> None:
+        body = ("## Dependencies\n\nNone.\n\n## Target end date\n\n2026-11-10 (Europe/Rome)\n\n"
+                "Planning note.\n")
+        self.assertEqual(rules([issue(1, body=body)]), [])
+
     def test_an_invalid_planning_line_does_not_fall_back_to_the_form(self) -> None:
         body = ("- Target end date: later\n\n### Target end date\n\n2026-11-10\n\n"
                 "## Dependencies\n\nNone.\n")
@@ -98,9 +103,9 @@ class DependencyTests(unittest.TestCase):
         self.assertEqual(rules([issue(1, body=body)]), [(1, "dependencies")])
 
     def test_blocked_matches_open_prerequisites(self) -> None:
-        open_dep = issue(1, body=depends("- #2 must land first"))
+        open_dep = issue(1, body=depends("Blocked by #2."))
         self.assertEqual(rules([open_dep, issue(2)]), [(1, "blocked")])
-        blocked = issue(1, "P3", "blocked", body=depends("- #2 must land first"))
+        blocked = issue(1, "P3", "blocked", body=depends("- **Blocked by** #2"))
         self.assertEqual(rules([blocked, issue(2)]), [])
         self.assertEqual(rules([blocked, issue(2, state="closed")]), [(1, "blocked")])
 
@@ -109,13 +114,19 @@ class DependencyTests(unittest.TestCase):
         self.assertEqual(rules([issue(1, body=body)]), [(1, "blocked")])
         self.assertEqual(rules([issue(1, "P3", "blocked", body=body)]), [])
 
+    def test_other_references_in_the_section_are_context_not_prerequisites(self) -> None:
+        body = depends("Requires the importer #2. Coordinate with #3; parent tracking: #4.")
+        self.assertEqual(rules([issue(1, body=body), issue(2), issue(3), issue(4)]), [])
+        self.assertEqual(rules([issue(1, body=depends("Related: #9."))]), [(1, "dependencies")])
+
     def test_missing_numbers_are_reported_and_pull_requests_are_not_prerequisites(self) -> None:
         self.assertEqual(rules([issue(1, body=depends("After #7."))]), [(1, "dependencies")])
         self.assertEqual(rules([issue(1, body=depends("After #7."))], pulls=frozenset({7})), [])
 
     def test_issue_urls_and_references_outside_the_section_are_handled(self) -> None:
         url = f"https://github.com/{REPOSITORY}/issues/2"
-        self.assertEqual(rules([issue(1, body=depends(f"- {url}")), issue(2)]), [(1, "blocked")])
+        self.assertEqual(rules([issue(1, body=depends(f"- Blocked by {url}")), issue(2)]),
+                         [(1, "blocked")])
         body = "See #2.\n\n" + depends("None.")
         self.assertEqual(rules([issue(1, body=body), issue(2)]), [])
 
