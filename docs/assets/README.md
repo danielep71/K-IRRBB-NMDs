@@ -10,8 +10,9 @@ the model contracts, the test cases and the regulatory sources.
 
 `IRRBB_social_preview.html` is the source for `IRRBB_social_preview.png`, the
 repository's social preview image and the picture at the top of the root
-README (1280 x 640 px, under GitHub's 1 MB limit). It is a promotional image,
-laid out like the social previews of VBA-SACCR-Toolkit and MKT-FTRB-SA.
+README (1280 x 640 px, under GitHub's 1 MB limit). It is a promotional image;
+the source of its layout is recorded in
+[`THIRD_PARTY_NOTICES.txt`](../licenses/THIRD_PARTY_NOTICES.txt).
 
 - **Figures:** the decay card and the curve show the reference case
   `DEC-E2E-01` (`tests/expected/decay/DEC-E2E-01.json`): the synthetic retail transactional series `RET_TX`, estimated
@@ -21,7 +22,7 @@ laid out like the social previews of VBA-SACCR-Toolkit and MKT-FTRB-SA.
   (`noncore_share`), and the core mean life after the REG-1 overlay, 59.5
   months (`ov_core_mean_life`), with the cutoff reduced to 66 months
   (`ov_cutoff`). The expected values come from numpy and scipy, independently
-  of the VBA code, and have not yet been reviewed by the owner (#36). The decay
+  of the VBA code, and I have not yet reviewed them (#36). The decay
   model is a draft; the card says so.
 - **Curve:** MPA(h) / B(t0) = exp(mu* h + z sigma sqrt(h)) for h = 0 to 120
   months, with the case's mu* = 0, sigma = 0.010374 and z = -2.326
@@ -36,8 +37,8 @@ laid out like the social previews of VBA-SACCR-Toolkit and MKT-FTRB-SA.
   `bt_rate`).
 - **Models:** the three model families of the root README; only decay exists,
   as a draft.
-- **Name:** the title is the project name, K-IRRBB, as for the sibling toolkits
-  K-SACCR and K-FRTB-SA; the subject, IRRBB, is spelled out beneath it.
+- **Name:** the title is the project name, K-IRRBB; the subject, IRRBB, is
+  spelled out beneath it.
 - **Status:** the pill names the version in progress, "In progress 0.2.0";
   update it with each release.
 

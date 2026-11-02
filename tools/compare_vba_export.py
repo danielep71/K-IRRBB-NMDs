@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Compare the VBA exported from a built workbook with the repository source.
 
-Part of the source round trip (issue #6): a workbook built from the template
-and the source of one commit, then exported with tools/Export-IRRBB-VBA.ps1, must
+Part of the source round trip: a workbook built from the template and the
+source of one commit, then exported with tools/Export-IRRBB-VBA.ps1, must
 hold exactly the components that tools/vba-projects.json lists for its mode,
 each with the same code and attributes as the source of that commit. Line
 endings are ignored, and so are trailing blank lines and the

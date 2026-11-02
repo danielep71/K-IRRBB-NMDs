@@ -226,8 +226,8 @@ function Get-VbaCodeBody {
 
     # A procedure-level attribute (Attribute Worksheet_Change.VB_Description
     # = ...) sits inside its procedure, not in the header; pasted into the
-    # code module it would be invalid VBA, so it is dropped (#118). The
-    # member name may hold any code-page letter, so it is not restricted.
+    # code module it would be invalid VBA, so it is dropped. The member
+    # name may hold any code-page letter, so it is not restricted.
     $code = @($lines | Where-Object { $_ -notmatch '^\s*Attribute\s+[^\s.=]+\.VB_' })
     return [string]::Join([Environment]::NewLine, $code)
 }

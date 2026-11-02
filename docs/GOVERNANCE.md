@@ -53,9 +53,9 @@ API call is logged with its HTTP status and response, with token-like strings
 redacted (#41).
 
 Administrator bypass is an exceptional capability, not permission to skip review
-or failing checks. As in VBA-SACCR-Toolkit, the `main` bypass mode is **pull
-requests only**, and the `release/**` bypass mode is **always**, so that the
-owner can bring a release branch level with `main` after an integration
+or failing checks. The `main` bypass mode is **pull requests only**, and the
+`release/**` bypass mode is **always**, so that I can bring a release branch
+level with `main` after an integration
 ([`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main));
 it is used for nothing else. Verify the saved GitHub ruleset after any settings
 change; an unsaved edit or an authentication prompt does not establish
@@ -69,15 +69,15 @@ Use only synthetic examples and independent work. The repository is public, and 
 
 The [Mozilla Public License 2.0](../LICENSE) (MPL-2.0, copyright 2026 Daniele Penza) covers original repository content only. It grants no rights over third-party material and does not decide whether the project may be distributed. It replaced the MIT License on 2026-10-09 (#49); copies obtained earlier under MIT keep that license. The root `LICENSE` file is the license notice for every file, as MPL-2.0 Exhibit A permits; files carry no per-file header.
 
-**External distribution** means making the repository public, sharing a clone, archive or built workbook with anyone outside the maintainer, or publishing a GitHub Release. Before any of these, the owner reviews and records in an issue:
+**External distribution** means making the repository public, sharing a clone, archive or built workbook with anyone but me, or publishing a GitHub Release. Before any of these, I review and record in an issue:
 
 1. that the license is still the intended one;
-2. that every file is original or carries a compatible license and attribution (the static-check tooling is adapted from the maintainer's own VBA-SACCR-Toolkit and EXCEL-VBA-PROJECT-TEMPLATE, relicensed here by their copyright holder);
+2. that every file is original or carries a compatible license and attribution (adapted files, their sources and licenses are listed in [`docs/licenses/THIRD_PARTY_NOTICES.txt`](licenses/THIRD_PARTY_NOTICES.txt));
 3. that no employer, client or vendor has a claim on the content or on the methods it implements;
 4. that a full-history scan finds no sensitive material (see below); and
 5. that issue and pull-request text, which becomes visible with the repository, contains no confidential material.
 
-No external distribution is authorized until that issue is closed by the owner.
+No external distribution is authorized until I close that issue.
 
 ### History scan
 

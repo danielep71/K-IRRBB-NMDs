@@ -33,7 +33,7 @@ SEMVER = r"(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)"
 VERSION_HEADING = re.compile(r"^## \[([^\]]+)\](.*)$", re.M)
 RELEASE_SUFFIX = re.compile(r" - (\d{4}-\d{2}-\d{2})")
 # Committed workbooks (only the template, see docs/REPOSITORY_STRUCTURE.md) carry
-# no VBA project and no document properties: author, title, timestamps (#5).
+# no VBA project and no document properties: author, title, timestamps.
 WORKBOOK_SUFFIXES = {".xlsx", ".xlsm", ".xlsb", ".xltx", ".xltm"}
 # Excel object model and UI that host-independent src/core code must not use;
 # see docs/REPOSITORY_STRUCTURE.md, "Dependency direction". VBA identifiers are

@@ -2,7 +2,6 @@ name: Static repository checks
 run-name: Static checks — ${{ github.ref_name }} @ ${{ github.sha }}
 
 # Static source and tooling checks only; no VBA compilation or Excel execution.
-# Quality steps follow VBA-SACCR-Toolkit (#115).
 on:
   pull_request:
     branches:

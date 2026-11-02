@@ -375,7 +375,7 @@ def change_information_after(rows: Panel, origin: date) -> Panel:
 
 
 class PointInTimeAvailability(unittest.TestCase):
-    """#32: transition outcomes, masking of later-learned closures, leakage and E12."""
+    """Transition outcomes, masking of later-learned closures, leakage and E12."""
 
     expected = json.loads((EXPECTED / "availability_outcomes.json").read_text(encoding="utf-8"))
     first = valid_date(expected["window"]["first"])
@@ -465,7 +465,7 @@ class PointInTimeAvailability(unittest.TestCase):
 
     def test_a_row_dated_on_its_closure_is_rejected(self) -> None:
         # A month-end closure has no row in its closure month; otherwise the row at the
-        # origin would carry a visible closure into a predictor (#64 review).
+        # origin would carry a visible closure into a predictor.
         import tempfile
         lines = [",".join(ACCOUNT_FIELDS),
                  "2025-05-31,M001,RET_TX,EUR,10.00,,0,2020-01-01,2025-06-30",

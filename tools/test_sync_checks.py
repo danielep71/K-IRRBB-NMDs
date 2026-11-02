@@ -1,7 +1,6 @@
 """Fixtures for the synchronizer and document-module checks of check_source.py.
 
-Ported from the SACCR repository's tools/test_tooling.py: every VBA component
-must lie in a $sourceRoots directory, which the synchronizer
+Every VBA component must lie in a $sourceRoots directory, which the synchronizer
 (tools/Sync-IRRBB-VBA.ps1) scans against tools/vba-projects.json, and the
 document modules in src/workbook/ must match the template's sheets by
 CodeName.

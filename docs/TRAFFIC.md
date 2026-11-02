@@ -1,8 +1,8 @@
 # Repository traffic analytics
 
 `Daily traffic export` collects GitHub views, clones, referrers and popular
-paths at 06:00 UTC every day. A maintainer can also run it from the Actions tab
-using `main`. It runs separately from CI and does not validate VBA or models.
+paths at 06:00 UTC every day. I can also run it from the Actions tab using
+`main`. It runs separately from CI and does not validate VBA or models.
 
 ## Credentials and access
 

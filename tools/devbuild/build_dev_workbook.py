@@ -4,15 +4,15 @@
 Usage: python tools/devbuild/build_dev_workbook.py [output.xlsm]
 Default output: build/IRRBB_Dev.xlsm (ignored by Git; never commit it).
 
-The workbook is the template of issue #5 (tools/workbook/build_template.py)
+The workbook is the macro-free template (tools/workbook/build_template.py)
 with a build stamp on the Readme sheet, a Run tests button on Checks and a VBA
 project assembled from one commit: every .bas in src/core, src/modules,
 src/workbook, tests/modules and examples/modules is embedded unchanged (CRLF),
 with the document modules of src/workbook (ThisWorkbook.cls and one .cls per
 sheet), so Excel compiles the project from source on open. It needs no Trust
 access to the VBA project object model, unlike tools/Sync-IRRBB-VBA.ps1, which
-updates an existing workbook (issue #6). It is the vehicle for the harness
-evidence of issue #8. Standard library only.
+updates an existing workbook. It is the vehicle for the regression harness
+evidence. Standard library only.
 """
 from __future__ import annotations
 

@@ -25,7 +25,7 @@ written by [`VBA_HOUSE_STYLE.md`](VBA_HOUSE_STYLE.md); model definitions by
 [`methodology/`](methodology/README.md).
 
 > [!IMPORTANT]
-> This structure was **accepted by the owner on 2026-10-08 in issue #2** as the
+> I **accepted this structure on 2026-10-08 in issue #2** as the
 > architecture decision: the `application` profile, the intended workflow, the
 > canonical units and the parameter-set fields. Rules marked *enforced* below
 > are checked by `python tools/check.py`; the rest are enforced by review.

@@ -74,7 +74,7 @@ class IssueMetadataTests(unittest.TestCase):
 
 
 class IssueMetadataEntryTests(unittest.TestCase):
-    """Event routing in main() and API failure reporting (#41)."""
+    """Event routing in main() and API failure reporting."""
 
     def run_main(self, **env: str) -> Any:
         environment = {"GITHUB_REPOSITORY": "owner/repo", "ISSUE_MILESTONE_NUMBER": "2", **env}
@@ -82,7 +82,7 @@ class IssueMetadataEntryTests(unittest.TestCase):
             return policy.main()
 
     def test_unset_or_invalid_milestone_variable_fails_before_any_api_call(self) -> None:
-        # #117: no fallback to milestone 1, the closed v0.1.0.
+        # No fallback to milestone 1, the closed v0.1.0.
         with patch.object(policy, "api", side_effect=AssertionError("no API call expected")), \
                 patch.object(policy, "reconcile", side_effect=AssertionError("no reconcile expected")):
             for value in ("", "  "):
@@ -103,7 +103,7 @@ class IssueMetadataEntryTests(unittest.TestCase):
                 self.assertNotIn("vars.ISSUE_MILESTONE_NUMBER ||", workflow)
 
     def test_traffic_alert_checks_the_variable_before_any_early_exit(self) -> None:
-        # Review of #120: a quiet day exits early; the check must come first.
+        # A quiet day exits early; the check must come first.
         workflow = (ROOT / ".github/workflows/daily-traffic.yml").read_text(encoding="utf-8")
         step = workflow.split("      - name: Create alert issue on spike or new referrer\n", 1)[1]
         self.assertLess(step.index("raw_milestone = os.environ.get(\"ISSUE_MILESTONE_NUMBER\""),

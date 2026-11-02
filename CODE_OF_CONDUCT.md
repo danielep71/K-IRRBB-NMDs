@@ -47,7 +47,7 @@ identity/orientation.
 | Correction | Acknowledge mistakes when better evidence changes the conclusion. |
 | Inclusion | Welcome different backgrounds and levels of expertise. |
 | Stewardship | Respect privacy, confidentiality, security, licensing and intellectual property. |
-| Coherence | Accept that the maintainer may revise, defer, split or decline contributions. |
+| Coherence | Accept that I may revise, defer, split or decline contributions. |
 
 <a id="technical-collaboration"></a>
 
@@ -80,7 +80,7 @@ Unacceptable behavior includes:
 - spam, unrelated promotion, solicitation or sustained disruption;
 - public disclosure of a suspected vulnerability before reasonable coordinated
   handling;
-- repeated disruption after the maintainer asks participants to stop; and
+- repeated disruption after I ask participants to stop; and
 - retaliation against a reporter, witness or investigation participant.
 
 Disagreement is allowed. Abuse is not.
@@ -116,7 +116,8 @@ This Code of Conduct applies to project-controlled and project-related spaces,
 including source, issues, pull requests, reviews, documentation, examples,
 releases, project email and public spaces where someone represents the project.
 
-It applies to the maintainer, contributors, reviewers, users and visitors alike.
+It applies to me as maintainer and to contributors, reviewers, users and
+visitors alike.
 
 <a id="reporting"></a>
 
@@ -141,8 +142,8 @@ found.
 
 ## ⚖️ Enforcement
 
-The maintainer may clarify and enforce this policy and remove, edit or reject
-project content inconsistent with it. Responses depend on seriousness,
+I may clarify and enforce this policy and remove, edit or reject project
+content inconsistent with it. Responses depend on seriousness,
 frequency, context, prior behavior and risk and may include:
 
 1. clarification or private reminder;
@@ -169,26 +170,26 @@ the concern.
 
 ## 📜 Source and licensing integrity
 
-Contributors must have the right to submit every code fragment, document,
-screenshot, workbook, dataset, benchmark, image and reference they provide.
+You must have the right to submit every code fragment, document, screenshot,
+workbook, dataset, benchmark, image and reference you provide.
 Identify adapted material and its license. Regulatory texts, vendor
 methodologies and published papers are cited, not copied wholesale. Detailed
 contribution and provenance rules belong to [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## 🧱 Maintainer decisions
 
-The maintainer may decline a technically valid contribution because of scope,
+I may decline a technically valid contribution because of scope,
 compatibility, maintenance burden, testability, platform risk, API stability,
-duplication, architecture or release timing. When practical, the technical
-reason is recorded.
+duplication, architecture or release timing. When practical, I record the
+technical reason.
 
-A declined contribution is not a judgment about the contributor. Decisions may
-be challenged respectfully with new evidence; repeatedly reopening the same
+A declined contribution is not a judgment about you. You may challenge my
+decisions respectfully with new evidence; repeatedly reopening the same
 argument without new evidence is not constructive.
 
 ## 🙏 Project scale and response expectations
 
-K-IRRBB is maintained by one person. Response times are best-effort.
+I maintain K-IRRBB alone. Response times are best-effort.
 Complex matters may require a particular Office/Windows environment or manual
 validation. Reasonable delay is not dismissal, and demands for immediate action
 do not replace evidence.

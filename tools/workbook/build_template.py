@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the macro-free workbook template src/workbook/IRRBB_Template.xlsx (issue #5).
+"""Generate the macro-free workbook template src/workbook/IRRBB_Template.xlsx.
 
 Usage: python tools/workbook/build_template.py [--check]
 
@@ -43,8 +43,8 @@ NOT_RUN = "NOT RUN"
 TITLE, PURPOSE, LABEL, HEADER, INPUT, INPUT_DATE, STATUS, STATUS_TIME, TEXT = range(1, 10)
 BRAND, OUTPUT_HEADER, SECTION, NOTE, AMOUNT, COUNT, DIAGNOSTIC, OUTPUT_DATE = range(10, 18)
 
-# Shared visual identity with the maintainer's SACCR template. These are
-# presentation constants; they never determine model or status behavior.
+# Workbook visual identity. These are presentation constants; they never
+# determine model or status behavior.
 BLACK, GOLD, TITLE_BLUE = "000000", "FFC000", "265A99"
 NAVY, OUTPUT_BLUE, INPUT_GOLD, TEST_GREEN = "1F3864", "2E75B6", "BF9000", "548235"
 INPUT_YELLOW, BORDER_GRAY, NOTE_GRAY = "FFF2CC", "BFBFBF", "595959"
