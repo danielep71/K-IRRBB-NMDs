@@ -95,3 +95,28 @@ environment.
 The layout of docs/assets/IRRBB_social_preview.html also follows the social
 preview of the copyright holder's FRTB-SA toolkit (danielep71/K-FRTB-SA,
 https://github.com/danielep71/K-FRTB-SA); license: see the source repository.
+
+The following files were adapted from danielep71/MyTemplate
+(https://github.com/danielep71/MyTemplate) under the Mozilla Public License
+2.0:
+
+.github/PULL_REQUEST_TEMPLATE.md
+.github/scripts/pr-milestones.py
+.github/workflows/codeql.yml
+.github/workflows/link-check.yml
+.github/workflows/pr-milestones.yml
+.github/workflows/static-checks.yml
+docs/GOVERNANCE.md
+tools/check_links.py
+tools/test_check_links.py
+tools/test_pr_milestones.py
+tools/test_workflow_pins.py
+
+Modifications: the link checker and its tests are kept, with indented code
+blocks added to what the checker ignores; the CodeQL workflow scans this
+repository's languages; the pull-request milestone guard is a standalone
+script that calls the GitHub API through gh, like this repository's other
+workflow scripts, with offline tests; the pull request template's final-head
+review and its description in GOVERNANCE.md, the minimum-Python job, the
+Dependabot target check and the workflow and toolchain tests are rewritten
+for this repository's files, branch policy and tooling.

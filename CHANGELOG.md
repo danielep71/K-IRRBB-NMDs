@@ -342,9 +342,9 @@ Use only the categories needed by a release.
 ### Documentation
 
 - `docs/licenses/THIRD_PARTY_NOTICES.txt` lists the files adapted from
-  VBA-SACCR-Toolkit and EXCEL-VBA-PROJECT-TEMPLATE, with each source's license
-  where verified and the changes made, and is linked from `README.md` and
-  `CONTRIBUTING.md`.
+  VBA-SACCR-Toolkit, EXCEL-VBA-PROJECT-TEMPLATE and MyTemplate, with each
+  source's license where verified and the changes made, and is linked from
+  `README.md` and `CONTRIBUTING.md`.
   Workflows, configuration, scripts and tests no longer name other
   repositories or cite issue and pull request history in their comments; the
   Markdown documents record my decisions in the first person and address
