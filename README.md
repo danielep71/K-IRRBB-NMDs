@@ -85,7 +85,7 @@ git switch release/v0.2.0
 python tools/check.py
 ```
 
-Git and Python 3.10+ are needed for the static checks. A Windows 64-bit Excel host is needed for workbook import, compile and the regression harness. **Passing Python checks does not imply VBA compilation or model validation.**
+Git and Python 3.11+ are needed for the static checks. A Windows 64-bit Excel host is needed for workbook import, compile and the regression harness. **Passing Python checks does not imply VBA compilation or model validation.**
 
 ## 🔒 Data, confidentiality and provenance
 

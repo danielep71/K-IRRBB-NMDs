@@ -156,11 +156,15 @@ Label reconciliation scripts and workflows mirror the SACCR label policy and run
 ## Dependency updates
 
 `.github/dependabot.yml` asks Dependabot for weekly version updates of the
-GitHub Actions pinned in the workflows, as in VBA-SACCR-Toolkit. They are
-opened against the active release branch (`target-branch`) and labelled `ci`
-and `P3`. Dependabot reads this file from the default branch, so it takes
-effect once the file reaches `main`. Update `target-branch` whenever a new
-release branch is opened ([`RELEASING.md`](../RELEASING.md)).
+GitHub Actions pinned in the workflows and of the hash-locked quality tools in
+`tools/requirements-quality-ci.txt` (Ruff, mypy and their dependencies, in one
+grouped pull request). They are opened against the active release branch
+(`target-branch`) and labelled `ci` and `P3`. Dependabot reads this file from
+the default branch, so it takes effect once the file reaches `main`. Update
+every `target-branch` whenever a new release branch is opened
+([`RELEASING.md`](../RELEASING.md)). An update of the quality tools may add
+hashes for other platforms; the file must keep a hash for CPython on Linux
+x86_64, which CI installs.
 
 Review each update pull request like any other:
 
@@ -172,9 +176,15 @@ Review each update pull request like any other:
 
 ## Quality gates
 
+CI runs one exact Python version, 3.13.18, in every workflow, and the minimum
+supported version, 3.11, in the non-required **Minimum Python (3.11)** job of
+Static repository checks, which runs `tools/check.py --ci`.
+`tools/test_workflow_pins.py` fails when a version is not exact or differs
+between workflows, or when a job runs Python without setting it up.
+
 After the portable gates above, the **Repository integrity** job installs Ruff
-and mypy from the hash-locked `tools/requirements-quality-ci.txt` (CPython 3.10,
-wheels only) and runs, as in VBA-SACCR-Toolkit:
+and mypy from the hash-locked `tools/requirements-quality-ci.txt` (CPython 3.13
+on Linux x86_64, wheels only) and runs:
 
 - `ruff check tools` with the settings in `pyproject.toml`, plus a probe that
   proves the complexity ceiling of 15 is active;
@@ -184,9 +194,9 @@ wheels only) and runs, as in VBA-SACCR-Toolkit:
   SHA-256.
 
 The quality steps run even when an earlier step failed, so one run reports
-every problem. To change a tool version, update its hash or checksum in
-`tools/requirements-quality-ci.txt` or the workflow `env` in one reviewed pull
-request; Dependabot does not cover them. Locally:
+every problem. Dependabot proposes updates of Ruff, mypy and their
+dependencies; actionlint's version and checksum in the workflow `env` are
+changed by hand in one reviewed pull request. Locally, with Python 3.13:
 
 ```shell
 python -m pip install --only-binary=:all: --require-hashes -r tools/requirements-quality-ci.txt

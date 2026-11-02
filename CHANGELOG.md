@@ -254,6 +254,14 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- CI runs one exact Python, 3.13.18, in every workflow, including the traffic
+  and issue-metadata workflows that used the runner's `python3`. A non-required
+  job runs the portable gates on the minimum supported Python, 3.11, which
+  replaces 3.10 (end of life) in `pyproject.toml` and the documentation.
+  `tools/requirements-quality-ci.txt` moves to Ruff 0.17.3 and mypy 2.4.1,
+  hash-locked for CPython 3.13, and Dependabot now proposes their updates as
+  one grouped pull request. `tools/test_workflow_pins.py` checks the versions,
+  the setup in every job that runs Python and every Dependabot target (#131).
 - The pull request template says to use `Resolves #` on task PRs and `Refs #`
   on integration PRs and PRs that only carry earlier work, so that no issue
   closes at the wrong time, and adds a final-head review: the final head SHA,
