@@ -7,8 +7,6 @@
 #   and visits.json there: shields.io endpoints for README badges, which
 #   shields.io can read because the repository is public.
 #
-#   Adapted from VBA-SACCR-Toolkit's daily-traffic.yml (file blob f62cb8c).
-#
 #   Data retention
 #     GitHub retains traffic data for 14 days only. This workflow exists to
 #     keep a longer history. The `traffic-history` branch is visible to anyone

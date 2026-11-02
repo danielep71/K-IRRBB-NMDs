@@ -254,10 +254,10 @@ Avoid wider disclosure while exploitability is being assessed, a fix is being
 prepared, users have not had reasonable time to update, or an exposed secret
 remains valid.
 
-The maintainer and reporter agree a plan based on severity, active
-exploitation, remediation complexity, workarounds and validation time. The
-maintainer may request a sanitized reproduction, more environment detail,
-confirmation against a candidate fix or a reasonable embargo.
+You and I agree a plan based on severity, active exploitation, remediation
+complexity, workarounds and validation time. I may request a sanitized
+reproduction, more environment detail, confirmation against a candidate fix
+or a reasonable embargo.
 
 <a id="safe-harbor"></a>
 
@@ -272,7 +272,7 @@ Good-faith research is welcome when it:
 - reports privately and promptly; and
 - allows reasonable investigation and remediation time.
 
-The project will not initiate or recommend legal action solely for research
+I will not initiate or recommend legal action solely for research
 conducted in good faith and consistently with this policy. This does not
 authorize testing third-party systems or bind Microsoft, GitHub, an employer,
 client or other third party.

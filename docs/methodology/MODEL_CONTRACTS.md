@@ -27,15 +27,15 @@ numerical cases that will test each model are registered in
 [`VALIDATION_PLAN.md`](VALIDATION_PLAN.md).
 
 > [!IMPORTANT]
-> These contracts were **accepted by the owner on 2026-10-08 in issue #9**,
+> I **accepted these contracts on 2026-10-08 in issue #9**,
 > including the [decisions](#decisions) below; see the
 > [acceptance record](https://github.com/danielep71/K-IRRBB-NMDs/issues/9#issuecomment-6068527520). Regulatory figures are labeled with their source; those resting on an
 > unverified source in the [register](SOURCES.md) are provisional.
 
 ### Implementation hold points from the repository audit
 
-The accepted baseline is not numerical validation. The owner-approved roadmap
-of 2026-10-09 splits [#26](https://github.com/danielep71/K-IRRBB-NMDs/issues/26)
+The accepted baseline is not numerical validation. The roadmap I approved on
+2026-10-09 splits [#26](https://github.com/danielep71/K-IRRBB-NMDs/issues/26)
 into focused prerequisites. Each affected implementation must wait for its
 reviewed contract amendment; the parent's v0.7.0 milestone does not defer the
 earlier gates:
@@ -325,7 +325,7 @@ so that $\sum_{h=1}^{H} o_h + MPA(H) = B_{t_0}$ (**notional conserved**).
 $\hat\mu$, $\hat\sigma$, break coefficients, residual autocorrelation and
 normality tests, and the empirical $(1-c)$ quantile of the residuals next to
 the normal one. A normality rejection is reported; the normal quantile remains
-the contract until the owner decides otherwise.
+the contract until I decide otherwise.
 
 ### Scenarios
 
@@ -397,7 +397,7 @@ and tolerance. Backtesting follows the
 
 ## ✅ Decisions
 
-Accepted by the owner on 2026-10-08 in issue #9.
+I accepted these decisions on 2026-10-08 in issue #9.
 
 | # | Decision | Outcome |
 | ---: | --- | --- |

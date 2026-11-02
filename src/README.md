@@ -1,6 +1,6 @@
 # Production VBA source
 
-Source-first application profile, adapted from VBA-SACCR-Toolkit.
+Source-first application profile.
 
 - `core/`: host-independent numerical, econometric and validation functions (`CORE_*`, `Option Private Module`). `tools/check_source.py` rejects Excel object-model and UI identifiers here.
 - `modules/`: explicitly supported public facade (`IRRBB_*`), listed in [`docs/PUBLIC_API.txt`](../docs/PUBLIC_API.txt). `IRRBB_Import` imports the two data files (read only) and returns totals, per-period outcomes, findings, warnings and lineage as tables.

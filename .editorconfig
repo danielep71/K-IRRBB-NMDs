@@ -2,8 +2,7 @@
 # .editorconfig
 #------------------------------------------------------------------------------
 # PURPOSE
-#   Provide a portable editing baseline for K-IRRBB-NMDs; adapted from
-#   EXCEL-VBA-PROJECT-TEMPLATE.
+#   Provide a portable editing baseline for K-IRRBB-NMDs.
 #
 # POLICY
 #   - Exported VBA source uses CRLF and 4-space indentation.

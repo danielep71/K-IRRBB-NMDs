@@ -100,3 +100,4 @@ Contributor rules are in [Data, confidentiality and provenance](CONTRIBUTING.md#
 ## 📄 License
 
 [Mozilla Public License 2.0](LICENSE) (MPL-2.0), copyright 2026 Daniele Penza.
+The sources and licenses of files reused from other repositories are listed in [`docs/licenses/THIRD_PARTY_NOTICES.txt`](docs/licenses/THIRD_PARTY_NOTICES.txt).
