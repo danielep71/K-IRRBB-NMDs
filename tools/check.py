@@ -35,6 +35,7 @@ def main() -> int:
             if args.ci and args.base:
                 command += ["--base", args.base]
         commands.append((name, command))
+    commands.append(("check_links", [sys.executable, "tools/check_links.py", "--root", str(root)]))
     results = []
     for name, command in commands:
         r = subprocess.run(command, cwd=root, capture_output=True, text=True, check=False)

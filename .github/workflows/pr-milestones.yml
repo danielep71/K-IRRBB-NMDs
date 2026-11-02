@@ -1,0 +1,47 @@
+name: Remove pull-request milestones
+
+# Milestones track issues only. This workflow removes any milestone set on a pull
+# request. It runs the script from the default branch and never checks out or
+# runs pull-request code, so pull_request_target is safe here.
+on:
+  pull_request_target:
+    types: [opened, reopened, edited, milestoned]
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/scripts/pr-milestones.py
+      - .github/workflows/pr-milestones.yml
+
+permissions: {}
+
+concurrency:
+  group: pr-milestones-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.event_name == 'pull_request_target' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: read
+      # Pull-request milestones are changed through the issues endpoint, which
+      # for a pull request needs pull-requests: write.
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13.18"
+      - name: Remove and verify pull-request milestones
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+        run: python3 .github/scripts/pr-milestones.py

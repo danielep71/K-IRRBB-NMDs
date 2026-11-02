@@ -149,6 +149,13 @@ impact.
   The static-check and label-drift jobs run with a read-only token. The
   label-reconciliation job holds `issues: write` and runs only on pushes to
   `main` and manual dispatch, never on pull requests.
+  CodeQL scans the workflows, the label scripts and the Python tooling; only
+  pushes, the weekly run and manual runs hold `security-events: write` to
+  upload results, and a pull request is analysed read-only, with its results
+  kept as a run artifact.
+  The pull-request milestone guard runs on `pull_request_target` with
+  `pull-requests: write`, but checks out and runs only the default branch's
+  script, never pull-request code.
   The one exception to the credential rule is the daily traffic export. It
   runs only on the default branch, on a schedule or manual dispatch, keeps Git
   credentials to push its data to the `traffic-history` branch, and holds
