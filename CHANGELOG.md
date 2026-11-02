@@ -254,6 +254,12 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- The pull request template says to use `Resolves #` on task PRs and `Refs #`
+  on integration PRs and PRs that only carry earlier work, so that no issue
+  closes at the wrong time, and adds a final-head review: the final head SHA,
+  the reviewed commit and its result, and the Static repository checks run,
+  renewed after any push. `docs/GOVERNANCE.md` describes both under "Pull
+  requests" (#133).
 - CI now installs Ruff and mypy from the hash-locked
   `tools/requirements-quality-ci.txt` and runs `ruff check tools` with a
   complexity-ceiling probe, and checksum-verified actionlint 1.7.12 on the
