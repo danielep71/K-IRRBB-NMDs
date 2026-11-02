@@ -95,7 +95,8 @@ Use only the categories needed by a release.
 ## [Unreleased]
 
 > Not yet released. Development takes place on the active release branch,
-> `release/v0.2.0`; changes to `main` require an explicit owner instruction.
+> named in [`RELEASING.md`](RELEASING.md#current-status); changes to `main`
+> need my explicit instruction.
 
 ### Added
 
@@ -254,6 +255,11 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- The active release branch is named only in RELEASING.md's current-status
+  table, in `.github/dependabot.yml` and in CHANGELOG.md; the other documents
+  link to that table. `tools/test_workflow_pins.py` fails when another file
+  names the branch, and Static repository checks fails when a Dependabot
+  `target-branch` is not an existing branch (#134).
 - CI runs one exact Python, 3.13.18, in every workflow, including the traffic
   and issue-metadata workflows that used the runner's `python3`. A non-required
   job runs the portable gates on the minimum supported Python, 3.11, which

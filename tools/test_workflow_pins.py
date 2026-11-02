@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -84,6 +85,32 @@ class DependabotTests(unittest.TestCase):
         assert active is not None
         self.assertEqual(len(targets), 2)
         self.assertEqual(set(targets), {active.group(1)})
+
+
+class ActiveBranchTests(unittest.TestCase):
+    # Only these files may name the active release branch: Dependabot needs
+    # the literal name, RELEASING.md holds the current-status table, and
+    # CHANGELOG.md keeps history and its comparison link.
+    ALLOWED = {".github/dependabot.yml", "RELEASING.md", "CHANGELOG.md"}
+
+    def test_the_branch_name_lives_only_in_its_allowed_files(self) -> None:
+        active = re.search(r"^\| Active branch \| `([^`]+)` \|$",
+                           (ROOT / "RELEASING.md").read_text(encoding="utf-8"), re.M)
+        assert active is not None
+        tracked = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z"], capture_output=True,
+                                 check=True).stdout.decode("utf-8").split("\0")
+        found = []
+        for name in tracked:
+            path = ROOT / name
+            if not name or name in self.ALLOWED or not path.is_file():
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                continue
+            if active.group(1) in text:
+                found.append(name)
+        self.assertEqual(found, [], "name the active release branch through RELEASING.md instead")
 
 
 if __name__ == "__main__":

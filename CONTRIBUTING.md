@@ -77,8 +77,9 @@ requests follow [the PR template](.github/PULL_REQUEST_TEMPLATE.md).
 
 ## 🌿 Development workflow
 
-1. Start from the active release branch, currently `release/v0.2.0`. Never assume
-   GitHub's default branch is the right base.
+1. Start from the active release branch, named in
+   [`RELEASING.md`](RELEASING.md#current-status). Never assume GitHub's default
+   branch is the right base.
 2. Create one focused task branch named in the repository convention:
    `fix/<issue>-<slug>`, `docs/<slug>` or `test/<slug>`.
 3. Reproduce the current behavior before changing it.
