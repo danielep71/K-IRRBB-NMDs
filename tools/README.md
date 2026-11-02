@@ -24,7 +24,11 @@ The gate runner checks:
 - changelog/version consistency;
 - Markdown links (`check_links.py`): every relative link names an existing
   file or directory in the repository and every fragment names a heading or
-  anchor of its target (`test_check_links.py`).
+  anchor of its target (`test_check_links.py`);
+- the issue forms and label catalog (`check_issues.py --check-config`): each
+  form assigns `danielep71`, sets its provisional priority and asks for a
+  target end date and the dependencies, and `blocked` is the only
+  dependency-status label (`test_check_issues.py`).
 
 CI runs these checks on GitHub's hosted Linux runner. **VBA compile, Excel workbook execution, econometric calibration and numerical result validation are not performed by these gates.** Record Excel host evidence separately under `docs/EXCEL_EVIDENCE.md`.
 
@@ -178,6 +182,19 @@ Label reconciliation scripts and workflows apply the label policy and run from t
   daily across all pull requests. It reads each item back and refuses to
   change anything that is not a pull request, so issue milestones are never
   touched (`test_pr_milestones.py`).
+
+## Issue triage
+
+`check_issues.py` audits every open issue against the rules in
+[`docs/GOVERNANCE.md`](../docs/GOVERNANCE.md#issue-triage) and never changes
+one. `.github/workflows/issue-triage.yml` runs it on issue and milestone events
+and on demand with read-only permissions, writes the findings to the job
+summary and fails when there are any. Locally, export the issues as REST JSON
+and run:
+
+```shell
+python tools/check_issues.py --input issues.json --repo-name danielep71/K-IRRBB-NMDs
+```
 
 ## Dependency updates
 

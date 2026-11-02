@@ -262,6 +262,18 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- Issue triage reports instead of defaulting. The issue-metadata workflow,
+  which added `P3`, dropped extra priorities and set a default milestone, is
+  replaced by the read-only Issue triage workflow and `tools/check_issues.py`.
+  It reports each open issue that lacks an assignee, exactly one priority, an
+  open milestone with a due date, a target end date before it or a
+  dependencies section, that has `P1` without `bug`, a label outside the
+  catalog, or `blocked` out of step with its prerequisites. The issue forms
+  keep a provisional priority and ask for a target end date and the
+  dependencies. The traffic alert files its issue under the open milestone
+  with the earliest due date after today, so the `ISSUE_MILESTONE_NUMBER`
+  variable is no longer read. `P1` is now reserved for confirmed calculation
+  or correctness bugs (#136).
 - The active release branch is named only in RELEASING.md's current-status
   table, in `.github/dependabot.yml` and in CHANGELOG.md; the other documents
   link to that table. `tools/test_workflow_pins.py` fails when another file

@@ -80,11 +80,14 @@ Git history to apply an editorial correction.
 | ⚙️ Tooling or governance | Explain failure behavior, portability, trust boundary and maintenance cost. |
 | 🔐 Security concern | Follow [`SECURITY.md`](SECURITY.md) privately. |
 
-Open issues with the forms (bug, feature, documentation). Every issue is
-assigned to `danielep71`, carries **exactly one** priority label (`P1`, `P2` or
-`P3`) and has a milestone; the forms set the first two, and triage sets the
-milestone. See [`docs/GOVERNANCE.md`](docs/GOVERNANCE.md#issue-metadata). Pull
-requests follow [the PR template](.github/PULL_REQUEST_TEMPLATE.md).
+Open issues with the forms (bug, feature, documentation). The forms assign
+`danielep71`, set a provisional priority and ask for a target end date and the
+dependencies. During triage I confirm **exactly one** priority (`P1` only for a
+confirmed calculation or correctness bug), set a milestone with a due date and
+check that the target end date falls before it. The Issue triage workflow
+reports anything missing; it never changes an issue. See
+[`docs/GOVERNANCE.md`](docs/GOVERNANCE.md#issue-triage). Pull requests follow
+[the PR template](.github/PULL_REQUEST_TEMPLATE.md).
 
 <a id="development-workflow"></a>
 
