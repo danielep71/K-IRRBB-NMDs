@@ -30,11 +30,13 @@ Suspected vulnerabilities must never be disclosed in an issue or pull request.
 > Milestone **v0.2.0 – Workbook, data and Excel tests** is in progress;
 > **v0.1.0 – Repository foundation** closed on 2026-10-09. The VBA data import,
 > the macro-free workbook template and the regression harness exist, with no
-> Excel evidence recorded yet; no model engine exists yet. The model families
+> Excel evidence recorded yet. A draft Decay engine is present but remains
+> unvalidated, with contract decisions and acceptance tracked in issue #36;
+> Rates and Stable engines are not implemented. The model families
 > and their obligations are described in
 > [`docs/methodology/`](docs/methodology/README.md); the source layout is set in
 > [`docs/REPOSITORY_STRUCTURE.md`](docs/REPOSITORY_STRUCTURE.md). Sections below
-> that refer to models describe the rules those changes must follow once they exist.
+> that refer to models apply to the draft and to future implementations.
 
 ## 🌐 Repository language
 

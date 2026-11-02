@@ -314,6 +314,9 @@ Use only the categories needed by a release.
 
 ### Documentation
 
+- Correct the contributor guide's current status: the draft Decay engine exists
+  but remains unvalidated under #36; Rates and Stable are not implemented.
+
 - The manual-import component list in `INSTALLATION.md` names every module of
   `tools/vba-projects.json`, production and development, including the seven
   decay and example modules it omitted; `tools/test_devbuild.py` keeps the two
