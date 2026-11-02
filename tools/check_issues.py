@@ -25,15 +25,19 @@ PRIORITIES = ("P1", "P2", "P3")
 BLOCKED = "blocked"
 # The provisional priority each issue form sets; triage confirms or changes it.
 FORM_PRIORITIES = {"bug.yml": "P2", "feature.yml": "P2", "documentation.yml": "P3"}
-# The planning line I write, or the field an issue form renders. Each captures
-# its whole value, so an invalid planning line never falls back to the form.
+# A planning line, or a "Target end date" heading (the issue form renders one)
+# with the date on the next non-blank line. Each captures its whole value, so an
+# invalid planning line never falls back to a heading.
 PLANNED_TARGET = re.compile(r"^[ \t]*[-*][ \t]*Target end date:[ \t]*(.*?)[ \t]*$", re.I | re.M)
 FORM_TARGET = re.compile(
-    r"^###\s+Target end date(?:\s*\(Europe/Rome\))?\s*$\n\s*(.*?)[ \t]*$", re.I | re.M)
+    r"^#{2,3}\s+Target end date(?:\s*\(Europe/Rome\))?\s*$\n\s*(.*?)[ \t]*$", re.I | re.M)
 ROME_SUFFIX = re.compile(r"\s*\(Europe/Rome\)$", re.I)
 DEPENDENCY_STATUS_WORDS = re.compile(r"block|ready|waiting|depend|on[ -]hold|prerequisite", re.I)
 HEADING = re.compile(r"^#{2,3}\s+(.*)$")
 EXTERNAL = re.compile(r"^\s*(?:[-*]\s*)?external condition:\s*\S", re.I)
+# Only the issues on a "Blocked by" line are prerequisites; other references in
+# the section (parents, children, related work) are context.
+BLOCKED_BY = re.compile(r"^\s*(?:[-*]\s*)?(?:\*\*)?blocked by\b", re.I)
 API = "https://api.github.com"
 GUIDE = "docs/GOVERNANCE.md#issue-triage"
 
@@ -157,13 +161,18 @@ def target_date_findings(issue: Issue) -> list[Finding]:
 
 def dependency_findings(issue: Issue, states: Mapping[int, str], repository: str,
                         pulls: Collection[int] = ()) -> list[Finding]:
-    """A named pull request is a known reference, never a prerequisite."""
+    """Every reference must exist; only "Blocked by" lines name prerequisites.
+
+    A named pull request is a known reference, never a prerequisite.
+    """
     section = dependency_section(issue.body)
     if section is None:
         return [Finding(issue.number, "dependencies", "has no dependencies section")]
     named = references(section, repository, issue.number)
     missing = sorted(n for n in named if n not in states and n not in pulls)
-    open_prerequisites = sorted(n for n in named if states.get(n) == "open")
+    prerequisites = references([line for line in section if BLOCKED_BY.match(line)],
+                               repository, issue.number)
+    open_prerequisites = sorted(n for n in prerequisites if states.get(n) == "open")
     external = any(EXTERNAL.match(line) for line in section)
     blocked = BLOCKED in issue.labels
     findings = [Finding(issue.number, "dependencies", f"names #{n}, which does not exist")

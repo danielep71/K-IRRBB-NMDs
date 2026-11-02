@@ -486,6 +486,11 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- Issue triage reads a target end date under a level-2 "Target end date"
+  heading, as I write it, and treats only issues on a `Blocked by` line as
+  prerequisites; other issues named in a dependencies section are context and
+  need only exist. GOVERNANCE.md, LABELS.md and the issue forms describe the
+  convention (#146).
 - The workbook template gives DataSummary, which the data import writes, the
   status `NOT RUN` instead of `NOT RUN - not implemented`; only placeholder
   sheets now say they are not implemented, as `docs/WORKBOOK_CONTRACT.md`

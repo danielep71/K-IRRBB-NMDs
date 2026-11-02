@@ -46,11 +46,15 @@ Every open issue carries what I need to plan it:
     improvements.
 - **Milestone:** an open milestone with a due date.
 - **Target end date:** an ISO date (`YYYY-MM-DD`, Europe/Rome) before that
-  due date, in the issue form field or as a line `- Target end date: ...`.
-- **Dependencies:** a section headed "Dependencies" that names the
-  prerequisite issues (`#N`), an `External condition: ...`, or "None."
-- **`blocked`:** present exactly while the section names an open
-  prerequisite or an external condition.
+  due date, as a line `- Target end date: ...` or under a "Target end date"
+  heading, which is how the issue form renders it.
+- **Dependencies:** a section headed "Dependencies". Each issue it names must
+  exist; it may describe parents, children and related work freely. Only a
+  line starting `Blocked by` names prerequisites (`Blocked by #N`); an
+  `External condition: ...` line names an outside blocker. Write "None." when
+  there is nothing to say.
+- **`blocked`:** present exactly while a `Blocked by` line names an open issue
+  or the section names an external condition.
 - Labels come from `.github/labels.json`; titles carry no version prefixes,
   and acceptance criteria are verifiable checkboxes.
 

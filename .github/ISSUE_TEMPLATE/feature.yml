@@ -56,7 +56,7 @@ body:
     id: dependencies
     attributes:
       label: "Dependencies"
-      description: "Issues that must be resolved first (#N), or \"External condition: ...\", or \"None.\""
+      description: "A line \"Blocked by #N\" for each issue that must be resolved first, or \"External condition: ...\", or \"None.\" Other related issues may be named freely."
       placeholder: "None."
     validations:
       required: true
