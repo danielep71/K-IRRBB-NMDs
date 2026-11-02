@@ -188,6 +188,32 @@ Label reconciliation scripts and workflows apply the label policy and run from t
   change anything that is not a pull request, so issue milestones are never
   touched (`test_pr_milestones.py`).
 
+<a id="repository-settings"></a>
+
+## Repository settings
+
+`docs/repository-settings.json` is the baseline of the general settings, the
+security features and the rulesets for `main`, `release/**`, the release tags
+`v*` and `traffic-history`. `setup_repository.py` compares the saved settings
+with it through an authenticated GitHub CLI and refuses to run without admin
+rights on the repository:
+
+```shell
+python tools/setup_repository.py --repo danielep71/K-IRRBB-NMDs            # preview; never writes
+python tools/setup_repository.py --repo danielep71/K-IRRBB-NMDs --apply    # write, then read back
+python tools/setup_repository.py --repo danielep71/K-IRRBB-NMDs --check    # read-only; exit 1 on drift
+```
+
+Every run writes a dated evidence file,
+`test-results/repository-settings-<mode>-<time>.md` unless `--report` names
+another. `--apply` stops before writing when a named ruleset differs, until
+`--update-existing` allows it to replace that whole ruleset. A ruleset the
+baseline does not name is reported and never changed or deleted. Dependabot
+security updates stay off: their pull requests target `main`, which takes work
+only through the release branch, and the weekly version updates on the
+release branch cover the pinned actions and tools. `test_setup_repository.py`
+runs the script against a fake API.
+
 ## Issue triage
 
 `check_issues.py` audits every open issue against the rules in

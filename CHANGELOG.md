@@ -276,6 +276,15 @@ Use only the categories needed by a release.
   moves to 06:17 UTC, and a clone spike no longer raises an alert, since CI
   checkouts count as clones; clones stay in the CSV files, the alert body and
   the badge (#137).
+- The repository settings and rulesets are a checked baseline,
+  `docs/repository-settings.json`, instead of prose. `tools/setup_repository.py`
+  previews the difference without writing, applies it with read-back
+  (`--apply`) or verifies read-only (`--check`), writes a dated evidence file,
+  refuses to run without admin rights and never touches a ruleset the baseline
+  does not name. The baseline adds a ruleset for `traffic-history`, turns off
+  rebase merging and Dependabot security updates, and keeps the existing
+  rulesets for `main`, `release/**` and `v*` tags unchanged. GOVERNANCE.md and
+  RELEASING.md point to it (#138).
 - Issue triage reports instead of defaulting. The issue-metadata workflow,
   which added `P3`, dropped extra priorities and set a default milestone, is
   replaced by the read-only Issue triage workflow and `tools/check_issues.py`.
@@ -491,6 +500,11 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- Issue triage reads a target end date under a level-2 "Target end date"
+  heading, as I write it, and treats only issues on a `Blocked by` line as
+  prerequisites; other issues named in a dependencies section are context and
+  need only exist. GOVERNANCE.md, LABELS.md and the issue forms describe the
+  convention (#146).
 - The workbook template gives DataSummary, which the data import writes, the
   status `NOT RUN` instead of `NOT RUN - not implemented`; only placeholder
   sheets now say they are not implemented, as `docs/WORKBOOK_CONTRACT.md`

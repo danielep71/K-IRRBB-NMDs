@@ -46,11 +46,15 @@ Every open issue carries what I need to plan it:
     improvements.
 - **Milestone:** an open milestone with a due date.
 - **Target end date:** an ISO date (`YYYY-MM-DD`, Europe/Rome) before that
-  due date, in the issue form field or as a line `- Target end date: ...`.
-- **Dependencies:** a section headed "Dependencies" that names the
-  prerequisite issues (`#N`), an `External condition: ...`, or "None."
-- **`blocked`:** present exactly while the section names an open
-  prerequisite or an external condition.
+  due date, as a line `- Target end date: ...` or under a "Target end date"
+  heading, which is how the issue form renders it.
+- **Dependencies:** a section headed "Dependencies". Each issue it names must
+  exist; it may describe parents, children and related work freely. Only a
+  line starting `Blocked by` names prerequisites (`Blocked by #N`); an
+  `External condition: ...` line names an outside blocker. Write "None." when
+  there is nothing to say.
+- **`blocked`:** present exactly while a `Blocked by` line names an open issue
+  or the section names an external condition.
 - Labels come from `.github/labels.json`; titles carry no version prefixes,
   and acceptance criteria are verifiable checkboxes.
 
@@ -74,14 +78,24 @@ current one passes.
 Close an issue only when its acceptance criteria are evidenced, with links to
 the code and tests.
 
+<a id="repository-settings"></a>
+
+## Repository settings
+
+The general settings, security features and rulesets are recorded in
+[`repository-settings.json`](repository-settings.json), the baseline; this
+document does not restate them. `tools/setup_repository.py` compares the saved
+settings with it ([tools/README.md](../tools/README.md#repository-settings)).
+After any settings change I run it with `--check` and keep the evidence file;
+an unsaved edit or an authentication prompt does not establish enforcement.
+The script never changes or deletes a ruleset the baseline does not name.
+
 Administrator bypass is an exceptional capability, not permission to skip review
-or failing checks. The `main` bypass mode is **pull requests only**, and the
-`release/**` bypass mode is **always**, so that I can bring a release branch
-level with `main` after an integration
+or failing checks. On `main` it applies to pull requests only; on `release/**`
+it is always available, so that I can bring a release branch level with `main`
+after an integration
 ([`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main));
-it is used for nothing else. Verify the saved GitHub ruleset after any settings
-change; an unsaved edit or an authentication prompt does not establish
-enforcement.
+it is used for nothing else.
 
 ## Privacy and intellectual property
 
