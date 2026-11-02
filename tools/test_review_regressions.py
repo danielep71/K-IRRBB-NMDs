@@ -4,17 +4,17 @@ from __future__ import annotations
 import csv
 import json
 import lzma
-import os
 import shutil
 import subprocess
 import tempfile
-import textwrap
 import unittest
 import warnings
 import zipfile
 from collections.abc import Mapping
+from datetime import datetime
 from pathlib import Path
 
+import traffic_history
 from check_source import check_workbook
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -140,31 +140,21 @@ class LabelDefaultsTests(unittest.TestCase):
 
 class TrafficMetricTests(unittest.TestCase):
     def test_old_and_current_schema_and_same_day_rerun(self) -> None:
-        workflow = (ROOT / ".github/workflows/daily-traffic.yml").read_text()
-        build = workflow.split("      - name: Build CSV history\n", 1)[1]
-        source = textwrap.dedent(build.split("          python3 << 'PY'\n", 1)[1]
-                                 .split("          PY\n", 1)[0])
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             fixtures = {
                 "views": {"count": 5, "uniques": 3, "views": []},
                 "clones": {"count": 2, "uniques": 1, "clones": []},
                 "referrers": [], "paths": [],
-                "repo": {"stargazers_count": 0, "open_issues_count": 7},
+                "repository": {"stargazers_count": 0, "open_issues_count": 7},
             }
             for name, value in fixtures.items():
                 (root / (name + ".json")).write_text(json.dumps(value))
             (root / "data").mkdir()
             history = root / "data/traffic.csv"
             history.write_text("snapshot_date,open_issues\n2000-01-01,12\n")
-            source = source.replace('"/tmp/', json.dumps(str(root) + "/")[:-1])
-            previous = Path.cwd()
-            try:
-                os.chdir(root)
-                exec(compile(source, "daily-traffic-build", "exec"), {})
-                exec(compile(source, "daily-traffic-build", "exec"), {})
-            finally:
-                os.chdir(previous)
+            for stamp in ("2026-11-02T06:17:03+00:00", "2026-11-02T06:47:03+00:00"):
+                traffic_history.merge(root, root / "data", datetime.fromisoformat(stamp))
             with history.open(newline="") as handle:
                 reader = csv.DictReader(handle)
                 rows = list(reader)
@@ -175,6 +165,7 @@ class TrafficMetricTests(unittest.TestCase):
             self.assertEqual(rows[0]["open_issues_and_prs"], "12")
             self.assertEqual(rows[1]["open_issues_and_prs"], "7")
             self.assertEqual(rows[1]["views_14d"], "5")
+            self.assertEqual(rows[1]["snapshot_datetime_utc"], "2026-11-02T06:47:03+00:00")
 
 
 if __name__ == "__main__":

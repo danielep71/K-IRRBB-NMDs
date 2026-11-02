@@ -34,6 +34,11 @@ CI runs these checks on GitHub's hosted Linux runner. **VBA compile, Excel workb
 
 `workbook/build_template.py` generates the macro-free template (standard library only). `devbuild/` builds the macro-enabled development workbook used for Excel compile and harness evidence, without Excel automation and without Trust access to the VBA project object model; see [`devbuild/README.md`](devbuild/README.md).
 
+`traffic_history.py` is not a gate: the daily traffic export workflow runs it
+to merge each traffic collection into the `traffic-history` branch and to
+prepare the traffic alert. Its offline tests (`test_traffic_history.py`) run
+with the other self-tests; see [`docs/TRAFFIC.md`](../docs/TRAFFIC.md).
+
 ## Local VBA synchronization
 
 `Sync-IRRBB-VBA.ps1` synchronizes the repository VBA source into an existing
