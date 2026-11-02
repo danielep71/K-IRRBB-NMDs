@@ -1,0 +1,118 @@
+name: CodeQL
+
+# Code scanning for the workflows (actions), the label scripts (JavaScript) and
+# the Python tooling. VBA is not a CodeQL language, so the workbook source is
+# covered by the static checks only. Pushes, the weekly run and manual runs
+# upload results to code scanning. Pull requests are analysed without
+# uploading: the SARIF files are kept as a run artifact, so a pull request needs
+# no write access to security events.
+#
+# Code scanning is free on public repositories. If this repository becomes
+# private, it needs GitHub Code Security and the repository variable
+# CODE_SCANNING set to "enabled"; otherwise the analysis is skipped, not failed.
+# This check is not required for merging.
+on:
+  push:
+    branches:
+      - main
+      - "release/**"
+  pull_request:
+    branches:
+      - main
+      - "release/**"
+  schedule:
+    - cron: "29 4 * * 3"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  availability:
+    name: Code scanning availability
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - name: Check visibility and opt-in
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CODE_SCANNING: ${{ vars.CODE_SCANNING }}
+        run: |
+          # Read from the API: scheduled events carry no repository payload.
+          visibility="$(gh api "repos/${GITHUB_REPOSITORY}" --jq .visibility)"
+          if [[ "$visibility" == "public" || "$CODE_SCANNING" == "enabled" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Code scanning skipped: the repository is ${visibility} and CODE_SCANNING is not \"enabled\"."
+          fi
+
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    needs: availability
+    if: needs.availability.outputs.enabled == 'true' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions, javascript-typescript, python]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          queries: security-extended
+      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          category: /language:${{ matrix.language }}
+
+  analyze-pr:
+    name: Analyze pull request (${{ matrix.language }})
+    needs: availability
+    if: needs.availability.outputs.enabled == 'true' && github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions, javascript-typescript, python]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          queries: security-extended
+      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          category: /language:${{ matrix.language }}
+          upload: never
+          upload-database: false
+          output: codeql-results
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: codeql-pr-${{ matrix.language }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: codeql-results/
+          if-no-files-found: error
+          retention-days: 30

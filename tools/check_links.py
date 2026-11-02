@@ -1,0 +1,267 @@
+#!/usr/bin/env python3
+"""Check the links in the repository's Markdown files.
+
+Offline, every relative link must name an existing directory or non-empty file
+inside the repository, and every fragment must name a heading or an explicit anchor of
+the Markdown file it points to. With --external, each http(s) link is also
+requested once, except absolute links into this repository itself: a private
+repository answers 404 to anonymous requests, so they are not checked at all.
+Write links to this repository's files as relative links, which the offline
+check covers.
+"""
+
+from __future__ import annotations
+
+import argparse
+import html
+import os
+import re
+import subprocess
+import sys
+import unicodedata
+from collections.abc import Iterable, Iterator, Sequence
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from urllib.parse import unquote, urlsplit
+
+ROOT = Path(__file__).resolve().parents[1]
+FENCE = re.compile(r" {0,3}(`{3,}|~{3,})")
+INDENTED = re.compile(r" {4}| {0,3}\t")
+ATX_HEADING = re.compile(r" {0,3}#{1,6}\s+(.*?)(?:\s+#+)?\s*$")
+LIST_ITEM = re.compile(r" {0,3}(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)")
+ATTRIBUTE = r"""\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))"""
+
+
+def github_slug(heading: str) -> str:
+    """Anchor GitHub generates for a Markdown heading, before duplicate suffixes."""
+    text = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", heading)
+    # Decode only complete character references (ending in ';'), as Markdown does.
+    text = re.sub(r"&(?:#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});",
+                  lambda match: html.unescape(match.group(0)), re.sub(r"<[^>]+>", "", text))
+    return "".join(char for char in text.lower() if slug_character(char)).replace(" ", "-")
+
+
+def slug_character(char: str) -> bool:
+    """GitHub keeps word characters (letters, marks, decimal digits and connector
+    punctuation, such as the variation selector U+FE0F after many emoji), "-" and spaces."""
+    return char in "- " or unicodedata.category(char)[:1] in ("L", "M") \
+        or unicodedata.category(char) in ("Nd", "Pc")
+
+
+def heading_anchor(slug: str, used: dict[str, int]) -> str:
+    """Make a heading slug unique the way GitHub does: -1, -2... until unused."""
+    anchor = slug
+    while anchor in used:
+        used[slug] += 1
+        anchor = f"{slug}-{used[slug]}"
+    used[anchor] = 0
+    return anchor
+
+
+def inline_destinations(line: str) -> list[str]:
+    """Destinations of [text](destination "title"), allowing <...> and balanced parentheses."""
+    found = []
+    for match in re.finditer(r"\]\(", line):
+        rest = line[match.end():].lstrip()
+        if rest.startswith("<"):
+            end = rest.find(">")
+            if end > 1:
+                found.append(rest[1:end])
+            continue
+        depth, destination = 0, ""
+        for char in rest:
+            if char.isspace() or (char == ")" and depth == 0):
+                break
+            depth += {"(": 1, ")": -1}.get(char, 0)
+            destination += char
+        if destination:
+            found.append(destination)
+    return found
+
+
+def ends_paragraph(line: str, heading: bool) -> bool:
+    return (heading or not line.strip()
+            or bool(re.match(r" {0,3}([-*_])(\s*\1){2,}\s*$", line))
+            or bool(re.match(r" {4}| {0,3}([-*+]\s|\d+[.)]\s|[>|<])", line)))
+
+
+def line_links(line: str) -> tuple[list[str], set[str]]:
+    """Links and explicit anchors on one line outside code."""
+    line = re.sub(r"(`+).*?\1", "", line)
+    anchors = {"".join(value) for value in
+               re.findall(r"<a\s[^>]*?(?<![\w-])(?:id|name)" + ATTRIBUTE, line)}
+    links = inline_destinations(line)
+    links += ["".join(value) for value in
+              re.findall(r"^ {0,3}\[(?!\^)[^\]]+\]:\s*(?:<([^>]*)>|(\S+))", line)]
+    links += re.findall(r"<(https?://[^>\s]+)>", line)
+    links += ["".join(value) for value in re.findall(r"(?<![\w-])(?:href|src)" + ATTRIBUTE, line)]
+    return links, anchors
+
+
+def prose_lines(text: str) -> Iterator[str]:
+    """Each line of a Markdown document, with the lines of code blocks blanked.
+
+    Fenced blocks and indented blocks (four spaces or a tab) are code. An indented
+    block starts only after a blank line or a heading, since it cannot interrupt
+    a paragraph, and not inside a list, where indentation continues the item.
+    """
+    fence: str | None = None
+    indented = in_list = False
+    previous = ""
+    for line in text.splitlines():
+        blank = not line.strip()
+        match = FENCE.match(line)
+        if fence:
+            if match and match.group(1)[0] == fence[0] and len(match.group(1)) >= len(fence):
+                fence = None
+            code = True
+        elif match:
+            fence, indented, code = match.group(1), False, True
+        else:
+            starts = (not blank and bool(INDENTED.match(line)) and not in_list
+                      and (not previous.strip() or bool(ATX_HEADING.match(previous))))
+            indented = starts or (indented and (blank or bool(INDENTED.match(line))))
+            code = indented
+        if not code:
+            if LIST_ITEM.match(line):
+                in_list = True
+            elif not blank and not line[0].isspace() and not previous.strip():
+                in_list = False
+        previous = line
+        yield "" if code else line
+
+
+def markdown_links(text: str) -> tuple[list[str], set[str]]:
+    """Return (links, anchors) of a Markdown document, ignoring code blocks and inline code."""
+    links: list[str] = []
+    anchors: set[str] = set()
+    used: dict[str, int] = {}
+    paragraph: list[str] = []
+    for line in prose_lines(text):
+        if paragraph and re.match(r" {0,3}(=+|-+)\s*$", line):
+            # Setext heading: the paragraph above an === or --- underline.
+            anchors.add(heading_anchor(github_slug(" ".join(paragraph)), used))
+            paragraph = []
+            continue
+        heading = ATX_HEADING.match(line)
+        if heading:
+            anchors.add(heading_anchor(github_slug(heading.group(1)), used))
+        paragraph = [] if ends_paragraph(line, bool(heading)) else [*paragraph, line.strip()]
+        found, explicit = line_links(line)
+        links += found
+        anchors |= explicit
+    return links, anchors
+
+
+def tracked_markdown(root: Path) -> list[Path]:
+    try:
+        names = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "--", "*.md"],
+                               capture_output=True, text=True, encoding="utf-8",
+                               check=True).stdout.split("\0")
+        return [root / name for name in names if name]
+    except (OSError, subprocess.CalledProcessError):
+        return [path for path in root.rglob("*.md") if ".git" not in path.relative_to(root).parts]
+
+
+def local_error(root: Path, source: Path, link: str, anchors: dict[Path, set[str]]) -> str | None:
+    url = urlsplit(link)
+    if url.path.startswith("/"):
+        return f"root-relative link: {link}"
+    target = (source.parent / unquote(url.path)).resolve() if url.path else source.resolve()
+    if not target.is_relative_to(root.resolve()):
+        return f"path outside the repository: {link}"
+    if not target.exists():
+        return f"missing target: {link}"
+    if target.is_file() and target.stat().st_size == 0:
+        return f"empty target: {link}"
+    if url.fragment and target in anchors and unquote(url.fragment) not in anchors[target]:
+        return f"missing anchor: {link}"
+    return None
+
+
+def check(root: Path = ROOT) -> tuple[list[str], set[str], int]:
+    """Return (errors, external URLs, number of links checked) for the Markdown files."""
+    errors: list[str] = []
+    documents = {}
+    for path in tracked_markdown(root):
+        if not path.is_file():
+            # Tracked by Git but deleted from the working tree without git rm.
+            errors.append(f"{path.relative_to(root).as_posix()}: tracked but missing from the working tree")
+            continue
+        documents[path.resolve()] = markdown_links(path.read_text(encoding="utf-8"))
+    anchors = {path: found for path, (_, found) in documents.items()}
+    external: set[str] = set()
+    count = 0
+    for source, (links, _) in sorted(documents.items()):
+        for link in links:
+            count += 1
+            url = urlsplit(link)
+            if url.scheme in ("http", "https") or (not url.scheme and url.netloc):
+                external.add(("https:" + link if link.startswith("//") else link).split("#")[0])
+                continue
+            if url.scheme in ("mailto", "tel", "data"):
+                continue
+            problem = (f"unsupported URL scheme: {link}" if url.scheme
+                       else local_error(root, source, link, anchors))
+            if problem:
+                errors.append(f"{source.relative_to(root.resolve()).as_posix()}: {problem}")
+    return errors, external, count
+
+
+def own_repository(url: str, repository: str) -> bool:
+    """Whether a URL points into this repository; such URLs are not requested."""
+    if not repository:
+        return False
+    prefixes = (f"https://github.com/{repository}", f"https://raw.githubusercontent.com/{repository}/")
+    lowered = url.lower()
+    return any(lowered == prefix.lower() or lowered.startswith(prefix.lower().rstrip("/") + "/")
+               for prefix in prefixes)
+
+
+def check_external(url: str) -> tuple[str, str]:
+    # GET follows redirects; HEAD is rejected by some otherwise working sites.
+    result = subprocess.run([
+        "curl", "--silent", "--show-error", "--location", "--output", os.devnull,
+        "--write-out", "%{http_code}", "--connect-timeout", "10", "--max-time", "25",
+        "--retry", "2", "--retry-delay", "2", "--proto", "=https,http",
+        "--proto-redir", "=https,http", url,
+    ], capture_output=True, text=True, timeout=95, check=False)
+    code = result.stdout.strip()
+    if result.returncode or code in ("403", "429") or code.startswith("5"):
+        return "WARN", f"{url}: unavailable for verification (HTTP {code or 'unknown'})"
+    if not code.startswith("2"):
+        return "ERROR", f"{url}: HTTP {code}"
+    return "PASS", url
+
+
+def external_errors(urls: Iterable[str], repository: str) -> list[str]:
+    checked = sorted(url for url in urls if not own_repository(url, repository))
+    errors = []
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        for status, message in pool.map(check_external, checked):
+            print(f"{status}: {message}")
+            if status == "ERROR":
+                errors.append(message)
+    return errors
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
+    parser.add_argument("--root", type=Path, default=ROOT)
+    parser.add_argument("--external", action="store_true",
+                        help="also request every external http(s) link")
+    parser.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY", ""),
+                        help="owner/name whose own URLs are skipped (default: GITHUB_REPOSITORY)")
+    args = parser.parse_args(argv)
+    root = args.root.resolve()
+    errors, external, count = check(root)
+    if args.external:
+        errors += external_errors(external, args.repository)
+    for error in errors:
+        print(f"ERROR: {error}")
+    print(f"Checked {count} link(s) in Markdown; {len(errors)} error(s).")
+    return 1 if errors else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

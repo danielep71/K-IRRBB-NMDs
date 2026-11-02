@@ -253,6 +253,13 @@ Use only the categories needed by a release.
   traffic alerts select an explicit configurable milestone. Ruff/mypy settings
   are documented as optional development targets, not claimed CI gates.
 
+- CodeQL scanning of the workflows, the label scripts and the Python tooling
+  on pushes, pull requests (analysed without uploading), weekly and on demand;
+  an offline Markdown link check in the portable gates (`tools/check_links.py`)
+  with a weekly run that also requests external links; and a workflow that
+  removes milestones from pull requests, since milestones belong to issues.
+  Each comes with offline tests (#135).
+
 ### Changed
 
 - The active release branch is named only in RELEASING.md's current-status

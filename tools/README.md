@@ -21,7 +21,10 @@ The gate runner checks:
 - `src/core/` host independence: no Excel object-model or UI identifiers outside comments and strings;
 - VBA jump targets and conditional compilation across supported Windows bitness contexts;
 - explicit public API declarations compared with `docs/PUBLIC_API.txt`;
-- changelog/version consistency.
+- changelog/version consistency;
+- Markdown links (`check_links.py`): every relative link names an existing
+  file or directory in the repository and every fragment names a heading or
+  anchor of its target (`test_check_links.py`).
 
 CI runs these checks on GitHub's hosted Linux runner. **VBA compile, Excel workbook execution, econometric calibration and numerical result validation are not performed by these gates.** Record Excel host evidence separately under `docs/EXCEL_EVIDENCE.md`.
 
@@ -152,6 +155,29 @@ else must match. The export needs the same Trust access as the synchronizer;
 the comparison never runs Excel.
 
 Label reconciliation scripts and workflows apply the label policy and run from the default branch `main`; see [`docs/LABELS.md`](../docs/LABELS.md).
+
+## Code scanning, links and pull-request milestones
+
+- **CodeQL** (`.github/workflows/codeql.yml`) scans the workflows (`actions`),
+  the label scripts (`javascript-typescript`) and the Python tooling with the `security-extended` queries on pushes and
+  pull requests to `main` and `release/**`, weekly and on demand. VBA is not a
+  CodeQL language. Pushes and scheduled runs upload results to code scanning;
+  a pull request is analysed without uploading, and its SARIF files are kept
+  as a run artifact for 30 days. This workflow replaces GitHub's default
+  CodeQL setup, which must stay off: the two cannot run together. On a private
+  repository the scan needs GitHub Code Security and the repository variable
+  `CODE_SCANNING` set to `enabled`; without them it is skipped, not failed.
+- **External links** (`.github/workflows/link-check.yml`) runs
+  `python tools/check_links.py --external` every Monday and on demand. It
+  requests each external http(s) link once; links into this repository are
+  skipped, because the offline check covers them as relative links. Rate
+  limits and network errors are reported as warnings, a 404 as an error.
+- **Pull-request milestones** (`.github/workflows/pr-milestones.yml` with
+  `.github/scripts/pr-milestones.py`) removes any milestone set on a pull
+  request, when one is opened, reopened, edited or given a milestone, and
+  daily across all pull requests. It reads each item back and refuses to
+  change anything that is not a pull request, so issue milestones are never
+  touched (`test_pr_milestones.py`).
 
 ## Dependency updates
 
