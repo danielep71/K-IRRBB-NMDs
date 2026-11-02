@@ -44,7 +44,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.10"
+          python-version: "3.13.18"
       - name: Verify exact checkout and run portable gates
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
@@ -139,3 +139,19 @@ jobs:
           path: test-results/
           if-no-files-found: error
           retention-days: 30
+
+  minimum-python:
+    # Not a required check: it confirms that the tools still run on the
+    # documented minimum Python (pyproject.toml python_version).
+    name: Minimum Python (3.11)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.11.18"
+      - name: Run portable gates
+        run: python tools/check.py --ci
