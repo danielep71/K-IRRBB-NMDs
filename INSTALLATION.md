@@ -6,7 +6,7 @@
 
 [![Status](https://img.shields.io/badge/Status-In_development-d97706?style=flat-square)](#current-status)
 [![Checks](https://img.shields.io/badge/Checks-python_tools%2Fcheck.py-0969da?style=flat-square)](#run-the-checks)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab?style=flat-square&logo=python&logoColor=white)](#prerequisites)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-3776ab?style=flat-square&logo=python&logoColor=white)](#prerequisites)
 [![Security](https://img.shields.io/badge/Security-Private_policy-d73a49?style=flat-square)](SECURITY.md)
 
 <br>
@@ -60,7 +60,7 @@ Passing static checks is **not** evidence of correct IRRBB calculations.
 | Tool | Needed for |
 | --- | --- |
 | Git | Cloning and all repository work |
-| Python 3.10 or later | `python tools/check.py`; standard library only, no packages |
+| Python 3.11 or later | `python tools/check.py`; standard library only, no packages |
 | Node.js 20 or later | Optional: local label-catalog checks |
 | Microsoft Excel for Windows | VBA import, compile, the regression harness and the data import, and later the models; see [supported hosts](#supported-hosts); not needed for static checks |
 
@@ -303,7 +303,7 @@ reapply modifications deliberately and retest them.
 
 | Symptom | Check first |
 | --- | --- |
-| `tools/check.py` fails on a clean clone | Python 3.10+ is on `PATH`, and the checkout is a Git clone, not a ZIP. |
+| `tools/check.py` fails on a clean clone | Python 3.11+ is on `PATH`, and the checkout is a Git clone, not a ZIP. |
 | `tools/check.py --ci` fails locally | The working tree is clean and every change is committed. |
 | `tools/check.py` reports CRLF in Git | Renormalize with `git add --renormalize .` and commit the result separately. |
 | Compile error or missing procedure | All components come from one commit, and required references are set. |
