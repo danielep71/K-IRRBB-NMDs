@@ -1,0 +1,180 @@
+{
+  "schema_version": 1,
+  "repository": {
+    "delete_branch_on_merge": true,
+    "allow_update_branch": true,
+    "allow_merge_commit": true,
+    "allow_squash_merge": true,
+    "allow_rebase_merge": false,
+    "has_projects": false,
+    "has_downloads": false
+  },
+  "security": {
+    "private_vulnerability_reporting": true,
+    "vulnerability_alerts": true,
+    "automated_security_fixes": false,
+    "secret_scanning": true,
+    "secret_scanning_push_protection": true
+  },
+  "rulesets": [
+    {
+      "name": "Protect main",
+      "target": "branch",
+      "enforcement": "active",
+      "conditions": {
+        "ref_name": {
+          "exclude": [],
+          "include": [
+            "~DEFAULT_BRANCH"
+          ]
+        }
+      },
+      "rules": [
+        {
+          "type": "deletion"
+        },
+        {
+          "type": "non_fast_forward"
+        },
+        {
+          "type": "pull_request",
+          "parameters": {
+            "required_approving_review_count": 0,
+            "dismiss_stale_reviews_on_push": false,
+            "required_reviewers": [],
+            "require_code_owner_review": false,
+            "require_last_push_approval": false,
+            "required_review_thread_resolution": true,
+            "require_extra_approval_for_unattributed_changes": true,
+            "allowed_merge_methods": [
+              "merge"
+            ]
+          }
+        },
+        {
+          "type": "required_status_checks",
+          "parameters": {
+            "strict_required_status_checks_policy": true,
+            "do_not_enforce_on_create": false,
+            "required_status_checks": [
+              {
+                "context": "Repository integrity",
+                "integration_id": 15368
+              }
+            ]
+          }
+        }
+      ],
+      "bypass_actors": [
+        {
+          "actor_id": 5,
+          "actor_type": "RepositoryRole",
+          "bypass_mode": "pull_request"
+        }
+      ]
+    },
+    {
+      "name": "Protect release branches",
+      "target": "branch",
+      "enforcement": "active",
+      "conditions": {
+        "ref_name": {
+          "exclude": [],
+          "include": [
+            "refs/heads/release/**"
+          ]
+        }
+      },
+      "rules": [
+        {
+          "type": "deletion"
+        },
+        {
+          "type": "non_fast_forward"
+        },
+        {
+          "type": "pull_request",
+          "parameters": {
+            "required_approving_review_count": 0,
+            "dismiss_stale_reviews_on_push": false,
+            "required_reviewers": [],
+            "require_code_owner_review": false,
+            "require_last_push_approval": false,
+            "required_review_thread_resolution": true,
+            "require_extra_approval_for_unattributed_changes": true,
+            "allowed_merge_methods": [
+              "squash"
+            ]
+          }
+        },
+        {
+          "type": "required_status_checks",
+          "parameters": {
+            "strict_required_status_checks_policy": false,
+            "do_not_enforce_on_create": true,
+            "required_status_checks": [
+              {
+                "context": "Repository integrity",
+                "integration_id": 15368
+              }
+            ]
+          }
+        }
+      ],
+      "bypass_actors": [
+        {
+          "actor_id": 5,
+          "actor_type": "RepositoryRole",
+          "bypass_mode": "always"
+        }
+      ]
+    },
+    {
+      "name": "Protect release tags",
+      "target": "tag",
+      "enforcement": "active",
+      "conditions": {
+        "ref_name": {
+          "exclude": [],
+          "include": [
+            "refs/tags/v*"
+          ]
+        }
+      },
+      "rules": [
+        {
+          "type": "deletion"
+        },
+        {
+          "type": "non_fast_forward"
+        },
+        {
+          "type": "update"
+        }
+      ],
+      "bypass_actors": []
+    },
+    {
+      "name": "Protect traffic history",
+      "target": "branch",
+      "enforcement": "active",
+      "conditions": {
+        "ref_name": {
+          "exclude": [],
+          "include": [
+            "refs/heads/traffic-history"
+          ]
+        }
+      },
+      "rules": [
+        {
+          "type": "deletion"
+        },
+        {
+          "type": "non_fast_forward"
+        }
+      ],
+      "bypass_actors": []
+    }
+  ]
+}

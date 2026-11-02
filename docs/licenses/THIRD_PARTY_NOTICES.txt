@@ -108,10 +108,13 @@ The following files were adapted from danielep71/MyTemplate
 .github/workflows/pr-milestones.yml
 .github/workflows/static-checks.yml
 docs/GOVERNANCE.md
+docs/repository-settings.json
 tools/check_issues.py
 tools/check_links.py
 tools/test_check_links.py
+tools/setup_repository.py
 tools/test_pr_milestones.py
+tools/test_setup_repository.py
 tools/test_workflow_pins.py
 
 Modifications: the link checker and its tests are kept, with indented code
@@ -124,4 +127,6 @@ Dependabot target check and the workflow and toolchain tests are rewritten
 for this repository's files, branch policy and tooling. The issue triage
 check reads the label catalog from labels.json and the label policy instead
 of the label script, and follows this repository's issue forms and its
-definition of P1.
+definition of P1. The settings baseline records this repository's rulesets,
+including their admin bypass, and the settings script writes an evidence
+file on every run.

@@ -262,6 +262,15 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- The repository settings and rulesets are a checked baseline,
+  `docs/repository-settings.json`, instead of prose. `tools/setup_repository.py`
+  previews the difference without writing, applies it with read-back
+  (`--apply`) or verifies read-only (`--check`), writes a dated evidence file,
+  refuses to run without admin rights and never touches a ruleset the baseline
+  does not name. The baseline adds a ruleset for `traffic-history`, turns off
+  rebase merging and Dependabot security updates, and keeps the existing
+  rulesets for `main`, `release/**` and `v*` tags unchanged. GOVERNANCE.md and
+  RELEASING.md point to it (#138).
 - Issue triage reports instead of defaulting. The issue-metadata workflow,
   which added `P3`, dropped extra priorities and set a default milestone, is
   replaced by the read-only Issue triage workflow and `tools/check_issues.py`.
