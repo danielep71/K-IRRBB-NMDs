@@ -121,8 +121,8 @@ bypass it. Both require the **Repository integrity** check.
    open the next `release/vX.Y.Z` branch from the merge commit instead, and
    name it in the current-status table above, in every Dependabot
    `target-branch` of `.github/dependabot.yml` and in the `[Unreleased]`
-   comparison link of `CHANGELOG.md`, and point `ISSUE_MILESTONE_NUMBER` at
-   its milestone. No other file names the branch;
+   comparison link of `CHANGELOG.md`, and make sure its milestone has a due
+   date. No other file names the branch;
    `tools/test_workflow_pins.py` checks this, and Static repository checks fails
    when a Dependabot target branch does not exist.
 

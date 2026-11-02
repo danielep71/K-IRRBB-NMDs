@@ -31,26 +31,48 @@
   Dependabot PR, which does not use the template, I record the same in a
   comment.
 
-## Issue metadata
+<a id="issue-triage"></a>
 
-- Every issue, open or closed, must include `danielep71` as assignee.
-- Exactly one priority: `P1` (blocking correctness/security), `P2` (significant), `P3` (non-blocking).
-- Add suitable type labels, a milestone and verifiable checkboxes; titles do not carry version prefixes.
-- Issues may be closed only when their acceptance criteria are evidenced; links to code and tests should be recorded.
+## Issue triage
 
-The trusted default-branch `issue-metadata.yml` workflow reconciles issue events
-and a daily sweep, including closed issues, and verifies the saved metadata.
-It preserves an existing milestone; missing milestones use repository variable
-`ISSUE_MILESTONE_NUMBER`, set to the active milestone, which must identify an
-open milestone; there is no fallback, and an unset variable fails with a message
-naming it.
-It adds `P3` only when no priority exists; conflicting priorities retain the
-highest severity (`P1`, then `P2`, then `P3`). Other labels and assignees remain.
-A manual dispatch on the default branch performs a full sweep. Change the
-variable before closing the configured default milestone. Issue events that
-GitHub raises for pull requests are skipped before any API call, and a failed
-API call is logged with its HTTP status and response, with token-like strings
-redacted (#41).
+Every open issue carries what I need to plan it:
+
+- **Assignee:** `danielep71`.
+- **Priority:** exactly one of `P1`, `P2`, `P3`.
+  - `P1` only for a confirmed calculation or correctness bug, so it always
+    comes with `bug`.
+  - `P2` for material correctness, robustness or maintainability work.
+  - `P3` for non-blocking quality, testing, documentation or technical-debt
+    improvements.
+- **Milestone:** an open milestone with a due date.
+- **Target end date:** an ISO date (`YYYY-MM-DD`, Europe/Rome) before that
+  due date, in the issue form field or as a line `- Target end date: ...`.
+- **Dependencies:** a section headed "Dependencies" that names the
+  prerequisite issues (`#N`), an `External condition: ...`, or "None."
+- **`blocked`:** present exactly while the section names an open
+  prerequisite or an external condition.
+- Labels come from `.github/labels.json`; titles carry no version prefixes,
+  and acceptance criteria are verifiable checkboxes.
+
+The issue forms set the assignee and a provisional priority (`P2` for bugs and
+features, `P3` for documentation) and ask for the target end date and the
+dependencies; I confirm or change the priority and set the milestone during
+triage. No automation changes an issue's priority or milestone.
+
+`.github/workflows/issue-triage.yml` runs `tools/check_issues.py` from the
+default branch on issue and milestone events and on demand, with read-only
+permissions. It reports every finding in the job summary and fails when there
+is any; I resolve each finding by hand. `python tools/check_issues.py
+--check-config`, one of the portable gates, checks that the forms and the label
+catalog still support these rules.
+
+Where an automation files an issue itself (the traffic alert), it uses the
+open milestone with the earliest due date after today; with none, the run
+fails with a message saying so. Give the next milestone a due date before the
+current one passes.
+
+Close an issue only when its acceptance criteria are evidenced, with links to
+the code and tests.
 
 Administrator bypass is an exceptional capability, not permission to skip review
 or failing checks. The `main` bypass mode is **pull requests only**, and the

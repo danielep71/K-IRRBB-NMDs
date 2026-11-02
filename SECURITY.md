@@ -153,6 +153,7 @@ impact.
   pushes, the weekly run and manual runs hold `security-events: write` to
   upload results, and a pull request is analysed read-only, with its results
   kept as a run artifact.
+  The issue triage job reads issues and pull requests and writes nothing.
   The pull-request milestone guard runs on `pull_request_target` with
   `pull-requests: write`, but checks out and runs only the default branch's
   script, never pull-request code.
