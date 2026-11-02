@@ -262,6 +262,12 @@ Use only the categories needed by a release.
   hash-locked for CPython 3.13, and Dependabot now proposes their updates as
   one grouped pull request. `tools/test_workflow_pins.py` checks the versions,
   the setup in every job that runs Python and every Dependabot target (#131).
+- The pull request template says to use `Resolves #` on task PRs and `Refs #`
+  on integration PRs and PRs that only carry earlier work, so that no issue
+  closes at the wrong time, and adds a final-head review: the final head SHA,
+  the reviewed commit and its result, and the Static repository checks run,
+  renewed after any push. `docs/GOVERNANCE.md` describes both under "Pull
+  requests" (#133).
 - CI now installs Ruff and mypy from the hash-locked
   `tools/requirements-quality-ci.txt` and runs `ruff check tools` with a
   complexity-ceiling probe, and checksum-verified actionlint 1.7.12 on the

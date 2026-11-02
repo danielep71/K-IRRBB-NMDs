@@ -2,14 +2,34 @@
 
 ## Workflow
 
-- Active integration branch: `release/v0.2.0`.
+- Active integration branch: the release branch named in
+  [`RELEASING.md`](../RELEASING.md#current-status).
 - Start focused task branches from the release branch; open PRs back into it
   and squash-merge them (the only method the release-branch ruleset allows).
   The release branch goes into `main` with a merge commit; see
   [`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main).
-- No direct commits to `release/**` or `main` after the initial repository bootstrap, except the owner bringing a release branch level with `main` after an integration ([`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main)).
-- A release-to-main PR requires the owner's explicit approval. No version tags or releases are implied.
-- Merge only with reviewer sign-off and green repository checks. VBA may be merged before Excel evidence exists; a release needs Excel evidence on its candidate ([`EXCEL_EVIDENCE.md`](EXCEL_EVIDENCE.md)).
+- No direct commits to `release/**` or `main` after the initial repository bootstrap, except when I bring a release branch level with `main` after an integration ([`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main)).
+- A release-to-main PR needs my explicit approval. No version tags or releases are implied.
+- Merge only with review sign-off and green repository checks, as recorded in the PR's final-head review ([pull requests](#pull-requests)). VBA may be merged before Excel evidence exists; a release needs Excel evidence on its candidate ([`EXCEL_EVIDENCE.md`](EXCEL_EVIDENCE.md)).
+
+<a id="pull-requests"></a>
+
+## Pull requests
+
+- **Linking issues.** A task PR names the issues it completes with
+  `Resolves #N`. An integration PR (release branch into `main`), or any PR
+  that only carries work merged earlier, names them with `Refs #N`: a closing
+  keyword there would close an issue at the wrong time, and GitHub closes
+  issues only when a PR merges into the default branch. Close a task issue by
+  hand when its PR merges into the release branch. Milestones belong to
+  issues, never to PRs.
+- **Final-head review.** Before merging, the PR records its final head SHA,
+  the commit the review covered and its result, and the Static repository
+  checks run on that head. The reviewed commit must be the final head: any
+  push after the record renews both the review and the CI run, and every
+  review finding is fixed or answered, with its thread resolved. For a
+  Dependabot PR, which does not use the template, I record the same in a
+  comment.
 
 ## Issue metadata
 
