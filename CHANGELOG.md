@@ -262,6 +262,15 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- The repository settings and rulesets are a checked baseline,
+  `docs/repository-settings.json`, instead of prose. `tools/setup_repository.py`
+  previews the difference without writing, applies it with read-back
+  (`--apply`) or verifies read-only (`--check`), writes a dated evidence file,
+  refuses to run without admin rights and never touches a ruleset the baseline
+  does not name. The baseline adds a ruleset for `traffic-history`, turns off
+  rebase merging and Dependabot security updates, and keeps the existing
+  rulesets for `main`, `release/**` and `v*` tags unchanged. GOVERNANCE.md and
+  RELEASING.md point to it (#138).
 - The active release branch is named only in RELEASING.md's current-status
   table, in `.github/dependabot.yml` and in CHANGELOG.md; the other documents
   link to that table. `tools/test_workflow_pins.py` fails when another file

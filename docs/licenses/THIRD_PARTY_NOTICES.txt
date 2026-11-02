@@ -107,9 +107,12 @@ The following files were adapted from danielep71/MyTemplate
 .github/workflows/pr-milestones.yml
 .github/workflows/static-checks.yml
 docs/GOVERNANCE.md
+docs/repository-settings.json
 tools/check_links.py
 tools/test_check_links.py
+tools/setup_repository.py
 tools/test_pr_milestones.py
+tools/test_setup_repository.py
 tools/test_workflow_pins.py
 
 Modifications: the link checker and its tests are kept, with indented code
@@ -119,4 +122,6 @@ script that calls the GitHub API through gh, like this repository's other
 workflow scripts, with offline tests; the pull request template's final-head
 review and its description in GOVERNANCE.md, the minimum-Python job, the
 Dependabot target check and the workflow and toolchain tests are rewritten
-for this repository's files, branch policy and tooling.
+for this repository's files, branch policy and tooling. The settings
+baseline records this repository's rulesets, including their admin bypass,
+and the settings script writes an evidence file on every run.

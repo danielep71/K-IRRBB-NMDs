@@ -52,14 +52,24 @@ GitHub raises for pull requests are skipped before any API call, and a failed
 API call is logged with its HTTP status and response, with token-like strings
 redacted (#41).
 
+<a id="repository-settings"></a>
+
+## Repository settings
+
+The general settings, security features and rulesets are recorded in
+[`repository-settings.json`](repository-settings.json), the baseline; this
+document does not restate them. `tools/setup_repository.py` compares the saved
+settings with it ([tools/README.md](../tools/README.md#repository-settings)).
+After any settings change I run it with `--check` and keep the evidence file;
+an unsaved edit or an authentication prompt does not establish enforcement.
+The script never changes or deletes a ruleset the baseline does not name.
+
 Administrator bypass is an exceptional capability, not permission to skip review
-or failing checks. The `main` bypass mode is **pull requests only**, and the
-`release/**` bypass mode is **always**, so that I can bring a release branch
-level with `main` after an integration
+or failing checks. On `main` it applies to pull requests only; on `release/**`
+it is always available, so that I can bring a release branch level with `main`
+after an integration
 ([`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main));
-it is used for nothing else. Verify the saved GitHub ruleset after any settings
-change; an unsaved edit or an authentication prompt does not establish
-enforcement.
+it is used for nothing else.
 
 ## Privacy and intellectual property
 

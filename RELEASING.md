@@ -102,10 +102,11 @@ rerun. Never compensate by editing an already-tested artifact.
 
 Done only when I ask. This is an integration, not a release.
 
-`main` accepts changes only through pull requests merged with a **merge
-commit**. `release/**` accepts pull requests merged with a **squash** only,
-rejects non-fast-forward pushes and cannot be deleted; repository admins may
-bypass it. Both require the **Repository integrity** check.
+The rulesets in [`docs/repository-settings.json`](docs/repository-settings.json)
+let `main` take changes only through pull requests merged with a **merge
+commit**, and `release/**` only through pull requests merged with a **squash**;
+admins may bypass the release-branch ruleset. See
+[Repository settings](docs/GOVERNANCE.md#repository-settings).
 
 1. Confirm the release branch is green and has no open review findings.
 2. Open a PR from `release/vX.Y.Z` into `main`. `main` changes only through
