@@ -30,11 +30,13 @@ Suspected vulnerabilities must never be disclosed in an issue or pull request.
 > Milestone **v0.2.0 – Workbook, data and Excel tests** is in progress;
 > **v0.1.0 – Repository foundation** closed on 2026-10-09. The VBA data import,
 > the macro-free workbook template and the regression harness exist, with no
-> Excel evidence recorded yet; no model engine exists yet. The model families
+> Excel evidence recorded yet. A draft Decay engine is present but remains
+> unvalidated, with contract decisions and acceptance tracked in issue #36;
+> Rates and Stable engines are not implemented. The model families
 > and their obligations are described in
 > [`docs/methodology/`](docs/methodology/README.md); the source layout is set in
 > [`docs/REPOSITORY_STRUCTURE.md`](docs/REPOSITORY_STRUCTURE.md). Sections below
-> that refer to models describe the rules those changes must follow once they exist.
+> that refer to models apply to the draft and to future implementations.
 
 ## 🌐 Repository language
 
@@ -51,6 +53,19 @@ in US English. Preserve glyphs and mathematical notation where useful; the
 language standard does not require ASCII-only text. Do not rewrite published
 Git history to apply an editorial correction.
 
+<a id="attribution-history-and-voice"></a>
+
+### Attribution, history and voice
+
+- Operational files (workflows, configuration, scripts and tests) carry no
+  references to other repositories and no issue or pull request history in
+  their comments. Attribution of adapted material lives only in
+  [`docs/licenses/THIRD_PARTY_NOTICES.txt`](docs/licenses/THIRD_PARTY_NOTICES.txt),
+  and history only in [`CHANGELOG.md`](CHANGELOG.md). A comment states what the
+  code does and why, not where it came from or which issue changed it.
+- Documentation records my decisions as maintainer in the first person (I,
+  me, my) and addresses you, the contributor, directly.
+
 <a id="ways-to-contribute"></a>
 
 ## 🌱 Ways to contribute
@@ -65,18 +80,22 @@ Git history to apply an editorial correction.
 | ⚙️ Tooling or governance | Explain failure behavior, portability, trust boundary and maintenance cost. |
 | 🔐 Security concern | Follow [`SECURITY.md`](SECURITY.md) privately. |
 
-Open issues with the forms (bug, feature, documentation). Every issue is
-assigned to `danielep71`, carries **exactly one** priority label (`P1`, `P2` or
-`P3`) and has a milestone; the forms set the first two, and triage sets the
-milestone. See [`docs/GOVERNANCE.md`](docs/GOVERNANCE.md#issue-metadata). Pull
-requests follow [the PR template](.github/PULL_REQUEST_TEMPLATE.md).
+Open issues with the forms (bug, feature, documentation). The forms assign
+`danielep71`, set a provisional priority and ask for a target end date and the
+dependencies. During triage I confirm **exactly one** priority (`P1` only for a
+confirmed calculation or correctness bug), set a milestone with a due date and
+check that the target end date falls before it. The Issue triage workflow
+reports anything missing; it never changes an issue. See
+[`docs/GOVERNANCE.md`](docs/GOVERNANCE.md#issue-triage). Pull requests follow
+[the PR template](.github/PULL_REQUEST_TEMPLATE.md).
 
 <a id="development-workflow"></a>
 
 ## 🌿 Development workflow
 
-1. Start from the active release branch, currently `release/v0.2.0`. Never assume
-   GitHub's default branch is the right base.
+1. Start from the active release branch, named in
+   [`RELEASING.md`](RELEASING.md#current-status). Never assume GitHub's default
+   branch is the right base.
 2. Create one focused task branch named in the repository convention:
    `fix/<issue>-<slug>`, `docs/<slug>` or `test/<slug>`.
 3. Reproduce the current behavior before changing it.
@@ -94,9 +113,9 @@ requests follow [the PR template](.github/PULL_REQUEST_TEMPLATE.md).
    through pull requests, and its ruleset allows only a **squash** merge: the
    squash commit message must follow the rules below.
 
-Nothing is committed directly to the release branch or to `main`, except the
-owner bringing a release branch level with `main` after an integration. Integration
-of the release branch into `main` happens only on the owner's request; see
+Nothing is committed directly to the release branch or to `main`, except when I
+bring a release branch level with `main` after an integration. Integration of
+the release branch into `main` happens only at my request; see
 [`RELEASING.md`](RELEASING.md). Pushed history on a shared branch is never
 rewritten: no rebase, amend or force-push. Bring a moved base branch into a
 task branch with a merge commit.
@@ -176,8 +195,8 @@ source cited, or the license of the adapted material.
 
 **If sensitive material reaches Git**, stop pushing to that branch and report
 it privately as described in [`SECURITY.md`](SECURITY.md#data-and-secrets).
-Rotate any exposed secret first. Removing it from history is an owner decision;
-a follow-up commit that deletes the file does not remove it.
+Rotate any exposed secret first. Removing it from history is my decision; a
+follow-up commit that deletes the file does not remove it.
 
 <a id="compatibility-and-model-contracts"></a>
 
@@ -308,10 +327,13 @@ technical and respectful under the [Code of Conduct](CODE_OF_CONDUCT.md).
 ## 📄 Licensing and maintainer
 
 This project is distributed under the [Mozilla Public License 2.0](LICENSE)
-(MPL-2.0); contributions are accepted under the same license. Contributors must
-have the right to submit every part of a contribution, including code, tests,
-data, images and generated material. Third-party methodologies are cited, not
-copied. The license is reviewed before any external distribution; see
+(MPL-2.0); contributions are accepted under the same license. You must have
+the right to submit every part of a contribution, including code, tests, data,
+images and generated material. Third-party methodologies are cited, not
+copied. The sources and licenses of files reused from other repositories are
+listed in
+[`docs/licenses/THIRD_PARTY_NOTICES.txt`](docs/licenses/THIRD_PARTY_NOTICES.txt).
+I review the license before any external distribution; see
 [`docs/GOVERNANCE.md`](docs/GOVERNANCE.md#licensing-and-distribution).
 
 Maintained by **Daniele Penza**.

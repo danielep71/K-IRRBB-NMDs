@@ -46,7 +46,7 @@ version carries production security support.
 
 | Source state | Security support |
 | --- | --- |
-| `release/v0.2.0` (active development) | ⚠️ Best effort |
+| The active release branch ([`RELEASING.md`](RELEASING.md#current-status)) | ⚠️ Best effort |
 | `main` | ⚠️ Best effort |
 | Modified copies or unofficial mirrors | ❌ Unsupported unless reproduced in official source |
 
@@ -149,6 +149,14 @@ impact.
   The static-check and label-drift jobs run with a read-only token. The
   label-reconciliation job holds `issues: write` and runs only on pushes to
   `main` and manual dispatch, never on pull requests.
+  CodeQL scans the workflows, the label scripts and the Python tooling; only
+  pushes, the weekly run and manual runs hold `security-events: write` to
+  upload results, and a pull request is analysed read-only, with its results
+  kept as a run artifact.
+  The issue triage job reads issues and pull requests and writes nothing.
+  The pull-request milestone guard runs on `pull_request_target` with
+  `pull-requests: write`, but checks out and runs only the default branch's
+  script, never pull-request code.
   The one exception to the credential rule is the daily traffic export. It
   runs only on the default branch, on a schedule or manual dispatch, keeps Git
   credentials to push its data to the `traffic-history` branch, and holds
@@ -247,10 +255,10 @@ Avoid wider disclosure while exploitability is being assessed, a fix is being
 prepared, users have not had reasonable time to update, or an exposed secret
 remains valid.
 
-The maintainer and reporter agree a plan based on severity, active
-exploitation, remediation complexity, workarounds and validation time. The
-maintainer may request a sanitized reproduction, more environment detail,
-confirmation against a candidate fix or a reasonable embargo.
+You and I agree a plan based on severity, active exploitation, remediation
+complexity, workarounds and validation time. I may request a sanitized
+reproduction, more environment detail, confirmation against a candidate fix
+or a reasonable embargo.
 
 <a id="safe-harbor"></a>
 
@@ -265,7 +273,7 @@ Good-faith research is welcome when it:
 - reports privately and promptly; and
 - allows reasonable investigation and remediation time.
 
-The project will not initiate or recommend legal action solely for research
+I will not initiate or recommend legal action solely for research
 conducted in good faith and consistently with this policy. This does not
 authorize testing third-party systems or bind Microsoft, GitHub, an employer,
 client or other third party.

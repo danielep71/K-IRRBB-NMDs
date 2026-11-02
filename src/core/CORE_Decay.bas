@@ -18,7 +18,7 @@ Attribute VB_Name = "CORE_Decay"
 '   L      = (sum_h h o(h) + H MPA(H)) / B(e)                     (months)
 '   Lcore  = (sum_{h>=2} h o(h) + H MPA(H)) / MPA(1)              (months)
 '
-' IMPLEMENTATION CHOICES NOT FIXED BY THE CONTRACT (to be confirmed, #26)
+' IMPLEMENTATION CHOICES NOT FIXED BY THE CONTRACT (to be confirmed in #36)
 '   - A break date is the month end at which the affected log change ends.
 '   - The median path reported alongside is B(e) exp(mu* h), i.e. the same
 '     prudential drift with z = 0.

@@ -5,7 +5,7 @@ Attribute VB_Name = "CORE_Import"
 ' PURPOSE
 '   Validation and summary of the account panel and the market-rate file of
 '   docs/methodology/DATA_CONTRACT.md, line by line, with no file access and no
-'   Excel object model: the caller streams the lines (issue #71, stage 1).
+'   Excel object model: the caller streams the lines (issue #71).
 '
 ' ACCOUNT PANEL
 '   CORE_AccountsBegin header      False (finding 1, E01) if the header differs;

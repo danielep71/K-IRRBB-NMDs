@@ -146,12 +146,11 @@ last row and the cut is stated in the status block.
 
 ### Visual identity
 
-The workbook follows the maintainer's SACCR template visual identity: Aptos,
-a black brand strip with gold `K-IRRBB` lettering, a blue title band and
-consistent spacing. The reference is `VBA-SACCR-Toolkit`'s
-`src/workbook/SACCR_Template.xlsx` at commit
-`cf31de00e283f44e7a8b990dc53d7f231a4bf652`; only presentation conventions are
-adapted, not its model content or workbook layout.
+The workbook's visual identity uses Aptos, a black brand strip with gold
+`K-IRRBB` lettering, a blue title band and consistent spacing. Only
+presentation conventions come from another workbook, not its model content or
+workbook layout; the source is recorded in
+[`THIRD_PARTY_NOTICES.txt`](licenses/THIRD_PARTY_NOTICES.txt).
 
 | Element | Style |
 | --- | --- |

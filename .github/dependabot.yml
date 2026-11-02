@@ -1,7 +1,7 @@
-# Version updates for the GitHub Actions pinned in .github/workflows/.
-# Adapted from VBA-SACCR-Toolkit. Every update arrives as a pull request for
-# review; nothing merges automatically. See tools/README.md -> "Dependency
-# updates".
+# Version updates for the GitHub Actions pinned in .github/workflows/ and for
+# the hash-locked quality tools in tools/requirements-quality-ci.txt. Every
+# update arrives as a pull request for review; nothing merges automatically.
+# See tools/README.md -> "Dependency updates".
 version: 2
 updates:
   - package-ecosystem: "github-actions"
@@ -20,3 +20,22 @@ updates:
     labels:
       - "ci"
       - "P3"
+  - package-ecosystem: "pip"
+    directory: "/tools"
+    target-branch: "release/v0.2.0"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Rome"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(python)"
+    labels:
+      - "ci"
+      - "P3"
+    # Ruff, mypy and their dependencies move together in one pull request.
+    groups:
+      python-quality-tools:
+        patterns:
+          - "*"

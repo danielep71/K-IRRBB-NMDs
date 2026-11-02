@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Compare the VBA exported from a built workbook with the repository source.
 
-Part of the source round trip (issue #6): a workbook built from the template
-and the source of one commit, then exported with tools/Export-IRRBB-VBA.ps1, must
+Part of the source round trip: a workbook built from the template and the
+source of one commit, then exported with tools/Export-IRRBB-VBA.ps1, must
 hold exactly the components that tools/vba-projects.json lists for its mode,
 each with the same code and attributes as the source of that commit. Line
 endings are ignored, and so are trailing blank lines and the
@@ -48,11 +48,11 @@ SUFFIXES = (".bas", ".cls", ".frm")
 # compared with the source, but bound to the workbook like the components.
 RESOURCE_SUFFIX = ".frx"
 VB_NAME = re.compile(r'^Attribute VB_Name = "([^"]+)"$')
+REM = re.compile(r"rem(?=\s|$)", re.IGNORECASE)
 # Lines the VBE writes before the code of a class or form: the VERSION line
 # ("VERSION 1.0 CLASS" for a class, "VERSION 5.00" for a form), the
 # BEGIN ... END property block (title case and nested in a form) and the
 # Attribute lines.
-REM = re.compile(r"rem(?=\s|$)", re.IGNORECASE)
 CLASS_HEADER = re.compile(r"^(VERSION \d+\.\d+( CLASS)?|(?i:begin)(\s.*)?|(?i:end)|\s+\S.*)$")
 
 
