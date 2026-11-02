@@ -19,13 +19,16 @@ import re
 import subprocess
 import sys
 import unicodedata
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 FENCE = re.compile(r" {0,3}(`{3,}|~{3,})")
+INDENTED = re.compile(r" {4}| {0,3}\t")
+ATX_HEADING = re.compile(r" {0,3}#{1,6}\s+(.*?)(?:\s+#+)?\s*$")
+LIST_ITEM = re.compile(r" {0,3}(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)")
 ATTRIBUTE = r"""\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))"""
 
 
@@ -95,28 +98,52 @@ def line_links(line: str) -> tuple[list[str], set[str]]:
     return links, anchors
 
 
-def markdown_links(text: str) -> tuple[list[str], set[str]]:
-    """Return (links, anchors) of a Markdown document, ignoring fenced and inline code."""
-    links: list[str] = []
-    anchors: set[str] = set()
-    used: dict[str, int] = {}
+def prose_lines(text: str) -> Iterator[str]:
+    """Each line of a Markdown document, with the lines of code blocks blanked.
+
+    Fenced blocks and indented blocks (four spaces or a tab) are code. An indented
+    block starts only after a blank line or a heading, since it cannot interrupt
+    a paragraph, and not inside a list, where indentation continues the item.
+    """
     fence: str | None = None
-    paragraph: list[str] = []
+    indented = in_list = False
+    previous = ""
     for line in text.splitlines():
+        blank = not line.strip()
         match = FENCE.match(line)
         if fence:
             if match and match.group(1)[0] == fence[0] and len(match.group(1)) >= len(fence):
                 fence = None
-            continue
-        if match:
-            fence, paragraph = match.group(1), []
-            continue
+            code = True
+        elif match:
+            fence, indented, code = match.group(1), False, True
+        else:
+            starts = (not blank and bool(INDENTED.match(line)) and not in_list
+                      and (not previous.strip() or bool(ATX_HEADING.match(previous))))
+            indented = starts or (indented and (blank or bool(INDENTED.match(line))))
+            code = indented
+        if not code:
+            if LIST_ITEM.match(line):
+                in_list = True
+            elif not blank and not line[0].isspace() and not previous.strip():
+                in_list = False
+        previous = line
+        yield "" if code else line
+
+
+def markdown_links(text: str) -> tuple[list[str], set[str]]:
+    """Return (links, anchors) of a Markdown document, ignoring code blocks and inline code."""
+    links: list[str] = []
+    anchors: set[str] = set()
+    used: dict[str, int] = {}
+    paragraph: list[str] = []
+    for line in prose_lines(text):
         if paragraph and re.match(r" {0,3}(=+|-+)\s*$", line):
             # Setext heading: the paragraph above an === or --- underline.
             anchors.add(heading_anchor(github_slug(" ".join(paragraph)), used))
             paragraph = []
             continue
-        heading = re.match(r" {0,3}#{1,6}\s+(.*?)(?:\s+#+)?\s*$", line)
+        heading = ATX_HEADING.match(line)
         if heading:
             anchors.add(heading_anchor(github_slug(heading.group(1)), used))
         paragraph = [] if ends_paragraph(line, bool(heading)) else [*paragraph, line.strip()]

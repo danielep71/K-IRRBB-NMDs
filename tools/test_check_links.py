@@ -52,6 +52,24 @@ class SlugTests(unittest.TestCase):
         self.assertEqual(links, ["real.md#part"])
         self.assertEqual(anchors, {"custom"})
 
+    def test_indented_code_blocks_are_ignored(self) -> None:
+        text = ("Intro\n\n    [a](missing.md)\n    # not a heading\n\n\t[b](missing.md)\n\n"
+                "# Real\n    [c](missing.md)\n\nText [d](real.md)\n")
+        links, anchors = check_links.markdown_links(text)
+        self.assertEqual(links, ["real.md"])
+        self.assertEqual(anchors, {"real"})
+
+    def test_indentation_that_is_not_code_keeps_its_links(self) -> None:
+        # A paragraph continuation and list-item content are not code blocks.
+        text = ("Paragraph\n    [a](a.md)\n\n- item\n\n    [b](b.md)\n"
+                "  1. nested\n\n        [c](c.md)\n")
+        links, _ = check_links.markdown_links(text)
+        self.assertEqual(links, ["a.md", "b.md", "c.md"])
+
+    def test_a_paragraph_after_a_list_ends_it(self) -> None:
+        links, _ = check_links.markdown_links("- item\n\nText\n\n    [a](missing.md)\n")
+        self.assertEqual(links, [])
+
 
 class CheckTests(unittest.TestCase):
     def test_valid_links_pass_and_external_links_are_collected(self) -> None:
