@@ -1,6 +1,6 @@
 # Repository tooling
 
-The tools are adapted from the shared source-first conventions and portable source gates of VBA-SACCR-Toolkit; they do not perform IRRBB calculations.
+The tools implement source-first conventions and portable source gates; they do not perform IRRBB calculations. Adapted files and their sources are listed in [`docs/licenses/THIRD_PARTY_NOTICES.txt`](../docs/licenses/THIRD_PARTY_NOTICES.txt).
 
 ```shell
 python tools/check.py
@@ -21,7 +21,14 @@ The gate runner checks:
 - `src/core/` host independence: no Excel object-model or UI identifiers outside comments and strings;
 - VBA jump targets and conditional compilation across supported Windows bitness contexts;
 - explicit public API declarations compared with `docs/PUBLIC_API.txt`;
-- changelog/version consistency.
+- changelog/version consistency;
+- Markdown links (`check_links.py`): every relative link names an existing
+  file or directory in the repository and every fragment names a heading or
+  anchor of its target (`test_check_links.py`);
+- the issue forms and label catalog (`check_issues.py --check-config`): each
+  form assigns `danielep71`, sets its provisional priority and asks for a
+  target end date and the dependencies, and `blocked` is the only
+  dependency-status label (`test_check_issues.py`).
 
 CI runs these checks on GitHub's hosted Linux runner. **VBA compile, Excel workbook execution, econometric calibration and numerical result validation are not performed by these gates.** Record Excel host evidence separately under `docs/EXCEL_EVIDENCE.md`.
 
@@ -32,7 +39,7 @@ CI runs these checks on GitHub's hosted Linux runner. **VBA compile, Excel workb
 `Sync-IRRBB-VBA.ps1` synchronizes the repository VBA source into an existing
 local `.xlsm` workbook, such as one saved from the template, without
 intentionally changing worksheets, cells, formulas, names, tables or
-formatting. It follows the synchronizer of VBA-SACCR-Toolkit.
+formatting.
 
 For normal use on Windows, close the workbook and drag its `.xlsm` file onto
 `tools/Sync-IRRBB-VBA.cmd`, or run the launcher with the workbook's full path
@@ -151,16 +158,82 @@ counted) and the attributes of document modules, which Excel writes. Everything
 else must match. The export needs the same Trust access as the synchronizer;
 the comparison never runs Excel.
 
-Label reconciliation scripts and workflows mirror the SACCR label policy and run from the default branch `main`; see [`docs/LABELS.md`](../docs/LABELS.md).
+Label reconciliation scripts and workflows apply the label policy and run from the default branch `main`; see [`docs/LABELS.md`](../docs/LABELS.md).
+
+## Code scanning, links and pull-request milestones
+
+- **CodeQL** (`.github/workflows/codeql.yml`) scans the workflows (`actions`),
+  the label scripts (`javascript-typescript`) and the Python tooling with the `security-extended` queries on pushes and
+  pull requests to `main` and `release/**`, weekly and on demand. VBA is not a
+  CodeQL language. Pushes and scheduled runs upload results to code scanning;
+  a pull request is analysed without uploading, and its SARIF files are kept
+  as a run artifact for 30 days. This workflow replaces GitHub's default
+  CodeQL setup, which must stay off: the two cannot run together. On a private
+  repository the scan needs GitHub Code Security and the repository variable
+  `CODE_SCANNING` set to `enabled`; without them it is skipped, not failed.
+- **External links** (`.github/workflows/link-check.yml`) runs
+  `python tools/check_links.py --external` every Monday and on demand. It
+  requests each external http(s) link once; links into this repository are
+  skipped, because the offline check covers them as relative links. Rate
+  limits and network errors are reported as warnings, a 404 as an error.
+- **Pull-request milestones** (`.github/workflows/pr-milestones.yml` with
+  `.github/scripts/pr-milestones.py`) removes any milestone set on a pull
+  request, when one is opened, reopened, edited or given a milestone, and
+  daily across all pull requests. It reads each item back and refuses to
+  change anything that is not a pull request, so issue milestones are never
+  touched (`test_pr_milestones.py`).
+
+<a id="repository-settings"></a>
+
+## Repository settings
+
+`docs/repository-settings.json` is the baseline of the general settings, the
+security features and the rulesets for `main`, `release/**`, the release tags
+`v*` and `traffic-history`. `setup_repository.py` compares the saved settings
+with it through an authenticated GitHub CLI and refuses to run without admin
+rights on the repository:
+
+```shell
+python tools/setup_repository.py --repo danielep71/K-IRRBB-NMDs            # preview; never writes
+python tools/setup_repository.py --repo danielep71/K-IRRBB-NMDs --apply    # write, then read back
+python tools/setup_repository.py --repo danielep71/K-IRRBB-NMDs --check    # read-only; exit 1 on drift
+```
+
+Every run writes a dated evidence file,
+`test-results/repository-settings-<mode>-<time>.md` unless `--report` names
+another. `--apply` stops before writing when a named ruleset differs, until
+`--update-existing` allows it to replace that whole ruleset. A ruleset the
+baseline does not name is reported and never changed or deleted. Dependabot
+security updates stay off: their pull requests target `main`, which takes work
+only through the release branch, and the weekly version updates on the
+release branch cover the pinned actions and tools. `test_setup_repository.py`
+runs the script against a fake API.
+
+## Issue triage
+
+`check_issues.py` audits every open issue against the rules in
+[`docs/GOVERNANCE.md`](../docs/GOVERNANCE.md#issue-triage) and never changes
+one. `.github/workflows/issue-triage.yml` runs it on issue and milestone events
+and on demand with read-only permissions, writes the findings to the job
+summary and fails when there are any. Locally, export the issues as REST JSON
+and run:
+
+```shell
+python tools/check_issues.py --input issues.json --repo-name danielep71/K-IRRBB-NMDs
+```
 
 ## Dependency updates
 
 `.github/dependabot.yml` asks Dependabot for weekly version updates of the
-GitHub Actions pinned in the workflows, as in VBA-SACCR-Toolkit. They are
-opened against the active release branch (`target-branch`) and labelled `ci`
-and `P3`. Dependabot reads this file from the default branch, so it takes
-effect once the file reaches `main`. Update `target-branch` whenever a new
-release branch is opened ([`RELEASING.md`](../RELEASING.md)).
+GitHub Actions pinned in the workflows and of the hash-locked quality tools in
+`tools/requirements-quality-ci.txt` (Ruff, mypy and their dependencies, in one
+grouped pull request). They are opened against the active release branch
+(`target-branch`) and labelled `ci` and `P3`. Dependabot reads this file from
+the default branch, so it takes effect once the file reaches `main`. Update
+every `target-branch` whenever a new release branch is opened
+([`RELEASING.md`](../RELEASING.md)). An update of the quality tools may add
+hashes for other platforms; the file must keep a hash for CPython on Linux
+x86_64, which CI installs.
 
 Review each update pull request like any other:
 
@@ -172,9 +245,15 @@ Review each update pull request like any other:
 
 ## Quality gates
 
+CI runs one exact Python version, 3.13.18, in every workflow, and the minimum
+supported version, 3.11, in the non-required **Minimum Python (3.11)** job of
+Static repository checks, which runs `tools/check.py --ci`.
+`tools/test_workflow_pins.py` fails when a version is not exact or differs
+between workflows, or when a job runs Python without setting it up.
+
 After the portable gates above, the **Repository integrity** job installs Ruff
-and mypy from the hash-locked `tools/requirements-quality-ci.txt` (CPython 3.10,
-wheels only) and runs, as in VBA-SACCR-Toolkit:
+and mypy from the hash-locked `tools/requirements-quality-ci.txt` (CPython 3.13
+on Linux x86_64, wheels only) and runs:
 
 - `ruff check tools` with the settings in `pyproject.toml`, plus a probe that
   proves the complexity ceiling of 15 is active;
@@ -184,9 +263,9 @@ wheels only) and runs, as in VBA-SACCR-Toolkit:
   SHA-256.
 
 The quality steps run even when an earlier step failed, so one run reports
-every problem. To change a tool version, update its hash or checksum in
-`tools/requirements-quality-ci.txt` or the workflow `env` in one reviewed pull
-request; Dependabot does not cover them. Locally:
+every problem. Dependabot proposes updates of Ruff, mypy and their
+dependencies; actionlint's version and checksum in the workflow `env` are
+changed by hand in one reviewed pull request. Locally, with Python 3.13:
 
 ```shell
 python -m pip install --only-binary=:all: --require-hashes -r tools/requirements-quality-ci.txt

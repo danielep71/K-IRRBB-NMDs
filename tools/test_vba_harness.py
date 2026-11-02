@@ -6,8 +6,11 @@ from the independent Python reading of docs/methodology/DATA_CONTRACT.md in
 tools/test_data_contract.py and from the harness rules in
 docs/methodology/TEST_CASES.md, so a wrong hand-written expectation fails here.
 It also keeps the harness registry in tests/modules/TEST_Harness.bas equal to
-the register in TEST_CASES.md, and the generated decay data module equal to the
-expected files in tests/expected/decay/. It does not execute VBA.
+the register in TEST_CASES.md, checks TEST_HashCases against hashlib,
+TEST_DataCases and the generated TEST_Fixtures against the data-contract reading,
+WB-LAYOUT-01 against tools/workbook/build_template.py, and keeps the generated
+decay data module equal to the expected files in tests/expected/decay/. It does
+not execute VBA.
 """
 from __future__ import annotations
 
@@ -416,7 +419,6 @@ def json_rows(value: Any, prefix: str = "") -> list[tuple[str, float]]:
     return [(prefix, float(value))]
 
 
-@unittest.skipUnless(DECAY_DATA.exists(), "decay cases not on this branch")
 class DecayData(unittest.TestCase):
     """TEST_DecayData.bas is generated; it must equal the reviewed expected files and fixtures exactly."""
 

@@ -24,7 +24,7 @@ model definitions are in [`README.md`](README.md); validation obligations in
 [`VALIDATION_PLAN.md`](VALIDATION_PLAN.md).
 
 > [!IMPORTANT]
-> This contract was **accepted by the owner on 2026-10-08 in issue #4**,
+> I **accepted this contract on 2026-10-08 in issue #4**,
 > including the [decisions](#decisions) below; see the
 > [acceptance record](https://github.com/danielep71/K-IRRBB-NMDs/issues/4#issuecomment-6068526038).
 > The point-in-time, closure and censoring amendment was decided
@@ -361,7 +361,7 @@ call (`SECURITY.md`).
 
 ## ✅ Decisions
 
-Decisions 1–5 were accepted by the owner on 2026-10-08 in issue #4;
+I accepted decisions 1–5 on 2026-10-08 in issue #4;
 decisions 6–8 on 2026-10-09 in issue #32; decision 9 on 2026-10-13 in
 issue #71.
 

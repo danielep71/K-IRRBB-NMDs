@@ -6,7 +6,7 @@
 
 [![Excel VBA](https://img.shields.io/badge/Excel_VBA-Windows-217346?style=for-the-badge&logo=microsoft-excel&logoColor=white)](INSTALLATION.md)
 [![Status](https://img.shields.io/badge/Status-v0.2.0%20in%20progress-6e7781?style=for-the-badge)](#status)
-[![Development](https://img.shields.io/badge/Development-release%2Fv0.2.0-6f42c1?style=for-the-badge)](https://github.com/danielep71/K-IRRBB-NMDs/tree/release/v0.2.0)
+[![Development](https://img.shields.io/badge/Development-active_release_branch-6f42c1?style=for-the-badge)](RELEASING.md#current-status)
 [![License](https://img.shields.io/badge/License-MPL--2.0-2ea44f?style=for-the-badge)](LICENSE)
 
 <br>
@@ -81,11 +81,11 @@ Planned cross-cutting functionality includes data validation, calibration, histo
 ```shell
 git clone https://github.com/danielep71/K-IRRBB-NMDs.git
 cd K-IRRBB-NMDs
-git switch release/v0.2.0
+git switch release/vX.Y.Z   # the active release branch, named in RELEASING.md
 python tools/check.py
 ```
 
-Git and Python 3.10+ are needed for the static checks. A Windows 64-bit Excel host is needed for workbook import, compile and the regression harness. **Passing Python checks does not imply VBA compilation or model validation.**
+Git and Python 3.11+ are needed for the static checks. A Windows 64-bit Excel host is needed for workbook import, compile and the regression harness. **Passing Python checks does not imply VBA compilation or model validation.**
 
 ## 🔒 Data, confidentiality and provenance
 
@@ -100,3 +100,4 @@ Contributor rules are in [Data, confidentiality and provenance](CONTRIBUTING.md#
 ## 📄 License
 
 [Mozilla Public License 2.0](LICENSE) (MPL-2.0), copyright 2026 Daniele Penza.
+The sources and licenses of files reused from other repositories are listed in [`docs/licenses/THIRD_PARTY_NOTICES.txt`](docs/licenses/THIRD_PARTY_NOTICES.txt).

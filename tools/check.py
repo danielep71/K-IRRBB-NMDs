@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run portable IRRBB source gates, as in the SACCR repository (never runs Excel)."""
+"""Run the portable K-IRRBB source gates, locally and in CI (never runs Excel)."""
 from __future__ import annotations
 
 import argparse
@@ -35,6 +35,9 @@ def main() -> int:
             if args.ci and args.base:
                 command += ["--base", args.base]
         commands.append((name, command))
+    commands.append(("check_links", [sys.executable, "tools/check_links.py", "--root", str(root)]))
+    commands.append(("issue-config", [sys.executable, "tools/check_issues.py", "--check-config",
+                                      "--root", str(root)]))
     results = []
     for name, command in commands:
         r = subprocess.run(command, cwd=root, capture_output=True, text=True, check=False)

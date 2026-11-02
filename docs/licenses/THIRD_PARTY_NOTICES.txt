@@ -1,0 +1,132 @@
+Third-party source notice
+
+The source repositories named below belong to Daniele Penza, the copyright
+holder of this repository, who makes the adapted files available here under
+the Mozilla Public License 2.0. The license text is in LICENSE at the
+repository root.
+
+The following files were imported or adapted from danielep71/VBA-SACCR-Toolkit
+(https://github.com/danielep71/VBA-SACCR-Toolkit) under the Mozilla Public
+License 2.0:
+
+.editorconfig
+.gitattributes
+.gitignore
+.github/dependabot.yml
+.github/ISSUE_TEMPLATE/bug.yml
+.github/ISSUE_TEMPLATE/documentation.yml
+.github/ISSUE_TEMPLATE/feature.yml
+.github/label-policy.json
+.github/labels.json
+.github/scripts/labels-drift.mjs
+.github/scripts/labels-sync.mjs
+.github/workflows/daily-traffic.yml
+.github/workflows/labels-drift.yml
+.github/workflows/labels-sync.yml
+.github/workflows/static-checks.yml
+INSTALLATION.md
+RELEASING.md
+docs/GOVERNANCE.md
+docs/LABELS.md
+docs/REPOSITORY_STRUCTURE.md
+docs/VBA_HOUSE_STYLE.md
+docs/WORKBOOK_CONTRACT.md
+docs/assets/IRRBB_social_preview.html
+pyproject.toml
+src/README.md
+tools/README.md
+tools/Export-IRRBB-VBA.ps1
+tools/Sync-IRRBB-VBA-Downloads.cmd
+tools/Sync-IRRBB-VBA.cmd
+tools/Sync-IRRBB-VBA.ps1
+tools/_gatelib.py
+tools/check.py
+tools/check_committed_whitespace.py
+tools/check_source.py
+tools/check_vba_conditionals.py
+tools/check_vba_jumps.py
+tools/check_vba_public_api.py
+tools/compare_vba_export.py
+tools/requirements-quality-ci.txt
+tools/test_compare_vba_export.py
+tools/test_sync_checks.py
+tools/test_sync_script.py
+tools/vba-projects.json
+tools/workbook/build_template.py
+
+The license text is in LICENSE at the repository root.
+Modifications rename SACCR to IRRBB in file names, paths and messages; set the
+IRRBB source roots, document modules and workbook configurations; keep one
+committed workbook template and check it against its generator; add the
+Dependabot target-branch check, the minimum-Python job and the milestone
+variable check of the traffic alert; and adapt the rulesets, the label policy,
+the installation and release procedures, the source-first layout and the
+house style to this repository. From src/workbook/SACCR_Template.xlsx at commit
+cf31de00e283f44e7a8b990dc53d7f231a4bf652 only the presentation conventions
+(colors, fonts and title bands) are used in tools/workbook/build_template.py
+and docs/WORKBOOK_CONTRACT.md, not its model content or sheet layout;
+docs/assets/IRRBB_social_preview.html reuses the layout of the SACCR social
+preview with K-IRRBB figures.
+This notice applies to the listed files, not unrelated project files.
+
+The following files descend from danielep71/EXCEL-VBA-PROJECT-TEMPLATE
+(https://github.com/danielep71/EXCEL-VBA-PROJECT-TEMPLATE), the copyright
+holder's own Excel/VBA project template, at commit
+b903fe44ef6a032c4689870b83745afa1c22490d, and reached this repository through
+VBA-SACCR-Toolkit; license: see the source repository.
+
+.editorconfig
+.gitattributes
+.gitignore
+.github/dependabot.yml
+.github/labels.json
+.github/workflows/static-checks.yml
+pyproject.toml
+tools/check_vba_conditionals.py
+tools/check_vba_jumps.py
+tools/check_vba_public_api.py
+
+Modifications are those listed for VBA-SACCR-Toolkit above, together with
+VBA-SACCR-Toolkit's own changes: the 20-label core catalog is kept, the
+checkers take each component's role from its source folder instead of a
+component registry, and jumps are evaluated per reachable compilation
+environment.
+
+The layout of docs/assets/IRRBB_social_preview.html also follows the social
+preview of the copyright holder's FRTB-SA toolkit (danielep71/K-FRTB-SA,
+https://github.com/danielep71/K-FRTB-SA); license: see the source repository.
+
+The following files were adapted from danielep71/MyTemplate
+(https://github.com/danielep71/MyTemplate) under the Mozilla Public License
+2.0:
+
+.github/PULL_REQUEST_TEMPLATE.md
+.github/scripts/pr-milestones.py
+.github/workflows/codeql.yml
+.github/workflows/issue-triage.yml
+.github/workflows/link-check.yml
+.github/workflows/pr-milestones.yml
+.github/workflows/static-checks.yml
+docs/GOVERNANCE.md
+docs/repository-settings.json
+tools/check_issues.py
+tools/check_links.py
+tools/test_check_links.py
+tools/setup_repository.py
+tools/test_pr_milestones.py
+tools/test_setup_repository.py
+tools/test_workflow_pins.py
+
+Modifications: the link checker and its tests are kept, with indented code
+blocks added to what the checker ignores; the CodeQL workflow scans this
+repository's languages; the pull-request milestone guard is a standalone
+script that calls the GitHub API through gh, like this repository's other
+workflow scripts, with offline tests; the pull request template's final-head
+review and its description in GOVERNANCE.md, the minimum-Python job, the
+Dependabot target check and the workflow and toolchain tests are rewritten
+for this repository's files, branch policy and tooling. The issue triage
+check reads the label catalog from labels.json and the label policy instead
+of the label script, and follows this repository's issue forms and its
+definition of P1. The settings baseline records this repository's rulesets,
+including their admin bypass, and the settings script writes an evidence
+file on every run.

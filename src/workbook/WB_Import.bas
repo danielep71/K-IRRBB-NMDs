@@ -12,7 +12,8 @@ Attribute VB_Name = "WB_Import"
 '   RUNNING - previous results withdrawn   set first; every result area cleared
 '   COMPLETE - IMPORT ACCEPTED              totals, outcomes, warnings and
 '                                           lineage current
-'   FAILED - IMPORT REJECTED (n errors)     findings listed; no totals
+'   FAILED - IMPORT REJECTED (n errors)     findings, warnings and lineage
+'                                           listed; no totals or outcomes
 '   FAILED                                  the run stopped; primary error and
 '                                           any cleanup error in the info block
 '

@@ -1,4 +1,4 @@
-"""Tests for tools/compare_vba_export.py, without Excel (issue #6).
+"""Tests for tools/compare_vba_export.py, without Excel.
 
 Each test writes an "export" from the repository source at HEAD, with the
 CRLF line endings the VBE uses, changes it the way a faulty round trip

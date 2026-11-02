@@ -72,7 +72,7 @@ class SyncScriptTests(unittest.TestCase):
         self.assertEqual(self.code_body("Option Explicit\r\n' é\r\n".encode("cp1252")), "Option Explicit\n' é")
 
     def test_document_code_drops_procedure_level_attributes(self) -> None:
-        # #118: a member attribute inside a procedure is removed, also for a
+        # A member attribute inside a procedure is removed, also for a
         # name starting with a code-page letter; the code before and after
         # it, and an "Attribute" word elsewhere, are kept.
         code = ("Option Explicit\r\nPrivate Count As Long\r\n"

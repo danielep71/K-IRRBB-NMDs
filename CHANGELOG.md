@@ -95,7 +95,8 @@ Use only the categories needed by a release.
 ## [Unreleased]
 
 > Not yet released. Development takes place on the active release branch,
-> `release/v0.2.0`; changes to `main` require an explicit owner instruction.
+> named in [`RELEASING.md`](RELEASING.md#current-status); changes to `main`
+> need my explicit instruction.
 
 ### Added
 
@@ -252,8 +253,55 @@ Use only the categories needed by a release.
   traffic alerts select an explicit configurable milestone. Ruff/mypy settings
   are documented as optional development targets, not claimed CI gates.
 
+- CodeQL scanning of the workflows, the label scripts and the Python tooling
+  on pushes, pull requests (analysed without uploading), weekly and on demand;
+  an offline Markdown link check in the portable gates (`tools/check_links.py`)
+  with a weekly run that also requests external links; and a workflow that
+  removes milestones from pull requests, since milestones belong to issues.
+  Each comes with offline tests (#135).
+
 ### Changed
 
+- The repository settings and rulesets are a checked baseline,
+  `docs/repository-settings.json`, instead of prose. `tools/setup_repository.py`
+  previews the difference without writing, applies it with read-back
+  (`--apply`) or verifies read-only (`--check`), writes a dated evidence file,
+  refuses to run without admin rights and never touches a ruleset the baseline
+  does not name. The baseline adds a ruleset for `traffic-history`, turns off
+  rebase merging and Dependabot security updates, and keeps the existing
+  rulesets for `main`, `release/**` and `v*` tags unchanged. GOVERNANCE.md and
+  RELEASING.md point to it (#138).
+- Issue triage reports instead of defaulting. The issue-metadata workflow,
+  which added `P3`, dropped extra priorities and set a default milestone, is
+  replaced by the read-only Issue triage workflow and `tools/check_issues.py`.
+  It reports each open issue that lacks an assignee, exactly one priority, an
+  open milestone with a due date, a target end date before it or a
+  dependencies section, that has `P1` without `bug`, a label outside the
+  catalog, or `blocked` out of step with its prerequisites. The issue forms
+  keep a provisional priority and ask for a target end date and the
+  dependencies. The traffic alert files its issue under the open milestone
+  with the earliest due date after today, so the `ISSUE_MILESTONE_NUMBER`
+  variable is no longer read. `P1` is now reserved for confirmed calculation
+  or correctness bugs (#136).
+- The active release branch is named only in RELEASING.md's current-status
+  table, in `.github/dependabot.yml` and in CHANGELOG.md; the other documents
+  link to that table. `tools/test_workflow_pins.py` fails when another file
+  names the branch, and Static repository checks fails when a Dependabot
+  `target-branch` is not an existing branch (#134).
+- CI runs one exact Python, 3.13.18, in every workflow, including the traffic
+  and issue-metadata workflows that used the runner's `python3`. A non-required
+  job runs the portable gates on the minimum supported Python, 3.11, which
+  replaces 3.10 (end of life) in `pyproject.toml` and the documentation.
+  `tools/requirements-quality-ci.txt` moves to Ruff 0.17.3 and mypy 2.4.1,
+  hash-locked for CPython 3.13, and Dependabot now proposes their updates as
+  one grouped pull request. `tools/test_workflow_pins.py` checks the versions,
+  the setup in every job that runs Python and every Dependabot target (#131).
+- The pull request template says to use `Resolves #` on task PRs and `Refs #`
+  on integration PRs and PRs that only carry earlier work, so that no issue
+  closes at the wrong time, and adds a final-head review: the final head SHA,
+  the reviewed commit and its result, and the Static repository checks run,
+  renewed after any push. `docs/GOVERNANCE.md` describes both under "Pull
+  requests" (#133).
 - CI now installs Ruff and mypy from the hash-locked
   `tools/requirements-quality-ci.txt` and runs `ruff check tools` with a
   complexity-ceiling probe, and checksum-verified actionlint 1.7.12 on the
@@ -313,6 +361,17 @@ Use only the categories needed by a release.
   push to the release branch.
 
 ### Documentation
+
+- `docs/licenses/THIRD_PARTY_NOTICES.txt` lists the files adapted from
+  VBA-SACCR-Toolkit, EXCEL-VBA-PROJECT-TEMPLATE and MyTemplate, with each
+  source's license where verified and the changes made, and is linked from
+  `README.md` and `CONTRIBUTING.md`.
+  Workflows, configuration, scripts and tests no longer name other
+  repositories or cite issue and pull request history in their comments; the
+  Markdown documents record my decisions in the first person and address
+  contributors directly. `CONTRIBUTING.md` states both rules (#132).
+- Correct the contributor guide's current status: the draft Decay engine exists
+  but remains unvalidated under #36; Rates and Stable are not implemented.
 
 - The manual-import component list in `INSTALLATION.md` names every module of
   `tools/vba-projects.json`, production and development, including the seven
@@ -427,6 +486,21 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- Issue triage reads a target end date under a level-2 "Target end date"
+  heading, as I write it, and treats only issues on a `Blocked by` line as
+  prerequisites; other issues named in a dependencies section are context and
+  need only exist. GOVERNANCE.md, LABELS.md and the issue forms describe the
+  convention (#146).
+- The workbook template gives DataSummary, which the data import writes, the
+  status `NOT RUN` instead of `NOT RUN - not implemented`; only placeholder
+  sheets now say they are not implemented, as `docs/WORKBOOK_CONTRACT.md`
+  states. `TEST_DecayCases` raises the harness's `TEST_ERR_NO_CASE` for an
+  unknown case, as the other case modules do.
+- Comments that no longer matched the code, or came from the project template
+  or VBA-SACCR-Toolkit unadapted, are corrected across the VBA source, tests,
+  Python tooling, workflows, the synchronizer and the repository control files;
+  `.gitattributes` marks `docs/assets/` as documentation instead of `assets/`
+  and `images/`, which do not exist.
 - The issue-metadata and traffic-alert workflows no longer fall back to
   milestone 1, the closed v0.1.0, when the repository variable
   `ISSUE_MILESTONE_NUMBER` is unset; they fail with a message naming the
