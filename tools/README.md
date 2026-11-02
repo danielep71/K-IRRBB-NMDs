@@ -1,6 +1,6 @@
 # Repository tooling
 
-The tools are adapted from the shared source-first conventions and portable source gates of VBA-SACCR-Toolkit; they do not perform IRRBB calculations.
+The tools implement source-first conventions and portable source gates; they do not perform IRRBB calculations. Adapted files and their sources are listed in [`docs/licenses/THIRD_PARTY_NOTICES.txt`](../docs/licenses/THIRD_PARTY_NOTICES.txt).
 
 ```shell
 python tools/check.py
@@ -35,7 +35,7 @@ CI runs these checks on GitHub's hosted Linux runner. **VBA compile, Excel workb
 `Sync-IRRBB-VBA.ps1` synchronizes the repository VBA source into an existing
 local `.xlsm` workbook, such as one saved from the template, without
 intentionally changing worksheets, cells, formulas, names, tables or
-formatting. It follows the synchronizer of VBA-SACCR-Toolkit.
+formatting.
 
 For normal use on Windows, close the workbook and drag its `.xlsm` file onto
 `tools/Sync-IRRBB-VBA.cmd`, or run the launcher with the workbook's full path
@@ -154,7 +154,7 @@ counted) and the attributes of document modules, which Excel writes. Everything
 else must match. The export needs the same Trust access as the synchronizer;
 the comparison never runs Excel.
 
-Label reconciliation scripts and workflows mirror the SACCR label policy and run from the default branch `main`; see [`docs/LABELS.md`](../docs/LABELS.md).
+Label reconciliation scripts and workflows apply the label policy and run from the default branch `main`; see [`docs/LABELS.md`](../docs/LABELS.md).
 
 ## Code scanning, links and pull-request milestones
 

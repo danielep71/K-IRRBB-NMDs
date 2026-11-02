@@ -1,4 +1,4 @@
-"""Regressions for review findings on PRs #1 and #15; no Excel execution."""
+"""Regressions for workbook package, label default and traffic metric checks; no Excel execution."""
 from __future__ import annotations
 
 import csv

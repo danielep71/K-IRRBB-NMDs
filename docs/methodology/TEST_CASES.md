@@ -119,7 +119,7 @@ statistical check, not a tolerance test.
 Expected files are in [`tests/expected/decay/`](../../tests/expected/decay/), produced by
 [`make_expected.py`](../../tests/expected/decay/make_expected.py) from the fixtures in
 [`tests/fixtures/decay/`](../../tests/fixtures/decay/); each file records its tool versions,
-method, date and producer. They have not yet been reviewed by the owner (#36).
+method, date and producer. I have not yet reviewed them (#36).
 
 | ID | Checks | Reference | Tolerance | Status |
 | --- | --- | --- | --- | --- |

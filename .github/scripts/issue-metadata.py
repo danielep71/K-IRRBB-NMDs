@@ -68,7 +68,7 @@ def reconcile(repository, number, default_milestone):
 
 
 def configured_milestone():
-    # No fallback: a missing variable must not silently select a retired milestone (#117).
+    # No fallback: a missing variable must not silently select a retired milestone.
     raw = os.environ.get("ISSUE_MILESTONE_NUMBER", "").strip()
     if not raw:
         raise RuntimeError("Repository variable ISSUE_MILESTONE_NUMBER is not set; "

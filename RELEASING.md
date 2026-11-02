@@ -11,20 +11,20 @@
 
 <br>
 
-**Owner-approved · One frozen SHA · Certified in Excel · Annotated tag · Immutable once published**
+**Released only at my request · One frozen SHA · Certified in Excel · Annotated tag · Immutable once published**
 
 </div>
 
 ---
 
-This document is authoritative for the **maintainer integration and release
-sequence**. Day-to-day contribution is owned by
+This document is authoritative for the **integration and release sequence**
+that I follow as maintainer. Day-to-day contribution is owned by
 [`CONTRIBUTING.md`](CONTRIBUTING.md); branch and review policy by
 [`docs/GOVERNANCE.md`](docs/GOVERNANCE.md); version and changelog format by
 [`CHANGELOG.md`](CHANGELOG.md#date-and-version-rules).
 
 > [!IMPORTANT]
-> Nothing is released, versioned, tagged or stamped unless the owner asks for it
+> Nothing is released, versioned, tagged or stamped unless I ask for it
 > explicitly. Closing a milestone does not authorize a release, and unreleased
 > work stays under `## [Unreleased]` in the changelog.
 
@@ -51,7 +51,7 @@ artifact. The v0.1.0 foundation milestone closed without producing a release.
 | --- | --- |
 | `release/<version>` | Active integration branch. Task PRs are squash-merged into it after review and green checks. |
 | `release/v0.3.0` | Opened early for the decay prototype (#36, #94). That work was integrated into `main` (#97) and reached `release/v0.2.0` when it was levelled with `main`. Takes no other work until v0.2.0 is released; it is levelled after each integration (step 4 below). |
-| `main` | Default branch. Receives the release branch only through an owner-requested PR merged with a merge commit. |
+| `main` | Default branch. Receives the release branch only through a PR I request, merged with a merge commit. |
 | Task branches | One per change, from the release branch: `fix/<issue>-<slug>`, `docs/<slug>`, `test/<slug>`. |
 
 <a id="versioning"></a>
@@ -61,7 +61,7 @@ artifact. The v0.1.0 foundation milestone closed without producing a release.
 | Item | Convention |
 | --- | --- |
 | Version | Semantic Versioning `MAJOR.MINOR.PATCH`; rules in [`CHANGELOG.md`](CHANGELOG.md#date-and-version-rules) |
-| Release branch | `release/vX.Y.Z`, matching the milestone, opened only by owner decision |
+| Release branch | `release/vX.Y.Z`, matching the milestone, opened only by my decision |
 | Milestone | `vX.Y.Z - <title>`, matching the release branch |
 | `VERSION` | Root file holding one `X.Y.Z` line. Created in the release-preparation PR, never before; afterwards it always names the newest released version |
 | Changelog | Work stays under `## [Unreleased]` until release preparation is approved; the release PR moves it to `## [X.Y.Z] - YYYY-MM-DD` |
@@ -89,7 +89,7 @@ A release is valid only when:
 6. any distributed artifact is built from and tested against that candidate;
 7. the licensing and distribution review in
    [`docs/GOVERNANCE.md`](docs/GOVERNANCE.md#licensing-and-distribution) is
-   recorded and closed by the owner;
+   recorded and closed by me;
 8. an annotated `v*` tag targets the certified commit on `main`; and
 9. post-publication checks pass.
 
@@ -100,13 +100,12 @@ rerun. Never compensate by editing an already-tested artifact.
 
 ## 🔀 Integrating the release branch into main
 
-Done only when the owner asks. This is an integration, not a release.
+Done only when I ask. This is an integration, not a release.
 
-The rulesets mirror VBA-SACCR-Toolkit's. `main` accepts changes only through
-pull requests merged with a **merge commit**. `release/**` accepts pull requests
-merged with a **squash** only, rejects non-fast-forward pushes and cannot be
-deleted; repository admins may bypass it. Both require the **Repository
-integrity** check.
+`main` accepts changes only through pull requests merged with a **merge
+commit**. `release/**` accepts pull requests merged with a **squash** only,
+rejects non-fast-forward pushes and cannot be deleted; repository admins may
+bypass it. Both require the **Repository integrity** check.
 
 1. Confirm the release branch is green and has no open review findings.
 2. Open a PR from `release/vX.Y.Z` into `main`. `main` changes only through
@@ -114,8 +113,8 @@ integrity** check.
 3. Merge it with a **merge commit**, not a squash, once the hosted checks are
    green, so provenance remains visible. The automatic head-branch deletion
    fails on the protected release branch, which is kept.
-4. **Bring the release branch level with `main`:** the owner, as an admin
-   bypassing the ruleset, fast-forwards it to the merge commit
+4. **Bring the release branch level with `main`:** as an admin bypassing the
+   ruleset, I fast-forward it to the merge commit
    (`git push origin <merge-sha>:refs/heads/release/vX.Y.Z`). A merge commit or
    a squash of `main` into the release branch is not used: the ruleset allows
    only squash, which would cut the shared history. At a milestone closeout,
@@ -128,9 +127,9 @@ integrity** check.
    when a Dependabot target branch does not exist.
 
    **If the next release branch already exists**, as `release/v0.3.0` does,
-   it is not recreated. The owner merges the merge commit into it locally with
-   a merge commit, resolving any conflict in favour of the later branch's work,
-   and pushes the result as an admin:
+   it is not recreated. I merge the merge commit into it locally with a merge
+   commit, resolving any conflict in favour of the later branch's work, and
+   push the result as an admin:
    `git switch release/vX.Y.Z && git merge --no-ff <merge-sha> && git push origin release/vX.Y.Z`.
    The push is a fast-forward of that branch, since the new commit has its tip
    as first parent, so nothing is reset or rewritten. CI must pass on the
@@ -142,7 +141,7 @@ Never rebase, amend, force-push or reset either branch.
 
 ## 📦 Releasing a version
 
-Performed only on the owner's explicit request.
+Performed only at my explicit request.
 
 The candidate is the merge commit that brings the release branch into `main`:
 it is certified, any artifact is built from it, and the tag is put on it, so
@@ -243,7 +242,7 @@ it does not replace it.
 
 | # | Gate | Done |
 | ---: | --- | :---: |
-| 1 | Owner requested the release | ☐ |
+| 1 | I requested the release | ☐ |
 | 2 | Scope frozen and diff reviewed | ☐ |
 | 3 | Licensing and distribution review recorded and closed | ☐ |
 | 4 | Changelog finalized and `VERSION` created or updated | ☐ |

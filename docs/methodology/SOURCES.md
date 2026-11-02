@@ -18,7 +18,7 @@ Sources are cited by reference only; their text is never copied into the
 repository.
 
 > [!WARNING]
-> `REG-1` and `REG-3` were verified on 2026-10-08 by the owner's research
+> `REG-1` and `REG-3` were verified on 2026-10-08 by my research
 > against the official BIS and EUR-Lex texts, for the provisions listed in
 > [Verification record](#verification-record). `REG-2` and the econometric
 > sources are not verified. A regulatory rule may be implemented only from a
@@ -50,7 +50,7 @@ repository.
 
 ## ✅ Verification record
 
-Verified on 2026-10-08 by the owner's research, using only the publishers' own
+Verified on 2026-10-08 by my research, using only the publishers' own
 websites (bis.org, eur-lex.europa.eu). Page numbers are printed pages.
 
 | Source | Provision | Verified content |
@@ -70,7 +70,7 @@ guidelines' exact title and application dates; and the `REG-3` shock sizes per
 currency.
 
 The toolkit's own session could not open these sites (network policy), so the
-record above rests on the owner's research and was not re-checked here.
+record above rests on my research and was not re-checked here.
 
 ## Verifying an entry
 

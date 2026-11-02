@@ -53,6 +53,19 @@ in US English. Preserve glyphs and mathematical notation where useful; the
 language standard does not require ASCII-only text. Do not rewrite published
 Git history to apply an editorial correction.
 
+<a id="attribution-history-and-voice"></a>
+
+### Attribution, history and voice
+
+- Operational files (workflows, configuration, scripts and tests) carry no
+  references to other repositories and no issue or pull request history in
+  their comments. Attribution of adapted material lives only in
+  [`docs/licenses/THIRD_PARTY_NOTICES.txt`](docs/licenses/THIRD_PARTY_NOTICES.txt),
+  and history only in [`CHANGELOG.md`](CHANGELOG.md). A comment states what the
+  code does and why, not where it came from or which issue changed it.
+- Documentation records my decisions as maintainer in the first person (I,
+  me, my) and addresses you, the contributor, directly.
+
 <a id="ways-to-contribute"></a>
 
 ## 🌱 Ways to contribute
@@ -97,9 +110,9 @@ requests follow [the PR template](.github/PULL_REQUEST_TEMPLATE.md).
    through pull requests, and its ruleset allows only a **squash** merge: the
    squash commit message must follow the rules below.
 
-Nothing is committed directly to the release branch or to `main`, except the
-owner bringing a release branch level with `main` after an integration. Integration
-of the release branch into `main` happens only on the owner's request; see
+Nothing is committed directly to the release branch or to `main`, except when I
+bring a release branch level with `main` after an integration. Integration of
+the release branch into `main` happens only at my request; see
 [`RELEASING.md`](RELEASING.md). Pushed history on a shared branch is never
 rewritten: no rebase, amend or force-push. Bring a moved base branch into a
 task branch with a merge commit.
@@ -179,8 +192,8 @@ source cited, or the license of the adapted material.
 
 **If sensitive material reaches Git**, stop pushing to that branch and report
 it privately as described in [`SECURITY.md`](SECURITY.md#data-and-secrets).
-Rotate any exposed secret first. Removing it from history is an owner decision;
-a follow-up commit that deletes the file does not remove it.
+Rotate any exposed secret first. Removing it from history is my decision; a
+follow-up commit that deletes the file does not remove it.
 
 <a id="compatibility-and-model-contracts"></a>
 
@@ -311,10 +324,13 @@ technical and respectful under the [Code of Conduct](CODE_OF_CONDUCT.md).
 ## 📄 Licensing and maintainer
 
 This project is distributed under the [Mozilla Public License 2.0](LICENSE)
-(MPL-2.0); contributions are accepted under the same license. Contributors must
-have the right to submit every part of a contribution, including code, tests,
-data, images and generated material. Third-party methodologies are cited, not
-copied. The license is reviewed before any external distribution; see
+(MPL-2.0); contributions are accepted under the same license. You must have
+the right to submit every part of a contribution, including code, tests, data,
+images and generated material. Third-party methodologies are cited, not
+copied. The sources and licenses of files reused from other repositories are
+listed in
+[`docs/licenses/THIRD_PARTY_NOTICES.txt`](docs/licenses/THIRD_PARTY_NOTICES.txt).
+I review the license before any external distribution; see
 [`docs/GOVERNANCE.md`](docs/GOVERNANCE.md#licensing-and-distribution).
 
 Maintained by **Daniele Penza**.

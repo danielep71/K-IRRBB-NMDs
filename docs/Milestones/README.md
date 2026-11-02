@@ -65,7 +65,7 @@ to v0.7.0, does not defer the earlier models' prerequisites to that version.
   Preserve both the primary error and any cleanup error.
 - **Closeout and publication:** closing a milestone does not independently
   authorize main integration, a tag, a release, distribution, or a visibility
-  change. Follow [RELEASING.md](../../RELEASING.md) and the owner's decisions.
+  change. Follow [RELEASING.md](../../RELEASING.md) and my decisions.
 
 ## 📚 Authoritative decision records
 

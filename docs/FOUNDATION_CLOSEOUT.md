@@ -3,7 +3,7 @@
 This checklist defines milestone closeout (#12). It is not authorization to
 publish a release, tag a version, make the repository public, or certify models.
 
-> ✅ **Closed on 2026-10-09.** The owner closed milestone v0.1.0; each item
+> ✅ **Closed on 2026-10-09.** I closed milestone v0.1.0; each item
 > below records the evidence it rests on. Excel and model checks were not run
 > in this milestone and remain NOT RUN.
 
@@ -15,10 +15,10 @@ publish a release, tag a version, make the repository public, or certify models.
   #32, #33, #34, #35, #36, #37). Each amendment issue sits in the milestone
   that needs it (table below).
 - [x] Sanitized template, import/export and regression harness obligations are
-  satisfied with exact-commit Excel evidence (#5, #6, #8), or the owner explicitly
-  records a scope/milestone change for each deferred obligation. Foundation scope
-  alone does not waive these existing acceptance criteria. The owner moved all
-  three to v0.2.0 on 2026-10-09 (#12, roadmap below); their Excel evidence
+  satisfied with exact-commit Excel evidence (#5, #6, #8), or I explicitly
+  record a scope/milestone change for each deferred obligation. Foundation scope
+  alone does not waive these existing acceptance criteria. I moved all three to
+  v0.2.0 on 2026-10-09 (#12, roadmap below); their Excel evidence
   remains mandatory there.
 - [x] Static gates pass on the final candidate, with regressions for known defects
   and no unresolved blocking review findings (#7, #22, #25). All 10 gates pass
@@ -33,13 +33,13 @@ publish a release, tag a version, make the repository public, or certify models.
   distribution review. Earlier direct commits are disclosed in the
   retrospective record below, not hidden.
 - [x] Every remaining issue is completed with evidence or explicitly deferred
-  by the owner. Excel/model checks not executed are recorded as NOT RUN.
+  by me. Excel/model checks not executed are recorded as NOT RUN.
   Milestone v0.1.0 has no open issues; every closing PR records Excel as
   NOT RUN.
-- [x] Owner explicitly accepts closeout and separately authorizes any subsequent
+- [x] I explicitly accept closeout and separately authorize any subsequent
   release-to-main integration, tag, release or distribution under RELEASING.md.
   Closeout accepted by closing the milestone; integrations into `main` were made
-  on explicit owner instruction (#44, #51, #55); no tag or release exists, and
+  on my explicit instruction (#44, #51, #55); no tag or release exists, and
   public visibility was decided separately in #42.
 
 ## Approved roadmap and deferred obligations
@@ -65,7 +65,7 @@ that decision; their actual Excel deliverables remain mandatory in v0.2.0.
 | v0.7.0 | Scenarios, verified regulatory applicability/overlays #35; amendment tracker #26 |
 | v0.8.0 | User workflow, parameter persistence and controlled ALM export |
 | v0.9.0 | Feature freeze, complete candidate qualification and distribution review |
-| v1.0.0 | Owner-accepted stable NMD application and separately authorized release |
+| v1.0.0 | Stable NMD application accepted by me and separately authorized release |
 
 #26 remains open until its original obligations are evidenced. Its v0.7.0
 allocation reflects the last amendment delivery, not permission to implement
@@ -75,9 +75,9 @@ v0.9.0 consolidates qualification rather than starting validation.
 
 The initial v1.0.0 scope is the NMD behavioral-model application. A full
 banking-book EVE/NII engine needs separate scope approval. No dates or release
-publication are implied by this roadmap. Public visibility is a separate owner
-decision, recorded in the distribution review #42; it does not authorize a
-tag, release or workbook distribution.
+publication are implied by this roadmap. Public visibility is a separate
+decision of mine, recorded in the distribution review #42; it does not
+authorize a tag, release or workbook distribution.
 
 The 2026-10-08 audit found no production VBA or workbook. Portable static tests
 cannot satisfy the unexecuted Excel, numerical, provenance or distribution gates.

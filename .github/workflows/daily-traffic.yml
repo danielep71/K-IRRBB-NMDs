@@ -7,8 +7,6 @@
 #   and visits.json there: shields.io endpoints for README badges, which
 #   shields.io can read because the repository is public.
 #
-#   Adapted from VBA-SACCR-Toolkit's daily-traffic.yml (file blob f62cb8c).
-#
 #   Data retention
 #     GitHub retains traffic data for 14 days only. This workflow exists to
 #     keep a longer history. The `traffic-history` branch is visible to anyone
@@ -526,7 +524,7 @@ jobs:
 
           # Explicit milestone number: other open milestones do not make alerts ambiguous.
           # No fallback, and checked before any early exit, so an unset variable fails
-          # every run instead of only the first one that raises an alert (#117).
+          # every run instead of only the first one that raises an alert.
           raw_milestone = os.environ.get("ISSUE_MILESTONE_NUMBER", "").strip()
           if not raw_milestone:
               raise RuntimeError("Repository variable ISSUE_MILESTONE_NUMBER is not set; "
