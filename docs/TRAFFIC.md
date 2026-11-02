@@ -40,11 +40,12 @@ Traffic does not require GitHub Pages.
 
 After at least two snapshots, qualifying traffic spikes, increases in stars or
 forks, or new referrers create a `P3` issue assigned to `danielep71` in the
-milestone selected by repository variable `ISSUE_MILESTONE_NUMBER`, which
-names the active milestone. There is no fallback: if the variable is unset,
-the run fails with a message naming it. The selected milestone must exist and be open;
-other open milestones do not affect selection. Update this variable before retiring that
-milestone. The issue-metadata workflow uses the same selection.
+open milestone with the earliest due date after today (UTC). The milestone is
+chosen at the start of every run, so the run fails, with a message saying so,
+whenever no open milestone is due after today. The issue body carries a
+dependencies section and a target end date, a week ahead or the day before the
+milestone's due date if that is sooner, so it meets the
+[issue triage rules](GOVERNANCE.md#issue-triage).
 The workflow prevents duplicate alerts for the same day.
 
 ## Verification

@@ -103,11 +103,13 @@ The following files were adapted from danielep71/MyTemplate
 .github/PULL_REQUEST_TEMPLATE.md
 .github/scripts/pr-milestones.py
 .github/workflows/codeql.yml
+.github/workflows/issue-triage.yml
 .github/workflows/link-check.yml
 .github/workflows/pr-milestones.yml
 .github/workflows/static-checks.yml
 docs/GOVERNANCE.md
 docs/repository-settings.json
+tools/check_issues.py
 tools/check_links.py
 tools/test_check_links.py
 tools/setup_repository.py
@@ -122,6 +124,9 @@ script that calls the GitHub API through gh, like this repository's other
 workflow scripts, with offline tests; the pull request template's final-head
 review and its description in GOVERNANCE.md, the minimum-Python job, the
 Dependabot target check and the workflow and toolchain tests are rewritten
-for this repository's files, branch policy and tooling. The settings
-baseline records this repository's rulesets, including their admin bypass,
-and the settings script writes an evidence file on every run.
+for this repository's files, branch policy and tooling. The issue triage
+check reads the label catalog from labels.json and the label policy instead
+of the label script, and follows this repository's issue forms and its
+definition of P1. The settings baseline records this repository's rulesets,
+including their admin bypass, and the settings script writes an evidence
+file on every run.

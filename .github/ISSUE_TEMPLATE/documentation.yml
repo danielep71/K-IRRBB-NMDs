@@ -16,3 +16,19 @@ body:
       label: "Proposed improvement and acceptance criteria"
     validations:
       required: true
+  - type: input
+    id: target_end_date
+    attributes:
+      label: "Target end date (Europe/Rome)"
+      description: "YYYY-MM-DD, before the milestone's due date. Leave empty if unsure; I set it during triage."
+      placeholder: "2026-12-15"
+    validations:
+      required: false
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: "Dependencies"
+      description: "Issues that must be resolved first (#N), or \"External condition: ...\", or \"None.\""
+      placeholder: "None."
+    validations:
+      required: true
