@@ -262,6 +262,20 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- The daily traffic export reads the traffic API with a short-lived token of
+  a GitHub App that has only `Administration: read`, created in each run from
+  the `analytics` environment's `TRAFFIC_APP_CLIENT_ID` variable and
+  `TRAFFIC_APP_PRIVATE_KEY` secret, instead of the `TRAFFIC_TOKEN` personal
+  access token, which is no longer read and no longer needs rotating. Its
+  inline Python moves to `tools/traffic_history.py`, with offline tests in
+  `tools/test_traffic_history.py`; the `traffic-history` files, columns and
+  badges are unchanged, and a collection replayed after a later one no longer
+  overwrites it. A `collect` job with `contents: write` pushes the history
+  without persisted checkout credentials, and a separate `alert` job with
+  `issues: write` and no App token reads the pushed history. The schedule
+  moves to 06:17 UTC, and a clone spike no longer raises an alert, since CI
+  checkouts count as clones; clones stay in the CSV files, the alert body and
+  the badge (#137).
 - The repository settings and rulesets are a checked baseline,
   `docs/repository-settings.json`, instead of prose. `tools/setup_repository.py`
   previews the difference without writing, applies it with read-back

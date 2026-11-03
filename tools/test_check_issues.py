@@ -7,12 +7,13 @@ import json
 import re
 import shutil
 import tempfile
-import textwrap
 import unittest
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 import check_issues
+import traffic_history
 from check_issues import Issue
 from test_workflow_pins import jobs
 
@@ -222,26 +223,14 @@ class TriageWorkflowTests(unittest.TestCase):
 class AlertMilestoneTests(unittest.TestCase):
     """The traffic alert files its issue under the open milestone due soonest after today."""
 
-    choose: Any
-    source: str
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        step = workflow("daily-traffic.yml").split(
-            "      - name: Create alert issue on spike or new referrer\n", 1)[1]
-        source = textwrap.dedent(step.split("          python3 << 'PY'\n", 1)[1].split("          PY\n", 1)[0])
-        function = re.search(r"^def active_milestone\(.*?(?=^\S)", source, re.M | re.S)
-        assert function is not None
-        namespace: dict[str, Any] = {}
-        exec(compile(function.group(0), "daily-traffic-alert", "exec"), namespace)
-        cls.choose = staticmethod(namespace["active_milestone"])
-        cls.source = source
+    choose = staticmethod(traffic_history.active_milestone)
 
     def test_the_earliest_due_date_after_today_wins(self) -> None:
-        milestones = [{"title": "late", "state": "open", "due_on": "2027-01-10T08:00:00Z"},
-                      {"title": "undated", "state": "open", "due_on": None},
-                      {"title": "today", "state": "open", "due_on": "2026-11-02T08:00:00Z"},
-                      {"title": "next", "state": "open", "due_on": "2026-11-20T08:00:00Z"}]
+        milestones: list[dict[str, Any]] = [
+            {"title": "late", "state": "open", "due_on": "2027-01-10T08:00:00Z"},
+            {"title": "undated", "state": "open", "due_on": None},
+            {"title": "today", "state": "open", "due_on": "2026-11-02T08:00:00Z"},
+            {"title": "next", "state": "open", "due_on": "2026-11-20T08:00:00Z"}]
         self.assertEqual(self.choose(milestones, "2026-11-02")["title"], "next")
 
     def test_no_milestone_due_after_today_fails_clearly(self) -> None:
@@ -251,14 +240,34 @@ class AlertMilestoneTests(unittest.TestCase):
                 self.choose(milestones, "2026-11-02")
 
     def test_it_is_chosen_before_any_early_exit(self) -> None:
-        self.assertLess(self.source.index("selected = active_milestone("),
-                        self.source.index("sys.exit(0)"))
+        # No history at all, so no alert could be due: the run still fails.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "milestones.json").write_text("[]", encoding="utf-8")
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                code = traffic_history.main(["alert", "--data", str(root / "data"),
+                                             "--milestones", str(root / "milestones.json"),
+                                             "--output", str(root / "alert.json")])
+            self.assertEqual(code, 2)
+            self.assertIn("due date", out.getvalue())
+            self.assertFalse((root / "alert.json").exists())
 
     def test_the_alert_body_meets_the_triage_rules(self) -> None:
-        self.assertIn('"## Dependencies"', self.source)
-        self.assertIn('f"- Target end date: {target} (Europe/Rome)"', self.source)
-        self.assertIn("datetime.date.fromisoformat(milestone_due) - datetime.timedelta(days=1)",
-                      self.source)
+        with tempfile.TemporaryDirectory() as directory:
+            data = Path(directory)
+            header = ",".join(traffic_history.HEADERS[traffic_history.TRAFFIC])
+            (data / "traffic.csv").write_text(
+                f"{header}\n2026-11-01,,0,0,0,0,0,0,0,0\n2026-11-02,,0,0,0,0,1,0,0,0\n",
+                encoding="utf-8")
+            milestone = {"title": "v0.2.0", "state": "open", "due_on": "2026-11-05T08:00:00Z"}
+            issue = traffic_history.alert(data, milestone, "2026-11-02")
+        assert issue is not None
+        self.assertIn("\n## Dependencies\n\nNone.\n", issue["body"])
+        self.assertIn("\n- Target end date: 2026-11-04 (Europe/Rome)", issue["body"])
+        self.assertEqual(issue["milestone"], "v0.2.0")
+        self.assertEqual(traffic_history.target_end_date("2026-11-02", "2026-11-20"),
+                         date(2026, 11, 9))
 
 
 if __name__ == "__main__":
