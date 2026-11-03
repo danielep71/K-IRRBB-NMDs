@@ -103,6 +103,7 @@ The following files were adapted from danielep71/MyTemplate
 .github/PULL_REQUEST_TEMPLATE.md
 .github/scripts/pr-milestones.py
 .github/workflows/codeql.yml
+.github/workflows/daily-traffic.yml
 .github/workflows/issue-triage.yml
 .github/workflows/link-check.yml
 .github/workflows/pr-milestones.yml
@@ -115,7 +116,9 @@ tools/test_check_links.py
 tools/setup_repository.py
 tools/test_pr_milestones.py
 tools/test_setup_repository.py
+tools/test_traffic_history.py
 tools/test_workflow_pins.py
+tools/traffic_history.py
 
 Modifications: the link checker and its tests are kept, with indented code
 blocks added to what the checker ignores; the CodeQL workflow scans this
@@ -129,4 +132,5 @@ check reads the label catalog from labels.json and the label policy instead
 of the label script, and follows this repository's issue forms and its
 definition of P1. The settings baseline records this repository's rulesets,
 including their admin bypass, and the settings script writes an evidence
-file on every run.
+file on every run. The traffic module, its tests and the traffic workflow
+keep this repository's history files, columns, badges and alert text.

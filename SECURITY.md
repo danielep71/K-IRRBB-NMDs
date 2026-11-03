@@ -157,16 +157,20 @@ impact.
   The pull-request milestone guard runs on `pull_request_target` with
   `pull-requests: write`, but checks out and runs only the default branch's
   script, never pull-request code.
-  The one exception to the credential rule is the daily traffic export. It
-  runs only on the default branch, on a schedule or manual dispatch, keeps Git
-  credentials to push its data to the `traffic-history` branch, and holds
-  `contents: write` and `issues: write` for that branch and for its alert
-  issues. Its `TRAFFIC_TOKEN`, a fine-grained token with `Administration:
-  read` on this repository only, lives in the `analytics` environment, which
-  is restricted to `main`; rotate it every 90 days and immediately after
-  suspected exposure. The environment name is not a boundary that binds the
-  token to that one workflow, so keep the environment out of every build,
-  test and release job.
+  The daily traffic export runs only on the default branch, on a schedule or
+  manual dispatch, and keeps no Git credentials either. Its collect job holds
+  `contents: write` and authenticates only its push to the `traffic-history`
+  branch, with the workflow token; its alert job holds `issues: write` and no
+  environment. The traffic API needs `Administration: read`, which comes from
+  a GitHub App with that permission only: the App's client ID
+  (`TRAFFIC_APP_CLIENT_ID`, a variable) and private key
+  (`TRAFFIC_APP_PRIVATE_KEY`, a secret) live in the `analytics` environment,
+  which is restricted to `main`, and each run turns them into an installation
+  token that expires within an hour and is revoked when the job ends. Only the
+  token step receives the key and only the fetch step the token. Replace the
+  key immediately after suspected exposure. The environment name is not a
+  boundary that binds the key to that one workflow, so keep the environment
+  out of every build, test and release job.
   All actions are pinned to full commit SHAs. See
   [`tools/README.md`](tools/README.md), [`docs/LABELS.md`](docs/LABELS.md) and
   [`docs/TRAFFIC.md`](docs/TRAFFIC.md).
