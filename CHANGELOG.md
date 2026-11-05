@@ -500,6 +500,11 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- Label synchronization sends its API requests to the host GitHub Actions
+  names in `GITHUB_API_URL` (trailing slashes removed), falling back to
+  `https://api.github.com`, instead of a hard-coded address. Its self-test now
+  also runs a full reconcile against a local API, which checks that a label
+  in use is never deleted and an unused one is (#152).
 - Label reconciliation no longer deletes labels that are still in use. Before
   any change, each label that pruning would delete is checked against every
   issue and pull request, open and closed (names with a comma by reading all

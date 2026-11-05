@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import { appendFile, readFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 const EXPECTED_SCHEMA_VERSION = 1;
 const DEFAULT_MANIFEST = ".github/labels.json";
 const DEFAULT_POLICY = ".github/label-policy.json";
 const API_VERSION = "2022-11-28";
+const DEFAULT_API_URL = "https://api.github.com";
 const PROFILE_NAMES = ["application", "library", "ui-component"];
 const LABELS_PER_PAGE = 100;
 const MAX_LABEL_PAGES = 100;
@@ -282,9 +286,14 @@ function splitRepository(repository) {
   return parts.map(encodeURIComponent);
 }
 
-function apiUrl(repository, suffix) {
+// GitHub Actions provides the API address of the host it runs on.
+function apiBase(env = process.env) {
+  return String(env.GITHUB_API_URL ?? "").trim().replace(/\/+$/, "") || DEFAULT_API_URL;
+}
+
+function apiUrl(repository, suffix, env = process.env) {
   const [owner, repo] = splitRepository(repository);
-  return `https://api.github.com/repos/${owner}/${repo}${suffix}`;
+  return `${apiBase(env)}/repos/${owner}/${repo}${suffix}`;
 }
 
 function sleep(milliseconds) {
@@ -653,7 +662,19 @@ async function runSelfTest(manifestPath, policyPath) {
 
   await selfTestDeletionGuard();
 
-  process.stdout.write("SELF-TEST PASS: retry delays, validation, policy, overlay, reconciliation and deletion-guard fixtures\n");
+  for (const [value, expected] of [
+    [undefined, DEFAULT_API_URL], ["", DEFAULT_API_URL], ["  ", DEFAULT_API_URL],
+    ["https://github.example.com/api/v3", "https://github.example.com/api/v3"],
+    ["https://github.example.com/api/v3/", "https://github.example.com/api/v3"],
+    ["http://127.0.0.1:8080//", "http://127.0.0.1:8080"]
+  ]) {
+    const env = value === undefined ? {} : { GITHUB_API_URL: value };
+    assert.equal(apiUrl("owner/repo", "/labels", env), `${expected}/repos/owner/repo/labels`, `GITHUB_API_URL: ${value}`);
+  }
+
+  await selfTestReconcileEndToEnd(manifestPath, policyPath, resolveDesired(manifest, currentSelection));
+
+  process.stdout.write("SELF-TEST PASS: retry delays, validation, policy, overlay, reconciliation, deletion guard, API URL and end-to-end reconcile fixtures\n");
 }
 
 // A fake GET for the deletion guard: `items` are the repository's issues and
@@ -718,6 +739,55 @@ async function selfTestDeletionGuard() {
     /pagination exceeded 100 pages/
   );
   assert.equal(fullPages.length, MAX_ISSUE_PAGES);
+}
+
+// Runs this script in reconcile mode against a local API that holds the
+// selected labels plus "legacy": the run deletes "legacy" only when no issue
+// or pull request uses it.
+async function selfTestReconcileEndToEnd(manifestPath, policyPath, desired) {
+  for (const used of [true, false]) {
+    let live = [...structuredClone(desired), { name: "legacy", color: "ABCDEF", description: "Old label" }];
+    const requests = [];
+    const server = createServer((request, response) => {
+      requests.push(`${request.method} ${request.url}`);
+      const url = new URL(request.url, "http://localhost");
+      response.setHeader("content-type", "application/json");
+      if (request.method === "GET" && url.pathname === "/repos/owner/repo/labels") {
+        response.end(JSON.stringify(url.searchParams.get("page") === "1" ? live : []));
+      } else if (request.method === "GET" && url.pathname === "/repos/owner/repo/issues") {
+        response.end(JSON.stringify(used ? [{ number: 7, labels: [{ name: "Legacy" }] }] : []));
+      } else if (request.method === "DELETE" && url.pathname === "/repos/owner/repo/labels/legacy") {
+        live = live.filter(label => label.name !== "legacy");
+        response.statusCode = 204;
+        response.end();
+      } else {
+        response.statusCode = 404;
+        response.end("{}");
+      }
+    });
+    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+    const env = { ...process.env, GITHUB_API_URL: `http://127.0.0.1:${server.address().port}/`, GITHUB_TOKEN: "test" };
+    delete env.GITHUB_STEP_SUMMARY;
+    const result = await new Promise(resolve => execFile(
+      process.execPath,
+      [fileURLToPath(import.meta.url), "--manifest", manifestPath, "--policy", policyPath,
+        "--mode", "reconcile", "--repository", "owner/repo"],
+      { env },
+      (error, stdout, stderr) => resolve({ code: error ? error.code : 0, stdout, stderr })
+    ));
+    await new Promise(resolve => server.close(resolve));
+    const deletes = requests.filter(line => line.startsWith("DELETE "));
+    assert.ok(requests.includes("GET /repos/owner/repo/issues?state=all&per_page=1&labels=legacy"), requests.join("\n"));
+    if (used) {
+      assert.equal(result.code, 1, result.stdout);
+      assert.match(result.stderr, /Refusing to delete 1 label\(s\) still used by issues or pull requests: "legacy"/);
+      assert.deepEqual(deletes, [], "a label in use is never deleted");
+    } else {
+      assert.equal(result.code, 0, result.stderr);
+      assert.deepEqual(deletes, ["DELETE /repos/owner/repo/labels/legacy"]);
+      assert.match(result.stdout, /Post-run exact match: \*\*yes\*\*/);
+    }
+  }
 }
 
 async function main() {
