@@ -10,6 +10,12 @@ The canonical label catalog is `.github/labels.json`; `.github/label-policy.json
   or the section names an external condition.
 - Type/area: `repository`, `enhancement`, `tests`, `documentation`, `ci`, `security`, etc.
 - Labels are synchronized by `.github/workflows/labels-sync.yml` on trusted pushes to main or manual dispatch.
+- With `"prune": true`, a live label outside the catalog is deleted, which
+  removes it from every issue and pull request and cannot be undone. Before
+  any change, the reconcile run checks each label it would delete against all
+  issues and pull requests, open and closed, and refuses, changing nothing,
+  if any is still in use; the message lists every such label. Remove the
+  label from those items or add it to `.github/labels.json`, then run again.
 - Scheduled drift checks report differences; they must not silently change the repository.
 
 Do not equate version labels with GitHub milestone assignment.
