@@ -500,6 +500,12 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The daily traffic export no longer loses a collection when
+  `traffic-history` moves during the run: a rejected push is retried up to
+  three times, each time rebuilding the history on the latest branch from the
+  same collection. Every successful exit, including "no change", reports the
+  pushed commit, and the alert job fails unless that report is a full commit
+  SHA, so an empty report cannot make it check out the default branch (#153).
 - Label reconciliation no longer deletes labels that are still in use. Before
   any change, each label that pruning would delete is checked against every
   issue and pull request, open and closed (names with a comma by reading all
