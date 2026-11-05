@@ -2,8 +2,10 @@
 
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { appendFile, readFile } from "node:fs/promises";
+import { appendFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
@@ -743,8 +745,21 @@ async function selfTestDeletionGuard() {
 
 // Runs this script in reconcile mode against a local API that holds the
 // selected labels plus "legacy": the run deletes "legacy" only when no issue
-// or pull request uses it.
+// or pull request uses it. The fixture uses its own copy of the manifest with
+// pruning enabled, so it holds whatever the repository's prune setting is.
 async function selfTestReconcileEndToEnd(manifestPath, policyPath, desired) {
+  const folder = await mkdtemp(join(tmpdir(), "labels-sync-"));
+  try {
+    const pruning = { ...(await loadJson(manifestPath)), prune: true };
+    const fixtureManifest = join(folder, "labels.json");
+    await writeFile(fixtureManifest, JSON.stringify(pruning), "utf8");
+    await reconcileAgainstLocalApi(fixtureManifest, policyPath, desired);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+}
+
+async function reconcileAgainstLocalApi(manifestPath, policyPath, desired) {
   for (const used of [true, false]) {
     let live = [...structuredClone(desired), { name: "legacy", color: "ABCDEF", description: "Old label" }];
     const requests = [];
