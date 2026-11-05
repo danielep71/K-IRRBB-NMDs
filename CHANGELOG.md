@@ -500,6 +500,11 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- Label synchronization sends its API requests to the host GitHub Actions
+  names in `GITHUB_API_URL` (trailing slashes removed), falling back to
+  `https://api.github.com`, instead of a hard-coded address. Its self-test now
+  also runs a full reconcile against a local API, which checks that a label
+  in use is never deleted and an unused one is (#152).
 - The daily traffic export no longer loses a collection when
   `traffic-history` moves during the run: a rejected push is retried up to
   three times, each time rebuilding the history on the latest branch from the
