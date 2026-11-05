@@ -59,6 +59,9 @@ jobs:
     permissions:
       contents: read
       issues: write
+      # Lets the deletion guard see labels used only on pull requests; without
+      # it the issues API omits them.
+      pull-requests: read
 
     steps:
       - name: Check out the exact SHA to apply

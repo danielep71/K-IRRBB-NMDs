@@ -147,7 +147,8 @@ impact.
 - **Automation.** Every workflow checkout that can run code under review sets
   `persist-credentials: false`, so that code never receives Git credentials.
   The static-check and label-drift jobs run with a read-only token. The
-  label-reconciliation job holds `issues: write` and runs only on pushes to
+  label-reconciliation job holds `issues: write` (and `pull-requests: read`,
+  to see labels used on pull requests) and runs only on pushes to
   `main` and manual dispatch, never on pull requests.
   CodeQL scans the workflows, the label scripts and the Python tooling; only
   pushes, the weekly run and manual runs hold `security-events: write` to
