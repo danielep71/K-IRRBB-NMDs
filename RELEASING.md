@@ -113,7 +113,9 @@ admins may bypass the release-branch ruleset. See
    these integrations, so it has nothing the release branch lacks.
 3. Merge it with a **merge commit**, not a squash, once the hosted checks are
    green, so provenance remains visible. The automatic head-branch deletion
-   fails on the protected release branch, which is kept.
+   fails on the release branch, which is kept: a deletion rule that no one,
+   not even an admin, can bypass protects `release/**`
+   ([`docs/repository-settings.json`](docs/repository-settings.json)).
 4. **Bring the release branch level with `main`:** as an admin bypassing the
    ruleset, I fast-forward it to the merge commit
    (`git push origin <merge-sha>:refs/heads/release/vX.Y.Z`). A merge commit or

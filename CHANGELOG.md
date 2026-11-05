@@ -500,6 +500,12 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- Merging an integration pull request no longer deletes the release branch.
+  "Protect release branches" lets admins bypass it, so "delete head branches
+  on merge" removed `release/v0.2.0` when an admin merged it into `main`. The
+  settings baseline now also has "Prevent release branch deletion", a
+  deletion rule for `release/**` with no bypass; an admin fast-forward of a
+  release branch is unaffected (#158).
 - Label synchronization sends its API requests to the host GitHub Actions
   names in `GITHUB_API_URL` (trailing slashes removed), falling back to
   `https://api.github.com`, instead of a hard-coded address. Its self-test now
