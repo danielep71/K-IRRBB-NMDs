@@ -5,8 +5,13 @@ import contextlib
 import csv
 import io
 import json
+import os
 import re
+import shutil
+import subprocess
+import sys
 import tempfile
+import textwrap
 import unittest
 from collections.abc import Iterator, Mapping, Sequence
 from datetime import UTC, date, datetime, timedelta
@@ -459,6 +464,133 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('--milestone "$milestone"', step)
         self.assertIn('gh issue list --state all --search "\\"$title\\" in:title"', step)
         self.assertIn("tools/traffic_history.py alert", step)
+
+    def test_the_push_retries_rebuilds_and_always_reports_its_commit(self) -> None:
+        step = self.steps("collect")["Commit and push traffic history"]
+        self.assertIn("COLLECTED_AT: ${{ steps.fetch.outputs.collected_at }}", step)
+        self.assertIn("for attempt in 1 2 3; do", step)
+        rebuild = step.split("fetch origin traffic-history", 1)[1]
+        self.assertIn("git reset -q --hard FETCH_HEAD", rebuild)
+        self.assertIn('tools/traffic_history.py" merge', rebuild)
+        self.assertIn("commit_history", rebuild)
+        self.assertEqual(step.count('echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"'), 1)
+        self.assertLess(step.index("sha=$(git rev-parse HEAD)"), step.index("exit 0"))
+
+    def test_the_alert_checks_the_history_commit_before_checking_it_out(self) -> None:
+        names = list(self.steps("alert"))
+        self.assertLess(names.index("Check the pushed history commit"),
+                        names.index("Checkout the pushed traffic history"))
+        check = self.steps("alert")["Check the pushed history commit"]
+        self.assertIn("HISTORY_SHA: ${{ needs.collect.outputs.history-sha }}", check)
+        self.assertIn('[[ "$HISTORY_SHA" =~ ^[0-9a-f]{40}$ ]]', check)
+        script = check.split("run: |\n", 1)[1]
+        for value, code in (("", 1), ("main", 1), ("A" * 40, 1), ("a" * 39, 1), ("0" * 40, 0)):
+            with self.subTest(value=value):
+                result = subprocess.run(["bash", "-c", textwrap.dedent(script)], capture_output=True,
+                                        text=True, env={**os.environ, "HISTORY_SHA": value})
+                self.assertEqual(result.returncode, code, result.stdout)
+
+
+GIT = shutil.which("git")
+
+
+def push_step() -> str:
+    collect = jobs(WORKFLOW.read_text(encoding="utf-8"))["collect"]
+    parts = re.split(r"^      - name: (.+)$", collect, flags=re.M)
+    return dict(zip(parts[1::2], parts[2::2], strict=True))["Commit and push traffic history"]
+
+
+@unittest.skipUnless(GIT and shutil.which("bash"), "needs git and bash")
+class PushStepTests(unittest.TestCase):
+    """The push step itself, run with bash against local repositories."""
+
+    def setUp(self) -> None:
+        self.root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.root)
+        self.origin = self.root / "origin.git"
+        self.git("init", "-q", "--bare", "-b", "main", str(self.origin))
+        seed = self.clone("seed", branch=None)
+        self.git("checkout", "-q", "--orphan", "traffic-history", cwd=seed)
+        self.collect(seed, "2026-10-31")
+        self.git("add", "data", cwd=seed)
+        self.git("commit", "-q", "-m", "seed", cwd=seed)
+        self.git("push", "-q", "origin", "traffic-history", cwd=seed)
+        self.history = self.clone("history")
+        self.raw = self.collect(self.history, "2026-11-02")
+        shims = self.root / "bin"
+        shims.mkdir()
+        (shims / "python").symlink_to(sys.executable)
+        self.output = self.root / "output"
+        self.output.touch()
+        self.env = {**os.environ, "PATH": f"{shims}{os.pathsep}{os.environ['PATH']}",
+                    "HISTORY": str(self.history), "RAW": str(self.raw),
+                    "COLLECTED_AT": "2026-11-02T06:17:00Z", "GITHUB_OUTPUT": str(self.output),
+                    "GITHUB_WORKSPACE": str(ROOT), "GITHUB_SERVER_URL": "https://github.invalid",
+                    "GITHUB_TOKEN": "not-a-token", "GIT_CONFIG_GLOBAL": str(self.root / "gitconfig")}
+        (self.root / "gitconfig").write_text("[user]\n\tname = test\n\temail = test@invalid\n"
+                                             "[init]\n\tdefaultBranch = main\n", encoding="utf-8")
+
+    def git(self, *args: str, cwd: Path | None = None) -> str:
+        assert GIT is not None
+        env = {**os.environ, "GIT_AUTHOR_NAME": "test", "GIT_AUTHOR_EMAIL": "test@invalid",
+               "GIT_COMMITTER_NAME": "test", "GIT_COMMITTER_EMAIL": "test@invalid"}
+        return subprocess.run([GIT, *args], cwd=cwd, check=True, capture_output=True,
+                              text=True, env=env).stdout.strip()
+
+    def clone(self, name: str, branch: str | None = "traffic-history") -> Path:
+        target = self.root / name
+        extra = ["-b", branch] if branch else []
+        self.git("clone", "-q", *extra, str(self.origin), str(target))
+        return target
+
+    def collect(self, checkout: Path, day: str) -> Path:
+        """Merge one collection for ``day`` into ``checkout``/data; return its raw folder."""
+        folder = self.root / f"collection-{checkout.name}-{day}"
+        folder.mkdir()
+        workspace = Workspace(folder)
+        workspace.collect(window(day, [(3, 1)]), window(day, [(2, 1)]))
+        traffic_history.merge(workspace.raw, checkout / "data", at(f"{day}T06:17:00"))
+        return workspace.raw
+
+    def run_step(self) -> subprocess.CompletedProcess[str]:
+        script = textwrap.dedent(push_step().split("run: |\n", 1)[1])
+        return subprocess.run(["bash", "-c", script], capture_output=True, text=True, env=self.env)
+
+    def snapshot_dates(self) -> list[str]:
+        text = self.git("show", "traffic-history:data/traffic.csv", cwd=self.origin)
+        return [row["snapshot_date"] for row in csv.DictReader(io.StringIO(text))]
+
+    def test_a_rejected_push_is_rebuilt_on_the_moved_branch(self) -> None:
+        other = self.clone("other")
+        self.collect(other, "2026-11-01")
+        self.git("commit", "-qam", "concurrent", cwd=other)
+        self.git("push", "-q", "origin", "traffic-history", cwd=other)
+        result = self.run_step()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(result.stdout.count("::warning::Push attempt"), 1)
+        self.assertEqual(self.snapshot_dates(), ["2026-10-31", "2026-11-01", "2026-11-02"])
+        head = self.git("rev-parse", "traffic-history", cwd=self.origin)
+        self.assertEqual(self.output.read_text(encoding="utf-8"), f"sha={head}\n")
+
+    def test_no_change_still_reports_the_commit(self) -> None:
+        self.assertEqual(self.run_step().returncode, 0)
+        self.output.write_text("", encoding="utf-8")
+        result = self.run_step()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("No traffic changes to commit", result.stdout)
+        head = self.git("rev-parse", "traffic-history", cwd=self.origin)
+        self.assertEqual(self.output.read_text(encoding="utf-8"), f"sha={head}\n")
+
+    def test_three_rejections_fail_without_a_commit(self) -> None:
+        hook = self.origin / "hooks/pre-receive"
+        hook.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+        hook.chmod(0o755)
+        result = self.run_step()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.count("::warning::Push attempt"), 2)
+        self.assertIn("rejected 3 times", result.stdout)
+        self.assertEqual(self.output.read_text(encoding="utf-8"), "")
+        self.assertEqual(self.snapshot_dates(), ["2026-10-31"])
 
 
 if __name__ == "__main__":
