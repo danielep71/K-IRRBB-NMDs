@@ -130,6 +130,25 @@
       ]
     },
     {
+      "name": "Prevent release branch deletion",
+      "target": "branch",
+      "enforcement": "active",
+      "conditions": {
+        "ref_name": {
+          "exclude": [],
+          "include": [
+            "refs/heads/release/**"
+          ]
+        }
+      },
+      "rules": [
+        {
+          "type": "deletion"
+        }
+      ],
+      "bypass_actors": []
+    },
+    {
       "name": "Protect release tags",
       "target": "tag",
       "enforcement": "active",

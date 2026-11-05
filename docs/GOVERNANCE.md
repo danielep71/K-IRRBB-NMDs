@@ -89,6 +89,11 @@ settings with it ([tools/README.md](../tools/README.md#repository-settings)).
 After any settings change I run it with `--check` and keep the evidence file;
 an unsaved edit or an authentication prompt does not establish enforcement.
 The script never changes or deletes a ruleset the baseline does not name.
+Release branches are protected twice: "Protect release branches" requires
+squash-merged pull requests and lets admins bypass it, so that I can
+fast-forward a release branch after an integration; "Prevent release branch
+deletion" forbids deleting `release/**` with no bypass at all, so merging an
+integration pull request as an admin never deletes the release branch.
 
 Administrator bypass is an exceptional capability, not permission to skip review
 or failing checks. On `main` it applies to pull requests only; on `release/**`

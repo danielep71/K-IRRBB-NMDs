@@ -117,7 +117,7 @@ class SetupTests(unittest.TestCase):
         self.args.apply = True
         self.assertEqual(self.run_setup()[0], 0)
         methods = [w[0] for w in self.api.writes]
-        self.assertEqual(methods, ["POST"] * 4 + ["PUT", "PUT", "PATCH", "PATCH"])
+        self.assertEqual(methods, ["POST"] * 5 + ["PUT", "PUT", "PATCH", "PATCH"])
         self.assertEqual(self.api.writes[-1][2], {
             "delete_branch_on_merge": True, "allow_update_branch": True,
             "allow_rebase_merge": False, "has_projects": False, "has_downloads": False})
@@ -174,14 +174,14 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(self.api.rules[0]["bypass_actors"][0]["bypass_mode"], "pull_request")
 
     def test_unmanaged_rulesets_are_named_and_never_touched(self) -> None:
-        other = {"name": "Prevent release branch deletion", "id": 10, "source_type": "Repository",
+        other = {"name": "Legacy branch rule", "id": 10, "source_type": "Repository",
                  "target": "branch", "enforcement": "active",
                  "conditions": {"ref_name": {"include": ["refs/heads/release/**"], "exclude": []}},
                  "rules": [{"type": "deletion"}], "bypass_actors": []}
         self.api.rules = [copy.deepcopy(other)]
         code, output = self.run_setup()
         self.assertEqual(code, 0)
-        self.assertIn('unmanaged ruleset "Prevent release branch deletion" '
+        self.assertIn('unmanaged ruleset "Legacy branch rule" '
                       "(branch: refs/heads/release/**; active)", output)
         self.args.apply = True
         self.run_setup()
@@ -274,6 +274,17 @@ class BaselineTests(unittest.TestCase):
         self.assertEqual(rules["Protect release tags"]["conditions"]["ref_name"]["include"], ["refs/tags/v*"])
         self.assertEqual(rules["Protect traffic history"]["conditions"]["ref_name"]["include"],
                          ["refs/heads/traffic-history"])
+
+    def test_release_branches_cannot_be_deleted_even_by_an_admin(self) -> None:
+        # Admins may bypass "Protect release branches", and merging an
+        # integration pull request as an admin would let "delete head
+        # branches on merge" remove the release branch. A deletion rule with
+        # no bypass keeps it.
+        keepers = [r for r in setup.load_config(setup.CONFIG)["rulesets"]
+                   if r["target"] == "branch" and not r["bypass_actors"]
+                   and "refs/heads/release/**" in r["conditions"]["ref_name"]["include"]
+                   and {"type": "deletion"} in r["rules"]]
+        self.assertEqual(len(keepers), 1)
 
     def test_the_required_check_is_the_integrity_job(self) -> None:
         workflow = (ROOT / ".github/workflows/static-checks.yml").read_text(encoding="utf-8")
