@@ -500,6 +500,12 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The daily traffic export no longer loses a collection when
+  `traffic-history` moves during the run: a rejected push is retried up to
+  three times, each time rebuilding the history on the latest branch from the
+  same collection. Every successful exit, including "no change", reports the
+  pushed commit, and the alert job fails unless that report is a full commit
+  SHA, so an empty report cannot make it check out the default branch (#153).
 - Issue triage reads a target end date under a level-2 "Target end date"
   heading, as I write it, and treats only issues on a `Blocked by` line as
   prerequisites; other issues named in a dependencies section are context and

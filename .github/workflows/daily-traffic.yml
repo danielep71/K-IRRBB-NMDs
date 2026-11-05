@@ -200,26 +200,45 @@ jobs:
         id: push
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          COLLECTED_AT: ${{ steps.fetch.outputs.collected_at }}
         run: |
           set -euo pipefail
           cd "$HISTORY"
 
-          git add data/
-
-          if git diff --cached --quiet; then
-            echo "No traffic changes to commit"
-          else
-            git commit -m "Update traffic history"
-          fi
-
           # The checkout kept no credentials: the workflow token authenticates
-          # this one push, through a header that is never written to disk.
+          # the fetches and pushes below, through a header that is never
+          # written to disk.
           basic="$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)"
           echo "::add-mask::$basic"
-          git -c "http.$GITHUB_SERVER_URL/.extraheader=AUTHORIZATION: basic $basic" \
-            push origin HEAD:traffic-history
+          auth=(-c "http.$GITHUB_SERVER_URL/.extraheader=AUTHORIZATION: basic $basic")
 
-          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          commit_history() {
+            git add data/
+            if git diff --cached --quiet; then
+              echo "No traffic changes to commit"
+            else
+              git commit -q -m "Update traffic history"
+            fi
+          }
+
+          # If traffic-history moved since the checkout, the push is rejected:
+          # rebuild on the latest history from the same collection and retry.
+          commit_history
+          for attempt in 1 2 3; do
+            if git "${auth[@]}" push origin HEAD:traffic-history; then
+              echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            [ "$attempt" -lt 3 ] || break
+            echo "::warning::Push attempt $attempt was rejected; rebuilding on the latest traffic-history"
+            git "${auth[@]}" fetch origin traffic-history
+            git reset -q --hard FETCH_HEAD
+            python "$GITHUB_WORKSPACE/tools/traffic_history.py" merge \
+              --raw "$RAW" --data "$HISTORY/data" --collected-at "$COLLECTED_AT"
+            commit_history
+          done
+          echo "::error::traffic-history push was rejected 3 times; the collection is not saved"
+          exit 1
 
   alert:
     name: Traffic alert
@@ -235,6 +254,17 @@ jobs:
       PYTHONDONTWRITEBYTECODE: "1"
 
     steps:
+      # An empty ref would make the checkout below fall back to the default
+      # branch, and the alert would then read the wrong tree.
+      - name: Check the pushed history commit
+        env:
+          HISTORY_SHA: ${{ needs.collect.outputs.history-sha }}
+        run: |
+          if ! [[ "$HISTORY_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::The collect job reported no valid traffic-history commit: '$HISTORY_SHA'"
+            exit 1
+          fi
+
       - name: Checkout main branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
