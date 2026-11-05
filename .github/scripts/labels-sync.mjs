@@ -1,16 +1,24 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { appendFile, readFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { appendFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 const EXPECTED_SCHEMA_VERSION = 1;
 const DEFAULT_MANIFEST = ".github/labels.json";
 const DEFAULT_POLICY = ".github/label-policy.json";
 const API_VERSION = "2022-11-28";
+const DEFAULT_API_URL = "https://api.github.com";
 const PROFILE_NAMES = ["application", "library", "ui-component"];
 const LABELS_PER_PAGE = 100;
 const MAX_LABEL_PAGES = 100;
+const ISSUES_PER_PAGE = 100;
+const MAX_ISSUE_PAGES = 100;
 const MAX_RATE_LIMIT_RETRIES = 2;
 const MAX_RETRY_DELAY_MS = 5000;
 
@@ -280,9 +288,14 @@ function splitRepository(repository) {
   return parts.map(encodeURIComponent);
 }
 
-function apiUrl(repository, suffix) {
+// GitHub Actions provides the API address of the host it runs on.
+function apiBase(env = process.env) {
+  return String(env.GITHUB_API_URL ?? "").trim().replace(/\/+$/, "") || DEFAULT_API_URL;
+}
+
+function apiUrl(repository, suffix, env = process.env) {
   const [owner, repo] = splitRepository(repository);
-  return `https://api.github.com/repos/${owner}/${repo}${suffix}`;
+  return `${apiBase(env)}/repos/${owner}/${repo}${suffix}`;
 }
 
 function sleep(milliseconds) {
@@ -349,6 +362,63 @@ async function listLiveLabels(repository, token) {
     if (batch.length < LABELS_PER_PAGE) return labels;
   }
   throw new Error(`GitHub label pagination exceeded ${MAX_LABEL_PAGES} pages`);
+}
+
+function itemLabelNames(item) {
+  if (item === null || typeof item !== "object" || !Array.isArray(item.labels)) {
+    throw new Error("GitHub issues response has an item without a labels array");
+  }
+  return item.labels.map(label => {
+    if (label === null || typeof label !== "object" || typeof label.name !== "string") {
+      throw new Error("GitHub issues response has a malformed label");
+    }
+    return label.name.toLowerCase();
+  });
+}
+
+// Returns the names, among `names`, that label at least one issue or pull
+// request, open or closed. `request(suffix)` performs one GET. The labels
+// filter cannot express a name that contains a comma, so those names are
+// compared against every item, read page by page.
+async function findLabelsInUse(names, request) {
+  const used = [];
+  for (const name of names.filter(candidate => !candidate.includes(","))) {
+    const batch = await request(`/issues?state=all&per_page=1&labels=${encodeURIComponent(name)}`);
+    if (!Array.isArray(batch)) throw new Error("GitHub issues response is not an array");
+    if (batch.length > 0) used.push(name);
+  }
+  const wanted = new Map(names.filter(name => name.includes(",")).map(name => [name.toLowerCase(), name]));
+  if (wanted.size > 0) {
+    const found = new Set();
+    let complete = false;
+    for (let page = 1; page <= MAX_ISSUE_PAGES && !complete; page += 1) {
+      const batch = await request(`/issues?state=all&per_page=${ISSUES_PER_PAGE}&page=${page}`);
+      if (!Array.isArray(batch)) throw new Error("GitHub issues response is not an array");
+      for (const item of batch) {
+        for (const name of itemLabelNames(item)) if (wanted.has(name)) found.add(name);
+      }
+      complete = batch.length < ISSUES_PER_PAGE;
+    }
+    if (!complete) throw new Error(`GitHub issue pagination exceeded ${MAX_ISSUE_PAGES} pages`);
+    for (const [key, name] of wanted) if (found.has(key)) used.push(name);
+  }
+  return used.sort(compareNames);
+}
+
+// Pruning a label removes it from every issue and pull request and cannot be
+// undone, so a planned deletion of a label still in use stops the run before
+// any change is made.
+async function refuseUsedDeletions(changes, request) {
+  const deletions = changes.filter(change => change.action === "delete").map(change => change.currentName);
+  if (deletions.length === 0) return;
+  const used = await findLabelsInUse(deletions, request);
+  if (used.length > 0) {
+    throw new Error(
+      `Refusing to delete ${used.length} label(s) still used by issues or pull requests: `
+      + `${used.map(name => JSON.stringify(name)).join(", ")}. Nothing was changed. `
+      + "Remove the labels from those items, or add them to .github/labels.json."
+    );
+  }
 }
 
 async function applyChanges(repository, token, changes) {
@@ -592,7 +662,147 @@ async function runSelfTest(manifestPath, policyPath) {
   assert.match(summary, new RegExp(`Complete resolved set \\(${selectedLabels.length}\\):`));
   for (const label of selectedLabels) assert.match(summary, new RegExp(`"${label.name}"`));
 
-  process.stdout.write("SELF-TEST PASS: retry delays, validation, policy, overlay, and reconciliation fixtures\n");
+  await selfTestDeletionGuard();
+
+  for (const [value, expected] of [
+    [undefined, DEFAULT_API_URL], ["", DEFAULT_API_URL], ["  ", DEFAULT_API_URL],
+    ["https://github.example.com/api/v3", "https://github.example.com/api/v3"],
+    ["https://github.example.com/api/v3/", "https://github.example.com/api/v3"],
+    ["http://127.0.0.1:8080//", "http://127.0.0.1:8080"]
+  ]) {
+    const env = value === undefined ? {} : { GITHUB_API_URL: value };
+    assert.equal(apiUrl("owner/repo", "/labels", env), `${expected}/repos/owner/repo/labels`, `GITHUB_API_URL: ${value}`);
+  }
+
+  await selfTestReconcileEndToEnd(manifestPath, policyPath, resolveDesired(manifest, currentSelection));
+
+  process.stdout.write("SELF-TEST PASS: retry delays, validation, policy, overlay, reconciliation, deletion guard, API URL and end-to-end reconcile fixtures\n");
+}
+
+// A fake GET for the deletion guard: `items` are the repository's issues and
+// pull requests; the labels filter and pagination behave as GitHub's do.
+function fakeIssues(items, calls = []) {
+  return async suffix => {
+    calls.push(suffix);
+    const url = new URL(suffix, "https://api.invalid");
+    assert.equal(url.pathname, "/issues");
+    assert.equal(url.searchParams.get("state"), "all");
+    const filter = url.searchParams.get("labels");
+    const perPage = Number(url.searchParams.get("per_page"));
+    const page = Number(url.searchParams.get("page") ?? "1");
+    const matching = filter === null
+      ? items
+      : items.filter(item => item.labels.some(label => label.name.toLowerCase() === filter.toLowerCase()));
+    return matching.slice((page - 1) * perPage, page * perPage);
+  };
+}
+
+async function selfTestDeletionGuard() {
+  const labelled = (...names) => ({ labels: names.map(name => ({ name })) });
+  const remove = (...names) => names.map(name => ({ action: "delete", name, currentName: name }));
+
+  const noCalls = [];
+  await refuseUsedDeletions([{ action: "create", name: "new" }], fakeIssues([], noCalls));
+  assert.deepEqual(noCalls, [], "no deletion, no request");
+
+  await refuseUsedDeletions(remove("unused"), fakeIssues([labelled("bug")]));
+
+  await assert.rejects(
+    refuseUsedDeletions(remove("legacy", "old", "unused"), fakeIssues([labelled("Legacy"), labelled("bug", "old")])),
+    error => /2 label\(s\) still used/.test(error.message)
+      && error.message.includes('"legacy", "old"')
+      && !error.message.includes('"unused"')
+  );
+
+  const many = Array.from({ length: 150 }, () => labelled("bug"));
+  many.push(labelled("Area, Legacy"));
+  const calls = [];
+  assert.deepEqual(await findLabelsInUse(["area, legacy", "a, b"], fakeIssues(many, calls)), ["area, legacy"]);
+  assert.deepEqual(calls, [
+    "/issues?state=all&per_page=100&page=1",
+    "/issues?state=all&per_page=100&page=2"
+  ], "comma names read every page once, unfiltered");
+
+  const plainCalls = [];
+  await findLabelsInUse(["needs triage"], fakeIssues([], plainCalls));
+  assert.deepEqual(plainCalls, ["/issues?state=all&per_page=1&labels=needs%20triage"]);
+
+  await assert.rejects(findLabelsInUse(["old"], async () => ({ message: "x" })), /not an array/);
+  await assert.rejects(findLabelsInUse(["a, b"], async () => ({})), /not an array/);
+  await assert.rejects(findLabelsInUse(["a, b"], async () => [{ number: 1 }]), /labels array/);
+  await assert.rejects(findLabelsInUse(["a, b"], async () => [{ labels: [{ id: 1 }] }]), /malformed label/);
+  await assert.rejects(findLabelsInUse(["a, b"], async () => [{ labels: ["a, b"] }]), /malformed label/);
+  const fullPages = [];
+  await assert.rejects(
+    findLabelsInUse(["a, b"], async suffix => {
+      fullPages.push(suffix);
+      return Array.from({ length: ISSUES_PER_PAGE }, () => labelled("bug"));
+    }),
+    /pagination exceeded 100 pages/
+  );
+  assert.equal(fullPages.length, MAX_ISSUE_PAGES);
+}
+
+// Runs this script in reconcile mode against a local API that holds the
+// selected labels plus "legacy": the run deletes "legacy" only when no issue
+// or pull request uses it. The fixture uses its own copy of the manifest with
+// pruning enabled, so it holds whatever the repository's prune setting is.
+async function selfTestReconcileEndToEnd(manifestPath, policyPath, desired) {
+  const folder = await mkdtemp(join(tmpdir(), "labels-sync-"));
+  try {
+    const pruning = { ...(await loadJson(manifestPath)), prune: true };
+    const fixtureManifest = join(folder, "labels.json");
+    await writeFile(fixtureManifest, JSON.stringify(pruning), "utf8");
+    await reconcileAgainstLocalApi(fixtureManifest, policyPath, desired);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+}
+
+async function reconcileAgainstLocalApi(manifestPath, policyPath, desired) {
+  for (const used of [true, false]) {
+    let live = [...structuredClone(desired), { name: "legacy", color: "ABCDEF", description: "Old label" }];
+    const requests = [];
+    const server = createServer((request, response) => {
+      requests.push(`${request.method} ${request.url}`);
+      const url = new URL(request.url, "http://localhost");
+      response.setHeader("content-type", "application/json");
+      if (request.method === "GET" && url.pathname === "/repos/owner/repo/labels") {
+        response.end(JSON.stringify(url.searchParams.get("page") === "1" ? live : []));
+      } else if (request.method === "GET" && url.pathname === "/repos/owner/repo/issues") {
+        response.end(JSON.stringify(used ? [{ number: 7, labels: [{ name: "Legacy" }] }] : []));
+      } else if (request.method === "DELETE" && url.pathname === "/repos/owner/repo/labels/legacy") {
+        live = live.filter(label => label.name !== "legacy");
+        response.statusCode = 204;
+        response.end();
+      } else {
+        response.statusCode = 404;
+        response.end("{}");
+      }
+    });
+    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+    const env = { ...process.env, GITHUB_API_URL: `http://127.0.0.1:${server.address().port}/`, GITHUB_TOKEN: "test" };
+    delete env.GITHUB_STEP_SUMMARY;
+    const result = await new Promise(resolve => execFile(
+      process.execPath,
+      [fileURLToPath(import.meta.url), "--manifest", manifestPath, "--policy", policyPath,
+        "--mode", "reconcile", "--repository", "owner/repo"],
+      { env },
+      (error, stdout, stderr) => resolve({ code: error ? error.code : 0, stdout, stderr })
+    ));
+    await new Promise(resolve => server.close(resolve));
+    const deletes = requests.filter(line => line.startsWith("DELETE "));
+    assert.ok(requests.includes("GET /repos/owner/repo/issues?state=all&per_page=1&labels=legacy"), requests.join("\n"));
+    if (used) {
+      assert.equal(result.code, 1, result.stdout);
+      assert.match(result.stderr, /Refusing to delete 1 label\(s\) still used by issues or pull requests: "legacy"/);
+      assert.deepEqual(deletes, [], "a label in use is never deleted");
+    } else {
+      assert.equal(result.code, 0, result.stderr);
+      assert.deepEqual(deletes, ["DELETE /repos/owner/repo/labels/legacy"]);
+      assert.match(result.stdout, /Post-run exact match: \*\*yes\*\*/);
+    }
+  }
 }
 
 async function main() {
@@ -634,6 +844,12 @@ async function main() {
   }
 
   const changes = planChanges(desired, live, { prune: manifest.prune });
+  if (options.mode === "reconcile") {
+    await refuseUsedDeletions(
+      changes,
+      suffix => githubRequest(options.repository, process.env.GITHUB_TOKEN, "GET", suffix)
+    );
+  }
   if (options.mode === "plan" || options.dryRun) {
     await publishSummary(renderSummary({ mode: options.mode, ...summaryBase, changes, dryRun: options.dryRun }));
     return;

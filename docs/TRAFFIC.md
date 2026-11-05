@@ -17,6 +17,14 @@ Every checkout sets `persist-credentials: false`. Only the push step
 authenticates, with the workflow token, through a Git header that is never
 written to disk.
 
+If `traffic-history` moved after the checkout, the push is rejected. The push
+step then fetches the branch, resets to it, merges the same collection again
+and commits, up to three attempts in all; after the third rejection the run
+fails and the collection is not saved. Every successful exit, including "no
+change", reports the commit it pushed, and the alert job refuses to start
+unless that report is a full 40-character commit SHA, so it never reads the
+default branch by mistake.
+
 ## Credentials and access
 
 The traffic API requires **Administration: read**, which the workflow token

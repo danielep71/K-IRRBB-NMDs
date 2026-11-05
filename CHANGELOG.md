@@ -500,6 +500,24 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- Label synchronization sends its API requests to the host GitHub Actions
+  names in `GITHUB_API_URL` (trailing slashes removed), falling back to
+  `https://api.github.com`, instead of a hard-coded address. Its self-test now
+  also runs a full reconcile against a local API, which checks that a label
+  in use is never deleted and an unused one is (#152).
+- The daily traffic export no longer loses a collection when
+  `traffic-history` moves during the run: a rejected push is retried up to
+  three times, each time rebuilding the history on the latest branch from the
+  same collection. Every successful exit, including "no change", reports the
+  pushed commit, and the alert job fails unless that report is a full commit
+  SHA, so an empty report cannot make it check out the default branch (#153).
+- Label reconciliation no longer deletes labels that are still in use. Before
+  any change, each label that pruning would delete is checked against every
+  issue and pull request, open and closed (names with a comma by reading all
+  items, since the labels filter cannot express them); if any is in use, the
+  run refuses with one message listing them and changes nothing. The reconcile
+  job also holds `pull-requests: read`, so labels used only on pull requests
+  are seen (#151).
 - Issue triage reads a target end date under a level-2 "Target end date"
   heading, as I write it, and treats only issues on a `Blocked by` line as
   prerequisites; other issues named in a dependencies section are context and
