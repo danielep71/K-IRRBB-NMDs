@@ -500,6 +500,13 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- Label reconciliation no longer deletes labels that are still in use. Before
+  any change, each label that pruning would delete is checked against every
+  issue and pull request, open and closed (names with a comma by reading all
+  items, since the labels filter cannot express them); if any is in use, the
+  run refuses with one message listing them and changes nothing. The reconcile
+  job also holds `pull-requests: read`, so labels used only on pull requests
+  are seen (#151).
 - Issue triage reads a target end date under a level-2 "Target end date"
   heading, as I write it, and treats only issues on a `Blocked by` line as
   prerequisites; other issues named in a dependencies section are context and
