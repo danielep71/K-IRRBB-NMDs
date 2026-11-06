@@ -14,6 +14,7 @@ on:
       - .github/labels.json
       - .github/label-policy.json
       - .github/scripts/labels-sync.mjs
+      - .github/scripts/markdown.mjs
       - .github/workflows/labels-sync.yml
   push:
     branches:
@@ -22,6 +23,7 @@ on:
       - .github/labels.json
       - .github/label-policy.json
       - .github/scripts/labels-sync.mjs
+      - .github/scripts/markdown.mjs
       - .github/workflows/labels-sync.yml
   workflow_dispatch:
 

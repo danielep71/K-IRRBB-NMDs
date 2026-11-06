@@ -500,6 +500,14 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The Markdown summaries of label synchronization and label drift no longer
+  break on a label name, color, description, path or error message that holds
+  a backtick, a pipe or a line break. A shared helper,
+  `.github/scripts/markdown.mjs`, writes each value as a code span whose fence
+  is longer than any run of backticks inside it, escapes pipes in table cells
+  and turns CR, LF and CRLF into a space; the drift check reads the
+  reconciler's plan table with the same rules. Both self-tests cover these
+  values, and the label workflows now also run when the helper changes (#163).
 - Merging an integration pull request no longer deletes the release branch.
   "Protect release branches" lets admins bypass it, so "delete head branches
   on merge" removed `release/v0.2.0` when an admin merged it into `main`. The
