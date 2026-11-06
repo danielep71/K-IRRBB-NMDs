@@ -262,6 +262,16 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- The issue forms require a target end date: you propose one before the
+  milestone's due date, and I may change it during triage. The bug form adds
+  required fields for the host environment (Windows and Excel version, Office
+  bitness, locale), acceptance criteria and a validation plan, and an optional
+  field for evidence, workaround and recovery. The documentation form replaces
+  its two combined fields with required fields for the document and section,
+  the problem type, the problem, the proposed correction, a supporting source,
+  acceptance criteria and validation. The feature form adds an optional
+  "Alternatives considered" field. `tools/check_issues.py --check-config` fails
+  when a form does not require the target end date or the dependencies (#161).
 - The daily traffic export reads the traffic API with a short-lived token of
   a GitHub App that has only `Administration: read`, created in each run from
   the `analytics` environment's `TRAFFIC_APP_CLIENT_ID` variable and

@@ -26,7 +26,7 @@ The gate runner checks:
   file or directory in the repository and every fragment names a heading or
   anchor of its target (`test_check_links.py`);
 - the issue forms and label catalog (`check_issues.py --check-config`): each
-  form assigns `danielep71`, sets its provisional priority and asks for a
+  form assigns `danielep71`, sets its provisional priority and requires a
   target end date and the dependencies, and `blocked` is the only
   dependency-status label (`test_check_issues.py`).
 

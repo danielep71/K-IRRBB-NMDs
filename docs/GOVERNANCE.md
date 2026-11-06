@@ -59,9 +59,14 @@ Every open issue carries what I need to plan it:
   and acceptance criteria are verifiable checkboxes.
 
 The issue forms set the assignee and a provisional priority (`P2` for bugs and
-features, `P3` for documentation) and ask for the target end date and the
-dependencies; I confirm or change the priority and set the milestone during
-triage. No automation changes an issue's priority or milestone.
+features, `P3` for documentation) and require the dependencies and a target
+end date, which you propose before the milestone's due date. Each form also
+requires acceptance criteria; the bug form requires the host environment and a
+validation plan, and the documentation form requires the document and section,
+the problem, the proposed correction, a supporting source and how the
+correction is validated. I confirm or change the priority, set the milestone
+and may change the target end date during triage. No automation changes an
+issue's priority or milestone.
 
 `.github/workflows/issue-triage.yml` runs `tools/check_issues.py` from the
 default branch on issue and milestone events and on demand, with read-only
