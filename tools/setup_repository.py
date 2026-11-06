@@ -36,7 +36,6 @@ SECURITY_PUBLIC_ONLY = {
     "secret_scanning_push_protection": True,
 }
 ANALYSIS_KEYS = ("secret_scanning", "secret_scanning_push_protection")
-BYPASS_MODES = {"always", "pull_request"}
 
 Json = Any
 Call = Callable[..., Json]
@@ -102,10 +101,9 @@ def check_ruleset(rule: dict[str, Json]) -> None:
         raise SetupError(f"Invalid baseline ruleset: {rule.get('name')!r}.")
     if rule["conditions"]["ref_name"]["exclude"]:
         raise SetupError(f"Baseline ruleset {rule['name']!r} must not exclude refs.")
-    for actor in rule["bypass_actors"]:
-        if set(actor) != {"actor_id", "actor_type", "bypass_mode"} \
-                or actor["bypass_mode"] not in BYPASS_MODES:
-            raise SetupError(f"Invalid bypass actor in {rule['name']!r}.")
+    # No one, admins included, may bypass the documented route.
+    if rule["bypass_actors"]:
+        raise SetupError(f"Baseline ruleset {rule['name']!r} must not have bypass actors.")
 
 
 def load_config(path: Path) -> dict[str, Json]:

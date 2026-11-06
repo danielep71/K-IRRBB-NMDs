@@ -110,11 +110,12 @@ reports anything missing; it never changes an issue. See
    branch** with evidence and explicit limitations.
 9. Merge only after review, with the **Repository integrity** check green and
    every review finding resolved. The release branch accepts changes only
-   through pull requests, and its ruleset allows only a **squash** merge: the
-   squash commit message must follow the rules below.
+   through pull requests that are up to date with it; task pull requests are
+   merged with a **squash**, and the squash commit message must follow the
+   rules below.
 
-Nothing is committed directly to the release branch or to `main`, except when I
-bring a release branch level with `main` after an integration. Integration of
+Nothing is committed directly to the release branch or to `main`; even
+levelling a release branch with `main` is a pull request. Integration of
 the release branch into `main` happens only at my request; see
 [`RELEASING.md`](RELEASING.md). Pushed history on a shared branch is never
 rewritten: no rebase, amend or force-push. Bring a moved base branch into a

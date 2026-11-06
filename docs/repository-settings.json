@@ -65,13 +65,7 @@
           }
         }
       ],
-      "bypass_actors": [
-        {
-          "actor_id": 5,
-          "actor_type": "RepositoryRole",
-          "bypass_mode": "pull_request"
-        }
-      ]
+      "bypass_actors": []
     },
     {
       "name": "Protect release branches",
@@ -103,14 +97,15 @@
             "required_review_thread_resolution": true,
             "require_extra_approval_for_unattributed_changes": true,
             "allowed_merge_methods": [
-              "squash"
+              "squash",
+              "merge"
             ]
           }
         },
         {
           "type": "required_status_checks",
           "parameters": {
-            "strict_required_status_checks_policy": false,
+            "strict_required_status_checks_policy": true,
             "do_not_enforce_on_create": true,
             "required_status_checks": [
               {
@@ -121,13 +116,7 @@
           }
         }
       ],
-      "bypass_actors": [
-        {
-          "actor_id": 5,
-          "actor_type": "RepositoryRole",
-          "bypass_mode": "always"
-        }
-      ]
+      "bypass_actors": []
     },
     {
       "name": "Prevent release branch deletion",

@@ -5,10 +5,11 @@
 - Active integration branch: the release branch named in
   [`RELEASING.md`](../RELEASING.md#current-status).
 - Start focused task branches from the release branch; open PRs back into it
-  and squash-merge them (the only method the release-branch ruleset allows).
+  and squash-merge them. The release-branch ruleset also allows a merge
+  commit, used only to level a release branch with `main`.
   The release branch goes into `main` with a merge commit; see
   [`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main).
-- No direct commits to `release/**` or `main` after the initial repository bootstrap, except when I bring a release branch level with `main` after an integration ([`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main)).
+- No direct commits to `release/**` or `main` after the initial repository bootstrap; even levelling a release branch with `main` is a pull request ([`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main)).
 - A release-to-main PR needs my explicit approval. No version tags or releases are implied.
 - Merge only with review sign-off and green repository checks, as recorded in the PR's final-head review ([pull requests](#pull-requests)). VBA may be merged before Excel evidence exists; a release needs Excel evidence on its candidate ([`EXCEL_EVIDENCE.md`](EXCEL_EVIDENCE.md)).
 
@@ -89,18 +90,14 @@ settings with it ([tools/README.md](../tools/README.md#repository-settings)).
 After any settings change I run it with `--check` and keep the evidence file;
 an unsaved edit or an authentication prompt does not establish enforcement.
 The script never changes or deletes a ruleset the baseline does not name.
-Release branches are protected twice: "Protect release branches" requires
-squash-merged pull requests and lets admins bypass it, so that I can
-fast-forward a release branch after an integration; "Prevent release branch
-deletion" forbids deleting `release/**` with no bypass at all, so merging an
-integration pull request as an admin never deletes the release branch.
-
-Administrator bypass is an exceptional capability, not permission to skip review
-or failing checks. On `main` it applies to pull requests only; on `release/**`
-it is always available, so that I can bring a release branch level with `main`
-after an integration
-([`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main));
-it is used for nothing else.
+No ruleset has a bypass, for admins included: every change reaches `main` and
+`release/**` through a pull request whose required check passed on a head that
+is up to date with its base. "Protect release branches" accepts a squash (task
+pull requests) or a merge commit (levelling a release branch with `main` after
+an integration,
+[`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main)).
+"Prevent release branch deletion" forbids deleting `release/**`, so merging an
+integration pull request never deletes the release branch.
 
 ## Privacy and intellectual property
 
