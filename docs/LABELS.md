@@ -3,7 +3,8 @@
 The canonical label catalog is `.github/labels.json`; `.github/label-policy.json` selects the `application` profile.
 
 - Priority: exactly one of `P1`, `P2`, `P3`. `P1` is reserved for a
-  confirmed calculation or correctness bug and always comes with `bug`; see
+  confirmed calculation bug, wrong results for valid inputs, and always comes
+  with `bug`; other correctness defects are `P2`. See
   [Issue triage](GOVERNANCE.md#issue-triage).
 - `blocked` is the only dependency-status label; it is present exactly while
   a `Blocked by` line in an issue's dependencies section names an open issue,

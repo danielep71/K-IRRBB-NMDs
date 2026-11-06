@@ -39,9 +39,10 @@ Every open issue carries what I need to plan it:
 
 - **Assignee:** `danielep71`.
 - **Priority:** exactly one of `P1`, `P2`, `P3`.
-  - `P1` only for a confirmed calculation or correctness bug, so it always
-    comes with `bug`.
-  - `P2` for material correctness, robustness or maintainability work.
+  - `P1` only for a confirmed calculation bug: the application gives wrong
+    results for valid inputs. It always comes with `bug`.
+  - `P2` for other material correctness defects (for example a broken import
+    or a contract violation) and for robustness or maintainability work.
   - `P3` for non-blocking quality, testing, documentation or technical-debt
     improvements.
 - **Milestone:** an open milestone with a due date.
@@ -59,9 +60,14 @@ Every open issue carries what I need to plan it:
   and acceptance criteria are verifiable checkboxes.
 
 The issue forms set the assignee and a provisional priority (`P2` for bugs and
-features, `P3` for documentation) and ask for the target end date and the
-dependencies; I confirm or change the priority and set the milestone during
-triage. No automation changes an issue's priority or milestone.
+features, `P3` for documentation) and require the dependencies and a target
+end date, which you propose before the milestone's due date. Each form also
+requires acceptance criteria; the bug form requires the host environment and a
+validation plan, and the documentation form requires the document and section,
+the problem, the proposed correction, a supporting source and how the
+correction is validated. I confirm or change the priority, set the milestone
+and may change the target end date during triage. No automation changes an
+issue's priority or milestone.
 
 `.github/workflows/issue-triage.yml` runs `tools/check_issues.py` from the
 default branch on issue and milestone events and on demand, with read-only
