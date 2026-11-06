@@ -87,6 +87,16 @@ class DependabotTests(unittest.TestCase):
         self.assertEqual(set(targets), {active.group(1)})
 
 
+    def test_every_update_is_assigned_and_labelled_for_triage(self) -> None:
+        config = self.CONFIG.read_text(encoding="utf-8")
+        entries = re.split(r"^  - package-ecosystem:", config, flags=re.M)[1:]
+        self.assertEqual(len(entries), 2)
+        for entry in entries:
+            with self.subTest(entry=entry.split("\n", 1)[0].strip()):
+                self.assertRegex(entry, r'\n    assignees:\n      - "danielep71"\n')
+                self.assertRegex(entry, r'\n    labels:\n      - "ci"\n      - "P3"\n')
+
+
 class ActiveBranchTests(unittest.TestCase):
     # Only these files may name the active release branch: Dependabot needs
     # the literal name, RELEASING.md holds the current-status table, and
