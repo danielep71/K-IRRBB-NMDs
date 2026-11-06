@@ -262,6 +262,16 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- `P1` is now reserved for a confirmed calculation bug that gives wrong
+  results for valid inputs; other correctness defects, such as a broken
+  import or a contract violation, are `P2`. The label description, the triage
+  message, GOVERNANCE.md, LABELS.md and CONTRIBUTING.md use that definition
+  (#162).
+- mypy also reports unreachable code (`warn_unreachable`, which `strict` does
+  not include), and CI proves the setting is active with a probe; the tooling
+  had no such code (#166).
+- Dependabot pull requests are assigned to `danielep71`, so they meet the
+  triage rules without a manual step (#164).
 - The daily traffic export reads the traffic API with a short-lived token of
   a GitHub App that has only `Administration: read`, created in each run from
   the `analytics` environment's `TRAFFIC_APP_CLIENT_ID` variable and
@@ -506,6 +516,13 @@ Use only the categories needed by a release.
   protocol-relative `//host` links stay allowed. The weekly `--external` run
   requests HTTPS only, also on redirects, and reports a redirect to another
   protocol as an error instead of following it without TLS (#168).
+- Static repository checks no longer cancel the run of an earlier push to the
+  same branch: only a newer commit on the same pull request cancels a run, and
+  every other run keeps its own group, so each pushed commit keeps its
+  result (#167).
+- The label reconcile job runs only from the default branch: a manual
+  dispatch from another branch no longer applies a manifest that has not been
+  integrated (#169).
 - Merging an integration pull request no longer deletes the release branch.
   "Protect release branches" lets admins bypass it, so "delete head branches
   on merge" removed `release/v0.2.0` when an admin merged it into `main`. The

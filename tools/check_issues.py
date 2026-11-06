@@ -133,7 +133,8 @@ def metadata_findings(issue: Issue, assignee: str) -> list[Finding]:
                                 f"needs exactly one of P1/P2/P3 (found: {found})"))
     if "P1" in priorities and "bug" not in issue.labels:
         findings.append(Finding(issue.number, "p1-reserved", "has P1 without bug: P1 is "
-                                "reserved for confirmed calculation or correctness bugs"))
+                                "reserved for confirmed calculation bugs, wrong results "
+                                "for valid inputs"))
     if not issue.milestone:
         findings.append(Finding(issue.number, "milestone", "has no milestone"))
     elif issue.milestone_state != "open":
