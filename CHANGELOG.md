@@ -502,6 +502,10 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- Static repository checks no longer cancel the run of an earlier push to the
+  same branch: only a newer commit on the same pull request cancels a run, and
+  every other run keeps its own group, so each pushed commit keeps its
+  result (#167).
 - The label reconcile job runs only from the default branch: a manual
   dispatch from another branch no longer applies a manifest that has not been
   integrated (#169).

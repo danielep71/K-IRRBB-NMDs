@@ -111,6 +111,19 @@ class MutatingJobTests(unittest.TestCase):
         self.assertIn("\n  workflow_dispatch:", text)
 
 
+class ConcurrencyTests(unittest.TestCase):
+    def test_static_checks_cancel_only_superseded_pull_request_runs(self) -> None:
+        text = (ROOT / ".github/workflows/static-checks.yml").read_text(encoding="utf-8")
+        block = re.search(r"^concurrency:\n  group: (.+)\n  cancel-in-progress: (.+)\n", text, re.M)
+        assert block is not None
+        group, cancel = block.groups()
+        self.assertEqual(group, "static-checks-${{ github.event_name == 'pull_request' && "
+                                "format('pr-{0}', github.event.pull_request.number) || "
+                                "format('run-{0}', github.run_id) }}")
+        self.assertEqual(cancel, "${{ github.event_name == 'pull_request' }}")
+        self.assertNotIn("github.ref", group)
+
+
 class ActiveBranchTests(unittest.TestCase):
     # Only these files may name the active release branch: Dependabot needs
     # the literal name, RELEASING.md holds the current-status table, and
