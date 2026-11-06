@@ -72,20 +72,22 @@ Git history to apply an editorial correction.
 
 | Contribution | First action |
 | --- | --- |
-| 🐛 Reproducible defect | Open an issue with exact commit, environment, expected and observed behavior, and synthetic evidence. |
+| 🐛 Reproducible defect | Open an issue with exact commit, host environment, expected and observed behavior, synthetic evidence, acceptance criteria and a validation plan. |
 | ✨ Model or feature change | Open an issue defining the methodological basis, observable contract, compatibility, non-goals and validation. |
 | 📐 Estimator or calibration change | State the reference implementation, tolerances, convergence criteria and failure behavior before writing code. |
 | 🧪 Test or evidence improvement | Explain provenance, independence, coverage and what failure the test detects. |
-| 📖 Documentation | Identify the authoritative document being corrected. |
+| 📖 Documentation | Name the document and section, the problem, the proposed correction and the source it must match. |
 | ⚙️ Tooling or governance | Explain failure behavior, portability, trust boundary and maintenance cost. |
 | 🔐 Security concern | Follow [`SECURITY.md`](SECURITY.md) privately. |
 
 Open issues with the forms (bug, feature, documentation). The forms assign
-`danielep71`, set a provisional priority and ask for a target end date and the
-dependencies. During triage I confirm **exactly one** priority (`P1` only for a
-confirmed calculation or correctness bug), set a milestone with a due date and
-check that the target end date falls before it. The Issue triage workflow
-reports anything missing; it never changes an issue. See
+`danielep71`, set a provisional priority and require the dependencies and a
+target end date: propose a date (`YYYY-MM-DD`, Europe/Rome) before the due date
+of the milestone. During triage I confirm **exactly one** priority (`P1` only
+for a confirmed calculation bug, wrong results for valid inputs), set a
+milestone with a due date and check that the target end date falls before it,
+changing the date if needed. The Issue triage workflow reports anything
+missing; it never changes an issue. See
 [`docs/GOVERNANCE.md`](docs/GOVERNANCE.md#issue-triage). Pull requests follow
 [the PR template](.github/PULL_REQUEST_TEMPLATE.md).
 

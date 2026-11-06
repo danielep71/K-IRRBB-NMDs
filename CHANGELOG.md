@@ -270,6 +270,26 @@ Use only the categories needed by a release.
   from a task branch that merges `main` into it, instead of an admin push. `tools/setup_repository.py` refuses a baseline
   ruleset with bypass actors. RELEASING.md, GOVERNANCE.md, CONTRIBUTING.md and
   tools/README.md describe the procedure (#160).
+- The issue forms require a target end date: you propose one before the
+  milestone's due date, and I may change it during triage. The bug form adds
+  required fields for the host environment (Windows and Excel version, Office
+  bitness, locale), acceptance criteria and a validation plan, and an optional
+  field for evidence, workaround and recovery. The documentation form replaces
+  its two combined fields with required fields for the document and section,
+  the problem type, the problem, the proposed correction, a supporting source,
+  acceptance criteria and validation. The feature form adds an optional
+  "Alternatives considered" field. `tools/check_issues.py --check-config` fails
+  when a form does not require the target end date or the dependencies (#161).
+- `P1` is now reserved for a confirmed calculation bug that gives wrong
+  results for valid inputs; other correctness defects, such as a broken
+  import or a contract violation, are `P2`. The label description, the triage
+  message, GOVERNANCE.md, LABELS.md and CONTRIBUTING.md use that definition
+  (#162).
+- mypy also reports unreachable code (`warn_unreachable`, which `strict` does
+  not include), and CI proves the setting is active with a probe; the tooling
+  had no such code (#166).
+- Dependabot pull requests are assigned to `danielep71`, so they meet the
+  triage rules without a manual step (#164).
 - The daily traffic export reads the traffic API with a short-lived token of
   a GitHub App that has only `Administration: read`, created in each run from
   the `analytics` environment's `TRAFFIC_APP_CLIENT_ID` variable and
@@ -508,6 +528,33 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The settings check no longer treats paused Dependabot security updates as
+  in effect: when the baseline wants them on but GitHub has paused them,
+  `--check` reports drift and `--apply` fails its read-back. When the baseline
+  wants them off, enabled but paused updates count as on and are turned off,
+  since they resume on their own. The evidence file shows "on (paused)"
+  (#165).
+- The Markdown summaries of label synchronization and label drift no longer
+  break on a label name, color, description, path or error message that holds
+  a backtick, a pipe or a line break. A shared helper,
+  `.github/scripts/markdown.mjs`, writes each value as a code span whose fence
+  is longer than any run of backticks inside it, escapes pipes in table cells
+  and turns CR, LF and CRLF into a space; the drift check reads the
+  reconciler's plan table with the same rules. Both self-tests cover these
+  values, and the label workflows now also run when the helper changes (#163).
+- The link check no longer accepts plain `http://` links. The offline check,
+  part of `tools/check.py` on every push, reports each external `http://` link
+  in the Markdown as "insecure link (use https)"; `https://` and
+  protocol-relative `//host` links stay allowed. The weekly `--external` run
+  requests HTTPS only, also on redirects, and reports a redirect to another
+  protocol as an error instead of following it without TLS (#168).
+- Static repository checks no longer cancel the run of an earlier push to the
+  same branch: only a newer commit on the same pull request cancels a run, and
+  every other run keeps its own group, so each pushed commit keeps its
+  result (#167).
+- The label reconcile job runs only from the default branch: a manual
+  dispatch from another branch no longer applies a manifest that has not been
+  integrated (#169).
 - Merging an integration pull request no longer deletes the release branch.
   "Protect release branches" lets admins bypass it, so "delete head branches
   on merge" removed `release/v0.2.0` when an admin merged it into `main`. The
