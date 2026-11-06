@@ -23,8 +23,9 @@ The gate runner checks:
 - explicit public API declarations compared with `docs/PUBLIC_API.txt`;
 - changelog/version consistency;
 - Markdown links (`check_links.py`): every relative link names an existing
-  file or directory in the repository and every fragment names a heading or
-  anchor of its target (`test_check_links.py`);
+  file or directory in the repository, every fragment names a heading or
+  anchor of its target, and every external link uses HTTPS, so a plain
+  `http://` link is an error (`test_check_links.py`);
 - the issue forms and label catalog (`check_issues.py --check-config`): each
   form assigns `danielep71`, sets its provisional priority and asks for a
   target end date and the dependencies, and `blocked` is the only
@@ -178,9 +179,10 @@ Label reconciliation scripts and workflows apply the label policy and run from t
   `CODE_SCANNING` set to `enabled`; without them it is skipped, not failed.
 - **External links** (`.github/workflows/link-check.yml`) runs
   `python tools/check_links.py --external` every Monday and on demand. It
-  requests each external http(s) link once; links into this repository are
-  skipped, because the offline check covers them as relative links. Rate
-  limits and network errors are reported as warnings, a 404 as an error.
+  requests each external https link once, over HTTPS only; links into this
+  repository are skipped, because the offline check covers them as relative
+  links. Rate limits and network errors are reported as warnings; a 404, and a
+  redirect to a URL that is not HTTPS, as errors.
 - **Pull-request milestones** (`.github/workflows/pr-milestones.yml` with
   `.github/scripts/pr-milestones.py`) removes any milestone set on a pull
   request, when one is opened, reopened, edited or given a milestone, and

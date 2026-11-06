@@ -510,6 +510,12 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The link check no longer accepts plain `http://` links. The offline check,
+  part of `tools/check.py` on every push, reports each external `http://` link
+  in the Markdown as "insecure link (use https)"; `https://` and
+  protocol-relative `//host` links stay allowed. The weekly `--external` run
+  requests HTTPS only, also on redirects, and reports a redirect to another
+  protocol as an error instead of following it without TLS (#168).
 - Static repository checks no longer cancel the run of an earlier push to the
   same branch: only a newer commit on the same pull request cancels a run, and
   every other run keeps its own group, so each pushed commit keeps its

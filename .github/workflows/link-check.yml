@@ -1,7 +1,7 @@
 name: External link check
 
 # The offline link check runs in the Static repository checks on every push and
-# pull request. This weekly run also requests each external http(s) link, so a
+# pull request. This weekly run also requests each external https link, so a
 # page that moves or disappears is found without blocking unrelated changes.
 on:
   schedule:
