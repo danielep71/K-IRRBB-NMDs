@@ -500,6 +500,12 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The link check no longer accepts plain `http://` links. The offline check,
+  part of `tools/check.py` on every push, reports each external `http://` link
+  in the Markdown as "insecure link (use https)"; `https://` and
+  protocol-relative `//host` links stay allowed. The weekly `--external` run
+  requests HTTPS only, also on redirects, and reports a redirect to another
+  protocol as an error instead of following it without TLS (#168).
 - Merging an integration pull request no longer deletes the release branch.
   "Protect release branches" lets admins bypass it, so "delete head branches
   on merge" removed `release/v0.2.0` when an admin merged it into `main`. The
