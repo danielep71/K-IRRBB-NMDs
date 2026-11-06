@@ -3,11 +3,16 @@
 
 Offline, every relative link must name an existing directory or non-empty file
 inside the repository, and every fragment must name a heading or an explicit anchor of
-the Markdown file it points to. With --external, each http(s) link is also
-requested once, except absolute links into this repository itself: a private
-repository answers 404 to anonymous requests, so they are not checked at all.
-Write links to this repository's files as relative links, which the offline
-check covers.
+the Markdown file it points to. An external link must use HTTPS: a plain http://
+link is an error, whether it is an inline link, a reference definition, an
+autolink or an HTML attribute; a protocol-relative //host link counts as https,
+and text in code spans and code blocks is not a link.
+
+With --external, each https link is also requested once, over HTTPS only, except
+absolute links into this repository itself: a private repository answers 404 to
+anonymous requests, so they are not checked at all. A redirect to another
+protocol is refused and reported as an error. Write links to this repository's
+files as relative links, which the offline check covers.
 """
 
 from __future__ import annotations
@@ -30,6 +35,8 @@ INDENTED = re.compile(r" {4}| {0,3}\t")
 ATX_HEADING = re.compile(r" {0,3}#{1,6}\s+(.*?)(?:\s+#+)?\s*$")
 LIST_ITEM = re.compile(r" {0,3}(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)")
 ATTRIBUTE = r"""\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))"""
+# curl's exit status when a redirect leads to a protocol --proto-redir refuses.
+CURL_UNSUPPORTED_PROTOCOL = 1
 
 
 def github_slug(heading: str) -> str:
@@ -196,7 +203,11 @@ def check(root: Path = ROOT) -> tuple[list[str], set[str], int]:
         for link in links:
             count += 1
             url = urlsplit(link)
-            if url.scheme in ("http", "https") or (not url.scheme and url.netloc):
+            if url.scheme == "http":
+                errors.append(f"{source.relative_to(root.resolve()).as_posix()}: "
+                              f"insecure link (use https): {link}")
+                continue
+            if url.scheme == "https" or (not url.scheme and url.netloc):
                 external.add(("https:" + link if link.startswith("//") else link).split("#")[0])
                 continue
             if url.scheme in ("mailto", "tel", "data"):
@@ -223,10 +234,13 @@ def check_external(url: str) -> tuple[str, str]:
     result = subprocess.run([
         "curl", "--silent", "--show-error", "--location", "--output", os.devnull,
         "--write-out", "%{http_code}", "--connect-timeout", "10", "--max-time", "25",
-        "--retry", "2", "--retry-delay", "2", "--proto", "=https,http",
-        "--proto-redir", "=https,http", url,
+        "--retry", "2", "--retry-delay", "2", "--proto", "=https",
+        "--proto-redir", "=https", url,
     ], capture_output=True, text=True, timeout=95, check=False)
     code = result.stdout.strip()
+    # A refused redirect ends curl with "Unsupported protocol" after a 3xx answer.
+    if result.returncode == CURL_UNSUPPORTED_PROTOCOL and code.startswith("3"):
+        return "ERROR", f"{url}: redirects to a URL that is not HTTPS (HTTP {code})"
     if result.returncode or code in ("403", "429") or code.startswith("5"):
         return "WARN", f"{url}: unavailable for verification (HTTP {code or 'unknown'})"
     if not code.startswith("2"):
@@ -249,7 +263,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--external", action="store_true",
-                        help="also request every external http(s) link")
+                        help="also request every external https link")
     parser.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY", ""),
                         help="owner/name whose own URLs are skipped (default: GITHUB_REPOSITORY)")
     args = parser.parse_args(argv)
