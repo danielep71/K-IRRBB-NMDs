@@ -500,6 +500,9 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The label reconcile job runs only from the default branch: a manual
+  dispatch from another branch no longer applies a manifest that has not been
+  integrated (#169).
 - Merging an integration pull request no longer deletes the release branch.
   "Protect release branches" lets admins bypass it, so "delete head branches
   on merge" removed `release/v0.2.0` when an admin merged it into `main`. The
