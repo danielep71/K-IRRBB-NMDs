@@ -16,9 +16,12 @@ on:
 permissions:
   contents: read
 
+# A new commit on a pull request cancels the run of the commit it replaces.
+# Every other run, each push included, has a group of its own, so it is never
+# cancelled and every pushed commit keeps its result.
 concurrency:
-  group: static-checks-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: static-checks-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 defaults:
   run:

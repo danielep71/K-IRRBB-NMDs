@@ -500,6 +500,10 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- Static repository checks no longer cancel the run of an earlier push to the
+  same branch: only a newer commit on the same pull request cancels a run, and
+  every other run keeps its own group, so each pushed commit keeps its
+  result (#167).
 - Merging an integration pull request no longer deletes the release branch.
   "Protect release branches" lets admins bypass it, so "delete head branches
   on merge" removed `release/v0.2.0` when an admin merged it into `main`. The
