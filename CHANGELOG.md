@@ -262,6 +262,9 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- mypy also reports unreachable code (`warn_unreachable`, which `strict` does
+  not include), and CI proves the setting is active with a probe; the tooling
+  had no such code (#166).
 - The daily traffic export reads the traffic API with a short-lived token of
   a GitHub App that has only `Administration: read`, created in each run from
   the `analytics` environment's `TRAFFIC_APP_CLIENT_ID` variable and

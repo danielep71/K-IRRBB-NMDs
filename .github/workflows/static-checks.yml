@@ -125,6 +125,15 @@ jobs:
           fi
           tee -a test-results/mypy.txt < test-results/mypy-probe.txt
           grep -F "[no-untyped-def]" test-results/mypy-probe.txt
+          # Prove unreachable-code warnings are active: a branch that narrowing
+          # rules out is rejected.
+          printf 'def probe(value: int) -> int:\n    if isinstance(value, int):\n        return value\n    return 0\n' > "$probe"
+          if mypy --no-pretty "$probe" > test-results/mypy-probe.txt 2>&1; then
+            echo "::error::mypy accepted unreachable code"
+            exit 1
+          fi
+          tee -a test-results/mypy.txt < test-results/mypy-probe.txt
+          grep -F "[unreachable]" test-results/mypy-probe.txt
       - name: Validate workflows (actionlint)
         if: ${{ !cancelled() }}
         run: |
