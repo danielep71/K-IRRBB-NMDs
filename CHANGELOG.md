@@ -262,6 +262,8 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- Dependabot pull requests are assigned to `danielep71`, so they meet the
+  triage rules without a manual step (#164).
 - The daily traffic export reads the traffic API with a short-lived token of
   a GitHub App that has only `Administration: read`, created in each run from
   the `analytics` environment's `TRAFFIC_APP_CLIENT_ID` variable and
