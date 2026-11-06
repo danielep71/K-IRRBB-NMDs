@@ -196,9 +196,9 @@ Label reconciliation scripts and workflows apply the label policy and run from t
 
 `docs/repository-settings.json` is the baseline of the general settings, the
 security features and the rulesets for `main`, `release/**` (one for pull
-requests and checks that admins may bypass, one that forbids deletion with no
-bypass), the release tags `v*` and `traffic-history`. `setup_repository.py` compares the saved settings
-with it through an authenticated GitHub CLI and refuses to run without admin
+requests and checks, one that forbids deletion), the release tags `v*` and
+`traffic-history`; none can be bypassed, by admins included.
+`setup_repository.py` compares the saved settings with it through an authenticated GitHub CLI and refuses to run without admin
 rights on the repository:
 
 ```shell

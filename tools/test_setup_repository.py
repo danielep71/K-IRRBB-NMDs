@@ -200,7 +200,7 @@ class SetupTests(unittest.TestCase):
 
     def test_replacing_a_named_ruleset_needs_the_explicit_flag(self) -> None:
         rule = copy.deepcopy(setup.load_config(setup.CONFIG)["rulesets"][0])
-        rule.update(id=1, source_type="Repository", bypass_actors=[])
+        rule.update(id=1, source_type="Repository", enforcement="disabled")
         self.api.rules = [rule]
         self.args.apply = True
         with self.assertRaisesRegex(setup.SetupError, "named ruleset differs"):
@@ -208,7 +208,7 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(self.api.writes, [])
         self.args.update_existing = True
         self.assertEqual(self.run_setup()[0], 0)
-        self.assertEqual(self.api.rules[0]["bypass_actors"][0]["bypass_mode"], "pull_request")
+        self.assertEqual(self.api.rules[0]["enforcement"], "active")
 
     def test_unmanaged_rulesets_are_named_and_never_touched(self) -> None:
         other = {"name": "Legacy branch rule", "id": 10, "source_type": "Repository",
@@ -247,13 +247,14 @@ class SetupTests(unittest.TestCase):
                     self.assertRaisesRegex(setup.SetupError, message):
                 setup.load_config(Path("settings.json"))
 
-    def test_the_baseline_rejects_excluded_refs_and_bad_bypass_modes(self) -> None:
+    def test_the_baseline_rejects_excluded_refs_and_bypass_actors(self) -> None:
         config = setup.load_config(setup.CONFIG)
         excluded = copy.deepcopy(config)
         excluded["rulesets"][0]["conditions"]["ref_name"]["exclude"].append("x")
-        exempt = copy.deepcopy(config)
-        exempt["rulesets"][0]["bypass_actors"][0]["bypass_mode"] = "exempt"
-        for broken, message in ((excluded, "exclude"), (exempt, "bypass actor")):
+        bypassed = copy.deepcopy(config)
+        bypassed["rulesets"][0]["bypass_actors"] = [
+            {"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}]
+        for broken, message in ((excluded, "exclude"), (bypassed, "bypass actors")):
             with self.subTest(message=message), \
                     patch.object(Path, "read_text", return_value=json.dumps(broken)), \
                     self.assertRaisesRegex(setup.SetupError, message):
@@ -304,13 +305,22 @@ class BaselineTests(unittest.TestCase):
             return list(pull["parameters"]["allowed_merge_methods"])
 
         self.assertEqual(methods("Protect main"), ["merge"])
-        self.assertEqual(methods("Protect release branches"), ["squash"])
-        self.assertEqual([a["bypass_mode"] for a in rules["Protect main"]["bypass_actors"]], ["pull_request"])
-        self.assertEqual([a["bypass_mode"] for a in rules["Protect release branches"]["bypass_actors"]],
-                         ["always"])
+        # Task pull requests are squashed; levelling a release branch with
+        # main after an integration is a merge-commit pull request.
+        self.assertEqual(methods("Protect release branches"), ["squash", "merge"])
         self.assertEqual(rules["Protect release tags"]["conditions"]["ref_name"]["include"], ["refs/tags/v*"])
         self.assertEqual(rules["Protect traffic history"]["conditions"]["ref_name"]["include"],
                          ["refs/heads/traffic-history"])
+
+    def test_no_ruleset_can_be_bypassed_and_release_checks_are_strict(self) -> None:
+        rulesets = setup.load_config(setup.CONFIG)["rulesets"]
+        self.assertEqual({r["name"]: r["bypass_actors"] for r in rulesets if r["bypass_actors"]}, {})
+        for name in ("Protect main", "Protect release branches"):
+            with self.subTest(ruleset=name):
+                ruleset = next(r for r in rulesets if r["name"] == name)
+                checks = next(rule for rule in ruleset["rules"]
+                              if rule["type"] == "required_status_checks")
+                self.assertTrue(checks["parameters"]["strict_required_status_checks_policy"])
 
     def test_release_branches_cannot_be_deleted_even_by_an_admin(self) -> None:
         # Admins may bypass "Protect release branches", and merging an
@@ -319,8 +329,8 @@ class BaselineTests(unittest.TestCase):
         # no bypass keeps it.
         keepers = [r for r in setup.load_config(setup.CONFIG)["rulesets"]
                    if r["target"] == "branch" and not r["bypass_actors"]
-                   and "refs/heads/release/**" in r["conditions"]["ref_name"]["include"]
-                   and {"type": "deletion"} in r["rules"]]
+                   and r["conditions"]["ref_name"]["include"] == ["refs/heads/release/**"]
+                   and r["rules"] == [{"type": "deletion"}]]
         self.assertEqual(len(keepers), 1)
 
     def test_the_required_check_is_the_integrity_job(self) -> None:

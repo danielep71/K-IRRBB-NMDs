@@ -262,6 +262,14 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- No ruleset can be bypassed any more, by admins included. "Protect main" and
+  "Protect release branches" lose their admin bypass; release branches now
+  require pull requests that are up to date with their base, and accept a
+  squash (task pull requests) or a merge commit. After an integration, a
+  release branch is levelled with `main` through a merge-commit pull request
+  from a task branch that merges `main` into it, instead of an admin push. `tools/setup_repository.py` refuses a baseline
+  ruleset with bypass actors. RELEASING.md, GOVERNANCE.md, CONTRIBUTING.md and
+  tools/README.md describe the procedure (#160).
 - The issue forms require a target end date: you propose one before the
   milestone's due date, and I may change it during triage. The bug form adds
   required fields for the host environment (Windows and Excel version, Office
