@@ -116,9 +116,14 @@ their base; no one, admins included, can bypass them. See
    fails on the release branch, which is kept: a deletion rule that no one,
    not even an admin, can bypass protects `release/**`
    ([`docs/repository-settings.json`](docs/repository-settings.json)).
-4. **Bring the release branch level with `main`:** open a PR from `main` into
-   `release/vX.Y.Z` and merge it with a **merge commit**, never a squash,
-   which would cut the shared history. The release branch then contains the
+4. **Bring the release branch level with `main`:** start a task branch from
+   the release branch, merge `main` into it with a merge commit (resolving
+   any conflict in favour of the later branch's work), and open a PR from
+   that task branch into the release branch. Merge it with a **merge commit**,
+   never a squash, which would cut the shared history. The task branch starts
+   from the release branch's tip, so the PR is up to date with its base even
+   when the release branch holds commits `main` lacks, which a PR straight
+   from `main` could never be. The release branch then contains the
    integration's merge commit, and the next integration PR is up to date with
    `main`. At a milestone closeout, open the next `release/vX.Y.Z` branch from
    the merge commit instead, and
@@ -130,10 +135,8 @@ their base; no one, admins included, can bypass them. See
    when a Dependabot target branch does not exist.
 
    **If the next release branch already exists**, as `release/v0.3.0` does,
-   it is not recreated. It is levelled the same way, with a merge-commit PR
-   from `main`; a conflict is resolved on a task branch in favour of the later
-   branch's work, and that branch is then merged with a merge commit. CI must
-   pass before more work lands on it.
+   it is not recreated. It is levelled the same way, through its own task
+   branch and merge-commit PR. CI must pass before more work lands on it.
 5. Verify that both release branches contain the merge commit and that CI
    passed on them.
 

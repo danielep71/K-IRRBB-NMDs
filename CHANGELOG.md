@@ -267,7 +267,7 @@ Use only the categories needed by a release.
   require pull requests that are up to date with their base, and accept a
   squash (task pull requests) or a merge commit. After an integration, a
   release branch is levelled with `main` through a merge-commit pull request
-  instead of an admin push. `tools/setup_repository.py` refuses a baseline
+  from a task branch that merges `main` into it, instead of an admin push. `tools/setup_repository.py` refuses a baseline
   ruleset with bypass actors. RELEASING.md, GOVERNANCE.md, CONTRIBUTING.md and
   tools/README.md describe the procedure (#160).
 - The daily traffic export reads the traffic API with a short-lived token of
