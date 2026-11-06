@@ -500,6 +500,12 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The settings check no longer treats paused Dependabot security updates as
+  in effect: when the baseline wants them on but GitHub has paused them,
+  `--check` reports drift and `--apply` fails its read-back. When the baseline
+  wants them off, enabled but paused updates count as on and are turned off,
+  since they resume on their own. The evidence file shows "on (paused)"
+  (#165).
 - Merging an integration pull request no longer deletes the release branch.
   "Protect release branches" lets admins bypass it, so "delete head branches
   on merge" removed `release/v0.2.0` when an admin merged it into `main`. The
