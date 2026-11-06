@@ -39,9 +39,10 @@ Every open issue carries what I need to plan it:
 
 - **Assignee:** `danielep71`.
 - **Priority:** exactly one of `P1`, `P2`, `P3`.
-  - `P1` only for a confirmed calculation or correctness bug, so it always
-    comes with `bug`.
-  - `P2` for material correctness, robustness or maintainability work.
+  - `P1` only for a confirmed calculation bug: the application gives wrong
+    results for valid inputs. It always comes with `bug`.
+  - `P2` for other material correctness defects (for example a broken import
+    or a contract violation) and for robustness or maintainability work.
   - `P3` for non-blocking quality, testing, documentation or technical-debt
     improvements.
 - **Milestone:** an open milestone with a due date.

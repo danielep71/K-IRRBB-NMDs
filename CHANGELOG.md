@@ -262,6 +262,11 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- `P1` is now reserved for a confirmed calculation bug that gives wrong
+  results for valid inputs; other correctness defects, such as a broken
+  import or a contract violation, are `P2`. The label description, the triage
+  message, GOVERNANCE.md, LABELS.md and CONTRIBUTING.md use that definition
+  (#162).
 - The daily traffic export reads the traffic API with a short-lived token of
   a GitHub App that has only `Administration: read`, created in each run from
   the `analytics` environment's `TRAFFIC_APP_CLIENT_ID` variable and

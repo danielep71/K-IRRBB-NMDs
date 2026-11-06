@@ -55,7 +55,7 @@
     {
       "name": "P1",
       "color": "B60205",
-      "description": "Confirmed calculation or correctness bug; always paired with bug"
+      "description": "Confirmed calculation bug: wrong results for valid inputs; always paired with bug"
     },
     {
       "name": "P2",

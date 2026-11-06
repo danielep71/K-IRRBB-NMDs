@@ -83,7 +83,8 @@ Git history to apply an editorial correction.
 Open issues with the forms (bug, feature, documentation). The forms assign
 `danielep71`, set a provisional priority and ask for a target end date and the
 dependencies. During triage I confirm **exactly one** priority (`P1` only for a
-confirmed calculation or correctness bug), set a milestone with a due date and
+confirmed calculation bug, wrong results for valid inputs), set a milestone
+with a due date and
 check that the target end date falls before it. The Issue triage workflow
 reports anything missing; it never changes an issue. See
 [`docs/GOVERNANCE.md`](docs/GOVERNANCE.md#issue-triage). Pull requests follow
