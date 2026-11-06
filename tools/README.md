@@ -27,7 +27,7 @@ The gate runner checks:
   anchor of its target, and every external link uses HTTPS, so a plain
   `http://` link is an error (`test_check_links.py`);
 - the issue forms and label catalog (`check_issues.py --check-config`): each
-  form assigns `danielep71`, sets its provisional priority and asks for a
+  form assigns `danielep71`, sets its provisional priority and requires a
   target end date and the dependencies, and `blocked` is the only
   dependency-status label (`test_check_issues.py`).
 

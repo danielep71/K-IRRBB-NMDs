@@ -238,6 +238,14 @@ def configured_assignee(root: Path) -> str:
     return assignees[0]
 
 
+def form_field(text: str, field: str) -> str | None:
+    """The body item of an issue form whose id is the given field, or None."""
+    for item in re.split(r"^(?=\s*- type:)", text, flags=re.M):
+        if re.search(rf"^\s*id:\s*{field}\s*$", item, re.M):
+            return item
+    return None
+
+
 def form_findings(name: str, text: str, labels: Collection[str], assignee: str) -> list[str]:
     problems = []
     form_labels = flow_list(text, "labels")
@@ -248,8 +256,11 @@ def form_findings(name: str, text: str, labels: Collection[str], assignee: str) 
     if flow_list(text, "assignees") != [assignee]:
         problems.append(f"{name} must assign {assignee}")
     for field in ("target_end_date", "dependencies"):
-        if not re.search(rf"^\s*id:\s*{field}\s*$", text, re.M):
+        item = form_field(text, field)
+        if item is None:
             problems.append(f"{name} has no {field} field")
+        elif not re.search(r"^\s*validations:\s*\n\s*required:\s*true\s*$", item, re.M):
+            problems.append(f"{name} must make the {field} field required")
     return problems
 
 

@@ -262,6 +262,16 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- The issue forms require a target end date: you propose one before the
+  milestone's due date, and I may change it during triage. The bug form adds
+  required fields for the host environment (Windows and Excel version, Office
+  bitness, locale), acceptance criteria and a validation plan, and an optional
+  field for evidence, workaround and recovery. The documentation form replaces
+  its two combined fields with required fields for the document and section,
+  the problem type, the problem, the proposed correction, a supporting source,
+  acceptance criteria and validation. The feature form adds an optional
+  "Alternatives considered" field. `tools/check_issues.py --check-config` fails
+  when a form does not require the target end date or the dependencies (#161).
 - `P1` is now reserved for a confirmed calculation bug that gives wrong
   results for valid inputs; other correctness defects, such as a broken
   import or a contract violation, are `P2`. The label description, the triage

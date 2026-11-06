@@ -156,6 +156,19 @@ class ConfigTests(unittest.TestCase):
                 problems = check_issues.config_findings(root)
                 self.assertTrue(any(message in problem for problem in problems), problems)
 
+    def test_each_form_must_require_the_target_end_date(self) -> None:
+        for name in sorted(check_issues.FORM_PRIORITIES):
+            with self.subTest(form=name):
+                root = self.copy()
+                form = root / ".github/ISSUE_TEMPLATE" / name
+                text = form.read_text(encoding="utf-8")
+                optional = re.sub(r"(id: target_end_date\n(?:.*\n)*?\s*required:) true",
+                                  r"\1 false", text, count=1)
+                self.assertNotEqual(optional, text)
+                form.write_text(optional, encoding="utf-8")
+                self.assertEqual(check_issues.config_findings(root),
+                                 [f"{name} must make the target_end_date field required"])
+
     def test_blank_issues_must_stay_disabled(self) -> None:
         root = self.copy()
         config = root / ".github/ISSUE_TEMPLATE/config.yml"
