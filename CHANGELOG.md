@@ -262,6 +262,9 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- mypy also reports unreachable code (`warn_unreachable`, which `strict` does
+  not include), and CI proves the setting is active with a probe; the tooling
+  had no such code (#166).
 - Dependabot pull requests are assigned to `danielep71`, so they meet the
   triage rules without a manual step (#164).
 - The daily traffic export reads the traffic API with a short-lived token of

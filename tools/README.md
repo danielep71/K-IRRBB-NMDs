@@ -263,8 +263,9 @@ on Linux x86_64, wheels only) and runs:
 
 - `ruff check tools` with the settings in `pyproject.toml`, plus a probe that
   proves the complexity ceiling of 15 is active;
-- `mypy --strict` on every module in `tools/`, tests included, plus a probe that
-  proves strict mode is active;
+- `mypy --strict` with `warn_unreachable` on every module in `tools/`, tests
+  included, plus probes that prove strict mode and unreachable-code warnings
+  are active;
 - actionlint 1.7.12 on every workflow, downloaded and checked against its
   SHA-256.
 
