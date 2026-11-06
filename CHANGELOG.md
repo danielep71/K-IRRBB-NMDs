@@ -520,6 +520,12 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The settings check no longer treats paused Dependabot security updates as
+  in effect: when the baseline wants them on but GitHub has paused them,
+  `--check` reports drift and `--apply` fails its read-back. When the baseline
+  wants them off, enabled but paused updates count as on and are turned off,
+  since they resume on their own. The evidence file shows "on (paused)"
+  (#165).
 - The Markdown summaries of label synchronization and label drift no longer
   break on a label name, color, description, path or error message that holds
   a backtick, a pipe or a line break. A shared helper,

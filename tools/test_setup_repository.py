@@ -33,6 +33,7 @@ class FakeAPI:
         self.reporting = False
         self.alerts = False
         self.fixes = False
+        self.paused = False
 
     def not_found(self, endpoint: str) -> Any:
         raise setup.SetupError(f"GET {endpoint} failed (HTTP 404). Check gh authentication.")
@@ -43,7 +44,8 @@ class FakeAPI:
                 return {"enabled": self.reporting}
             if attribute == "alerts":
                 return None if self.alerts else self.not_found(endpoint)
-            return {"enabled": self.fixes, "paused": False} if self.alerts else self.not_found(endpoint)
+            return ({"enabled": self.fixes, "paused": self.paused} if self.alerts
+                    else self.not_found(endpoint))
         self.writes.append((method, endpoint, payload))
         setattr(self, attribute, method == "PUT")
         return None
@@ -135,6 +137,41 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(self.run_setup()[0], 0)
         self.assertIn(("DELETE", "repos/owner/repo/automated-security-fixes", None), self.api.writes)
         self.assertFalse(self.api.fixes)
+
+    def wanting_security_updates(self) -> None:
+        config = setup.load_config(setup.CONFIG)
+        config["security"]["automated_security_fixes"] = True
+        path = self.report.parent.parent / "settings.json"
+        path.write_text(json.dumps(config), encoding="utf-8")
+        self.args.config = path
+
+    def test_paused_security_updates_are_drift_when_wanted(self) -> None:
+        self.wanting_security_updates()
+        self.args.apply = True
+        self.assertEqual(self.run_setup()[0], 0)
+        self.api.paused = True
+        self.args.apply, self.args.check = False, True
+        self.assertEqual(self.run_setup()[0], 1)
+        self.assertIn("| `automated_security_fixes` | on | on (paused) |",
+                      self.report.read_text(encoding="utf-8"))
+
+    def test_security_updates_that_stay_paused_fail_the_read_back(self) -> None:
+        self.wanting_security_updates()
+        self.api.alerts = self.api.fixes = self.api.paused = True
+        self.args.apply = True
+        with self.assertRaisesRegex(setup.SetupError, "Read-back"):
+            self.run_setup()
+
+    def test_paused_security_updates_are_turned_off_when_unwanted(self) -> None:
+        # Paused updates resume on their own, so "off" means not enabled at all.
+        self.api.alerts = self.api.fixes = self.api.paused = True
+        self.args.check = True
+        self.assertEqual(self.run_setup()[0], 1)
+        self.assertIn("| `automated_security_fixes` | off | on (paused) |",
+                      self.report.read_text(encoding="utf-8"))
+        self.args.check, self.args.apply = False, True
+        self.assertEqual(self.run_setup()[0], 0)
+        self.assertIn(("DELETE", "repos/owner/repo/automated-security-fixes", None), self.api.writes)
 
     def test_without_admin_rights_nothing_runs(self) -> None:
         self.args.apply = True
