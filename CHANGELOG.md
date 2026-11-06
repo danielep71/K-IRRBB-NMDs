@@ -262,6 +262,11 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- `P1` is now reserved for a confirmed calculation bug that gives wrong
+  results for valid inputs; other correctness defects, such as a broken
+  import or a contract violation, are `P2`. The label description, the triage
+  message, GOVERNANCE.md, LABELS.md and CONTRIBUTING.md use that definition
+  (#162).
 - mypy also reports unreachable code (`warn_unreachable`, which `strict` does
   not include), and CI proves the setting is active with a probe; the tooling
   had no such code (#166).
