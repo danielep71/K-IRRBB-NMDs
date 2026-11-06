@@ -86,6 +86,30 @@ class DependabotTests(unittest.TestCase):
         self.assertEqual(len(targets), 2)
         self.assertEqual(set(targets), {active.group(1)})
 
+    def test_every_update_is_assigned_and_labelled_for_triage(self) -> None:
+        config = self.CONFIG.read_text(encoding="utf-8")
+        entries = re.split(r"^  - package-ecosystem:", config, flags=re.M)[1:]
+        self.assertEqual(len(entries), 2)
+        for entry in entries:
+            with self.subTest(entry=entry.split("\n", 1)[0].strip()):
+                self.assertRegex(entry, r'\n    assignees:\n      - "danielep71"\n')
+                self.assertRegex(entry, r'\n    labels:\n      - "ci"\n      - "P3"\n')
+
+
+class MutatingJobTests(unittest.TestCase):
+    """Jobs that change the repository run only from the default branch."""
+
+    DEFAULT_BRANCH = "github.ref == format('refs/heads/{0}', github.event.repository.default_branch)"
+
+    def test_label_reconcile_runs_only_from_the_default_branch(self) -> None:
+        text = (ROOT / ".github/workflows/labels-sync.yml").read_text(encoding="utf-8")
+        job = jobs(text)["reconcile"]
+        condition = re.search(r"^    if: >-\n((?:      .+\n)+)", job, re.M)
+        assert condition is not None, "the reconcile job has no multi-line if condition"
+        clauses = [line.strip() for line in condition.group(1).splitlines()]
+        self.assertEqual(clauses, ["github.event_name != 'pull_request' &&", self.DEFAULT_BRANCH])
+        self.assertIn("\n  workflow_dispatch:", text)
+
 
 class ConcurrencyTests(unittest.TestCase):
     def test_static_checks_cancel_only_superseded_pull_request_runs(self) -> None:

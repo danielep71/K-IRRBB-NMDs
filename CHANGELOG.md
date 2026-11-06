@@ -262,6 +262,8 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- Dependabot pull requests are assigned to `danielep71`, so they meet the
+  triage rules without a manual step (#164).
 - The daily traffic export reads the traffic API with a short-lived token of
   a GitHub App that has only `Administration: read`, created in each run from
   the `analytics` environment's `TRAFFIC_APP_CLIENT_ID` variable and
@@ -504,6 +506,9 @@ Use only the categories needed by a release.
   same branch: only a newer commit on the same pull request cancels a run, and
   every other run keeps its own group, so each pushed commit keeps its
   result (#167).
+- The label reconcile job runs only from the default branch: a manual
+  dispatch from another branch no longer applies a manifest that has not been
+  integrated (#169).
 - Merging an integration pull request no longer deletes the release branch.
   "Protect release branches" lets admins bypass it, so "delete head branches
   on merge" removed `release/v0.2.0` when an admin merged it into `main`. The
