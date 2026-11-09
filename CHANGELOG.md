@@ -528,6 +528,9 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- Dependabot updates every `github/codeql-action` step in one grouped pull
+  request, since CodeQL fails when `init` and `analyze` differ in version; both
+  steps are pinned to v4.39.3, in place of the separate #180 and #181 (#183).
 - The settings check no longer treats paused Dependabot security updates as
   in effect: when the baseline wants them on but GitHub has paused them,
   `--check` reports drift and `--apply` fails its read-back. When the baseline

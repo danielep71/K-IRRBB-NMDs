@@ -235,7 +235,9 @@ python tools/check_issues.py --input issues.json --repo-name danielep71/K-IRRBB-
 `.github/dependabot.yml` asks Dependabot for weekly version updates of the
 GitHub Actions pinned in the workflows and of the hash-locked quality tools in
 `tools/requirements-quality-ci.txt` (Ruff, mypy and their dependencies, in one
-grouped pull request). They are opened against the active release branch
+grouped pull request). Every `github/codeql-action` step also moves in one
+grouped pull request, because CodeQL refuses to run when its `init` and
+`analyze` steps differ in version. They are opened against the active release branch
 (`target-branch`) and labelled `ci` and `P3`. Dependabot reads this file from
 the default branch, so it takes effect once the file reaches `main`. Update
 every `target-branch` whenever a new release branch is opened
