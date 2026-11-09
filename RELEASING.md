@@ -104,8 +104,8 @@ Done only when I ask. This is an integration, not a release.
 
 The rulesets in [`docs/repository-settings.json`](docs/repository-settings.json)
 let `main` take changes only through pull requests merged with a **merge
-commit**, and `release/**` only through pull requests merged with a **squash**;
-admins may bypass the release-branch ruleset. See
+commit**, and `release/**` only through pull requests that are up to date with
+their base; no one, admins included, can bypass them. See
 [Repository settings](docs/GOVERNANCE.md#repository-settings).
 
 1. Confirm the release branch is green and has no open review findings.
@@ -113,13 +113,20 @@ admins may bypass the release-branch ruleset. See
    these integrations, so it has nothing the release branch lacks.
 3. Merge it with a **merge commit**, not a squash, once the hosted checks are
    green, so provenance remains visible. The automatic head-branch deletion
-   fails on the protected release branch, which is kept.
-4. **Bring the release branch level with `main`:** as an admin bypassing the
-   ruleset, I fast-forward it to the merge commit
-   (`git push origin <merge-sha>:refs/heads/release/vX.Y.Z`). A merge commit or
-   a squash of `main` into the release branch is not used: the ruleset allows
-   only squash, which would cut the shared history. At a milestone closeout,
-   open the next `release/vX.Y.Z` branch from the merge commit instead, and
+   fails on the release branch, which is kept: a deletion rule that no one,
+   not even an admin, can bypass protects `release/**`
+   ([`docs/repository-settings.json`](docs/repository-settings.json)).
+4. **Bring the release branch level with `main`:** start a task branch from
+   the release branch, merge `main` into it with a merge commit (resolving
+   any conflict in favour of the later branch's work), and open a PR from
+   that task branch into the release branch. Merge it with a **merge commit**,
+   never a squash, which would cut the shared history. The task branch starts
+   from the release branch's tip, so the PR is up to date with its base even
+   when the release branch holds commits `main` lacks, which a PR straight
+   from `main` could never be. The release branch then contains the
+   integration's merge commit, and the next integration PR is up to date with
+   `main`. At a milestone closeout, open the next `release/vX.Y.Z` branch from
+   the merge commit instead, and
    name it in the current-status table above, in every Dependabot
    `target-branch` of `.github/dependabot.yml` and in the `[Unreleased]`
    comparison link of `CHANGELOG.md`, and make sure its milestone has a due
@@ -128,15 +135,10 @@ admins may bypass the release-branch ruleset. See
    when a Dependabot target branch does not exist.
 
    **If the next release branch already exists**, as `release/v0.3.0` does,
-   it is not recreated. I merge the merge commit into it locally with a merge
-   commit, resolving any conflict in favour of the later branch's work, and
-   push the result as an admin:
-   `git switch release/vX.Y.Z && git merge --no-ff <merge-sha> && git push origin release/vX.Y.Z`.
-   The push is a fast-forward of that branch, since the new commit has its tip
-   as first parent, so nothing is reset or rewritten. CI must pass on the
-   pushed commit before more work lands on it.
-5. Verify that both branches point to the merge commit and that CI passed on
-   it.
+   it is not recreated. It is levelled the same way, through its own task
+   branch and merge-commit PR. CI must pass before more work lands on it.
+5. Verify that both release branches contain the merge commit and that CI
+   passed on them.
 
 Never rebase, amend, force-push or reset either branch.
 

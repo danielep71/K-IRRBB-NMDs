@@ -14,6 +14,7 @@ on:
       - .github/labels.json
       - .github/label-policy.json
       - .github/scripts/labels-sync.mjs
+      - .github/scripts/markdown.mjs
       - .github/workflows/labels-sync.yml
   push:
     branches:
@@ -22,6 +23,7 @@ on:
       - .github/labels.json
       - .github/label-policy.json
       - .github/scripts/labels-sync.mjs
+      - .github/scripts/markdown.mjs
       - .github/workflows/labels-sync.yml
   workflow_dispatch:
 
@@ -54,7 +56,11 @@ jobs:
 
   reconcile:
     name: Reconcile live labels
-    if: github.event_name != 'pull_request'
+    # Only the default branch's reviewed manifest may change live labels: a
+    # manual dispatch can select any branch, so the ref is checked as well.
+    if: >-
+      github.event_name != 'pull_request' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-24.04
     permissions:
       contents: read

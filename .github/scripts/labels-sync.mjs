@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { inlineCode, markdownEscape, selfTestMarkdown } from "./markdown.mjs";
 
 const EXPECTED_SCHEMA_VERSION = 1;
 const DEFAULT_MANIFEST = ".github/labels.json";
@@ -437,13 +438,9 @@ async function applyChanges(repository, token, changes) {
   }
 }
 
-function markdownEscape(value) {
-  return String(value).replaceAll("|", "\\|").replaceAll("\n", " ");
-}
-
 function renderLabelNames(labels) {
   if (labels.length === 0) return "none";
-  return labels.map(label => markdownEscape(JSON.stringify(label.name))).join(", ");
+  return labels.map(label => inlineCode(label.name)).join(", ");
 }
 
 function renderSummary({
@@ -470,9 +467,9 @@ function renderSummary({
   const lines = [
     "# Repository label synchronization",
     "",
-    `- Mode: \`${mode}\`${dryRun ? " (dry run)" : ""}`,
-    `- Policy source: \`${policyPath ?? "unavailable"}\``,
-    `- Label manifest: \`${manifestPath ?? "unavailable"}\``,
+    `- Mode: ${inlineCode(mode)}${dryRun ? " (dry run)" : ""}`,
+    `- Policy source: ${inlineCode(policyPath ?? "unavailable")}`,
+    `- Label manifest: ${inlineCode(manifestPath ?? "unavailable")}`,
     `- Schema: **${manifest?.schema_version ?? "unavailable"}**`,
     `- Core / selected labels: **${coreLabels.length} / ${resolvedLabels.length}**`,
     `- Profile overlay: **${profile ?? "none"}**`,
@@ -492,14 +489,14 @@ function renderSummary({
     `- Complete resolved set (${resolvedLabels.length}): ${renderLabelNames(resolvedLabels)}`
   );
   if (error) {
-    lines.push("", "## Failure", "", `\`${markdownEscape(error)}\``);
+    lines.push("", "## Failure", "", inlineCode(error));
   } else if (changes.length === 0) {
     lines.push("", "No label changes are required.");
   } else {
     lines.push("", "| Action | Label | Detail |", "|---|---|---|");
     for (const change of changes) {
       const detail = change.action === "update" ? change.fields.join(", ") : change.action === "delete" ? "outside selected manifest" : "missing live label";
-      lines.push(`| ${change.action} | \`${markdownEscape(change.name)}\` | ${markdownEscape(detail)} |`);
+      lines.push(`| ${markdownEscape(change.action)} | ${inlineCode(change.name, { table: true })} | ${markdownEscape(detail)} |`);
     }
   }
   return `${lines.join("\n")}\n`;
@@ -657,10 +654,13 @@ async function runSelfTest(manifestPath, policyPath) {
   });
   assert.match(summary, /Policy source: `fixture-policy\.json`/);
   assert.match(summary, /Label manifest: `fixture-labels\.json`/);
-  assert.match(summary, /Profile labels \(library; 1\): "library"/);
-  assert.match(summary, /Domain labels \(example; 1\): "example"/);
+  assert.match(summary, /Profile labels \(library; 1\): `library`/);
+  assert.match(summary, /Domain labels \(example; 1\): `example`/);
   assert.match(summary, new RegExp(`Complete resolved set \\(${selectedLabels.length}\\):`));
-  for (const label of selectedLabels) assert.match(summary, new RegExp(`"${label.name}"`));
+  for (const label of selectedLabels) assert.ok(summary.includes(inlineCode(label.name)), label.name);
+
+  selfTestMarkdown();
+  selfTestSummaryMarkdown();
 
   await selfTestDeletionGuard();
 
@@ -676,7 +676,55 @@ async function runSelfTest(manifestPath, policyPath) {
 
   await selfTestReconcileEndToEnd(manifestPath, policyPath, resolveDesired(manifest, currentSelection));
 
-  process.stdout.write("SELF-TEST PASS: retry delays, validation, policy, overlay, reconciliation, deletion guard, API URL and end-to-end reconcile fixtures\n");
+  process.stdout.write("SELF-TEST PASS: retry delays, validation, policy, overlay, reconciliation, Markdown summary, deletion guard, API URL and end-to-end reconcile fixtures\n");
+}
+
+// Label names, paths and error text with backticks, pipes and line breaks
+// stay inside their code span, their table cell and their line.
+function selfTestSummaryMarkdown() {
+  const names = ["wip `x`", "a ``b`` c", "`edge", "edge`", "a|b", "cr\rlf\ncrlf\r\nend"];
+  const labels = names.map(name => ({ name, color: "ABCDEF", description: "d" }));
+  const summary = renderSummary({
+    mode: "plan",
+    manifest: null,
+    manifestPath: "dir`s/labels|v1.json",
+    policyPath: "policy\r\n.json",
+    desiredLabels: labels,
+    profile: null,
+    domains: [],
+    changes: [
+      ...labels.map(label => ({ action: "create", name: label.name, target: label })),
+      { action: "update", name: "a|b", currentName: "A|B", fields: ["name", "color"], target: labels[4] }
+    ]
+  });
+  const lines = summary.split("\n");
+  assert.ok(lines.includes("- Label manifest: ``dir`s/labels|v1.json``"));
+  assert.ok(lines.includes("- Policy source: `policy .json`"));
+  assert.ok(lines.includes(
+    "- Complete resolved set (6): `` wip `x` ``, ```a ``b`` c```, `` `edge ``, `` edge` ``, `a|b`, `cr lf crlf end`"
+  ));
+  const rows = lines.filter(line => line.startsWith("| create ") || line.startsWith("| update "));
+  assert.deepEqual(rows, [
+    "| create | `` wip `x` `` | missing live label |",
+    "| create | ```a ``b`` c``` | missing live label |",
+    "| create | `` `edge `` | missing live label |",
+    "| create | `` edge` `` | missing live label |",
+    "| create | `a\\|b` | missing live label |",
+    "| create | `cr lf crlf end` | missing live label |",
+    "| update | `a\\|b` | name, color |"
+  ]);
+
+  const failure = renderSummary({
+    mode: "failed",
+    manifest: null,
+    manifestPath: null,
+    policyPath: null,
+    desiredLabels: [],
+    profile: null,
+    domains: [],
+    error: "Invalid label manifest:\r\n- core[0].name `x``y` | bad\r- next\nend`"
+  });
+  assert.ok(failure.endsWith("## Failure\n\n``` Invalid label manifest: - core[0].name `x``y` | bad - next end` ```\n"), failure);
 }
 
 // A fake GET for the deletion guard: `items` are the repository's issues and

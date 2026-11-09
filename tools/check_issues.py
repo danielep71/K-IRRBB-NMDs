@@ -133,7 +133,8 @@ def metadata_findings(issue: Issue, assignee: str) -> list[Finding]:
                                 f"needs exactly one of P1/P2/P3 (found: {found})"))
     if "P1" in priorities and "bug" not in issue.labels:
         findings.append(Finding(issue.number, "p1-reserved", "has P1 without bug: P1 is "
-                                "reserved for confirmed calculation or correctness bugs"))
+                                "reserved for confirmed calculation bugs, wrong results "
+                                "for valid inputs"))
     if not issue.milestone:
         findings.append(Finding(issue.number, "milestone", "has no milestone"))
     elif issue.milestone_state != "open":
@@ -237,6 +238,14 @@ def configured_assignee(root: Path) -> str:
     return assignees[0]
 
 
+def form_field(text: str, field: str) -> str | None:
+    """The body item of an issue form whose id is the given field, or None."""
+    for item in re.split(r"^(?=\s*- type:)", text, flags=re.M):
+        if re.search(rf"^\s*id:\s*{field}\s*$", item, re.M):
+            return item
+    return None
+
+
 def form_findings(name: str, text: str, labels: Collection[str], assignee: str) -> list[str]:
     problems = []
     form_labels = flow_list(text, "labels")
@@ -247,8 +256,11 @@ def form_findings(name: str, text: str, labels: Collection[str], assignee: str) 
     if flow_list(text, "assignees") != [assignee]:
         problems.append(f"{name} must assign {assignee}")
     for field in ("target_end_date", "dependencies"):
-        if not re.search(rf"^\s*id:\s*{field}\s*$", text, re.M):
+        item = form_field(text, field)
+        if item is None:
             problems.append(f"{name} has no {field} field")
+        elif not re.search(r"^\s*validations:\s*\n\s*required:\s*true\s*$", item, re.M):
+            problems.append(f"{name} must make the {field} field required")
     return problems
 
 

@@ -27,6 +27,18 @@ body:
     validations:
       required: true
   - type: textarea
+    id: environment
+    attributes:
+      label: "Host environment"
+      description: "The Windows and Excel host that reproduces the defect. For a repository tooling defect, give the operating system and Python version instead."
+      value: |
+        Windows version:
+        Excel version and build:
+        Office bitness (32-bit or 64-bit):
+        Locale and decimal separator:
+    validations:
+      required: true
+  - type: textarea
     id: reproduce
     attributes:
       label: "Synthetic reproduction"
@@ -44,14 +56,38 @@ body:
       label: "Observed result and impact"
     validations:
       required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: "Evidence, workaround and recovery"
+      description: "Optional. Further evidence with synthetic data, such as messages, logs or screenshots; a workaround while the defect is open; and how to recover affected results or workbooks, for example which outputs to recompute."
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: "Acceptance criteria"
+      description: "Checkable conditions for the fix, including the regression test that must pass."
+      placeholder: |
+        - [ ] ...
+        - [ ] Regression test with an independently sourced expected value
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: "Validation plan"
+      description: "The checks and evidence that will prove the fix, for example `python tools/check.py`, a regression case, or an Excel run on the exact commit."
+    validations:
+      required: true
   - type: input
     id: target_end_date
     attributes:
       label: "Target end date (Europe/Rome)"
-      description: "YYYY-MM-DD, before the milestone's due date. Leave empty if unsure; I set it during triage."
+      description: "Propose a date (YYYY-MM-DD, Europe/Rome) before the milestone's due date. I may change it during triage."
       placeholder: "2026-12-15"
     validations:
-      required: false
+      required: true
   - type: textarea
     id: dependencies
     attributes:
