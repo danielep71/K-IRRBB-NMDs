@@ -98,6 +98,24 @@ class CheckTests(unittest.TestCase):
             "README.md: unsupported URL scheme: ftp://example.com",
         ])
 
+    def test_plain_http_links_are_errors_outside_code(self) -> None:
+        errors, external, count = run_check({
+            "README.md": "[a](http://a.example/x) <http://b.example> [c](HTTP://c.example)\n"
+                         "[d]: http://d.example/\n<a href=\"http://e.example\">e</a>\n"
+                         "`[f](http://f.example)` and `<http://g.example>` are code\n\n"
+                         "```text\n[h](http://h.example)\n```\n"
+                         "[ok](https://ok.example) [relative](//cdn.example/x#top)\n",
+        })
+        self.assertEqual(errors, [
+            "README.md: insecure link (use https): http://a.example/x",
+            "README.md: insecure link (use https): HTTP://c.example",
+            "README.md: insecure link (use https): http://b.example",
+            "README.md: insecure link (use https): http://d.example/",
+            "README.md: insecure link (use https): http://e.example",
+        ])
+        self.assertEqual(external, {"https://ok.example", "https://cdn.example/x"})
+        self.assertEqual(count, 7)
+
     def test_tracked_file_missing_from_the_working_tree_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -143,10 +161,29 @@ class ExternalTests(unittest.TestCase):
 
         for code, returncode, status in (("200", 0, "PASS"), ("404", 0, "ERROR"),
                                          ("429", 0, "WARN"), ("503", 0, "WARN"),
-                                         ("", 6, "WARN")):
+                                         ("", 6, "WARN"), ("301", 1, "ERROR"),
+                                         ("000", 1, "WARN")):
             with self.subTest(code=code), unittest.mock.patch(
                     "check_links.subprocess.run", return_value=curl(code, returncode)):
                 self.assertEqual(check_links.check_external("https://x.example/")[0], status)
+
+    def test_requests_use_https_only(self) -> None:
+        with unittest.mock.patch("check_links.subprocess.run",
+                                 return_value=unittest.mock.Mock(stdout="200", returncode=0)) as run:
+            check_links.check_external("https://x.example/")
+        command = run.call_args.args[0]
+        self.assertEqual(command[command.index("--proto") + 1], "=https")
+        self.assertEqual(command[command.index("--proto-redir") + 1], "=https")
+
+    def test_a_refused_redirect_is_an_error(self) -> None:
+        # curl stops with exit status 1 (unsupported protocol) after the 3xx answer.
+        refused = unittest.mock.Mock(
+            stdout="302", returncode=1,
+            stderr='curl: (1) Protocol "http" not supported or disabled in libcurl\n')
+        with unittest.mock.patch("check_links.subprocess.run", return_value=refused):
+            self.assertEqual(check_links.check_external("https://x.example/"),
+                             ("ERROR", "https://x.example/: redirects to a URL that is not HTTPS "
+                                       "(HTTP 302)"))
 
 
 if __name__ == "__main__":

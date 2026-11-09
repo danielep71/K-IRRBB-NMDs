@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { promisify } from "node:util";
+import { inlineCode, markdownEscape, selfTestMarkdown } from "./markdown.mjs";
 
 const execFileAsync = promisify(execFile);
 const TOOL_NAME = "Repository label drift";
@@ -224,28 +225,35 @@ function localPlan(desiredLabels, liveLabels, { prune = true } = {}) {
   ));
 }
 
+// The rows of the reconciler's plan table, cell by cell as rendered. A pipe
+// preceded by a backslash is part of a cell, as in GitHub's table syntax.
 function canonicalRows(stdout) {
   const countMatch = stdout.match(/- Planned changes: \*\*(\d+)\*\*/);
   if (!countMatch) throw new Error("Canonical plan summary has no planned-change count");
   const rows = [];
   for (const line of stdout.split("\n")) {
-    const match = line.match(/^\| (update|create|delete) \| `([^`]*)` \| ([^|]*) \|$/);
-    if (match) {
-      rows.push({ action: match[1], name: match[2], detail: match[3].trim() });
+    if (!/^\| (update|create|delete) \| /.test(line)) continue;
+    const cells = line.split(/(?<!\\)\|/);
+    if (cells.length !== 5 || cells[0] !== "" || cells[4] !== "") {
+      throw new Error(`Canonical plan row is malformed: ${line}`);
     }
+    const [action, name, detail] = cells.slice(1, 4).map(cell => cell.trim());
+    rows.push({ action, name, detail });
   }
   return { count: Number(countMatch[1]), rows };
 }
 
+// The rows the reconciler is expected to print for `changes`, rendered with
+// the same Markdown helpers so that the two plans compare cell by cell.
 function localRows(changes) {
   return changes.map(change => ({
     action: change.action,
-    name: change.name,
-    detail: change.action === "update"
+    name: inlineCode(change.name, { table: true }),
+    detail: markdownEscape(change.action === "update"
       ? change.fields.join(", ")
       : change.action === "delete"
         ? "outside selected manifest"
-        : "missing live label"
+        : "missing live label")
   }));
 }
 
@@ -316,13 +324,10 @@ function buildReport({ repository, manifestPath, policyPath, manifest, selection
   };
 }
 
-function markdownEscape(value) {
-  return String(value).replaceAll("|", "\\|").replaceAll("\n", " ");
-}
-
 function compactLabel(label) {
   if (label === null) return "—";
-  return `\`${markdownEscape(label.name)}\` / \`${label.color}\` / ${markdownEscape(label.description)}`;
+  return `${inlineCode(label.name, { table: true })} / ${inlineCode(label.color, { table: true })} / `
+    + markdownEscape(label.description);
 }
 
 function markdownReport(report) {
@@ -330,9 +335,9 @@ function markdownReport(report) {
     "# Repository label drift",
     "",
     `- Status: **${String(report.status).toUpperCase()}**`,
-    `- Repository: \`${report.repository ?? "fixture"}\``,
-    `- Manifest: \`${report.manifest}\``,
-    `- Policy: \`${report.policy}\``,
+    `- Repository: ${inlineCode(report.repository ?? "fixture")}`,
+    `- Manifest: ${inlineCode(report.manifest)}`,
+    `- Policy: ${inlineCode(report.policy)}`,
     `- Profile overlay: **${report.selection.profile ?? "none"}**`,
     `- Domain overlays: **${report.selection.domains.length > 0 ? report.selection.domains.join(", ") : "none"}**`,
     `- Desired / observed: **${report.counts.desired} / ${report.counts.observed}**`,
@@ -350,8 +355,8 @@ function markdownReport(report) {
     );
     for (const difference of report.differences) {
       lines.push(
-        `| ${difference.action} | \`${markdownEscape(difference.name)}\` | `
-        + `${difference.fields.length > 0 ? difference.fields.join(", ") : "—"} | `
+        `| ${markdownEscape(difference.action)} | ${inlineCode(difference.name, { table: true })} | `
+        + `${difference.fields.length > 0 ? markdownEscape(difference.fields.join(", ")) : "—"} | `
         + `${compactLabel(difference.observed)} | ${compactLabel(difference.desired)} |`
       );
     }
@@ -461,9 +466,92 @@ async function runSelfTest(manifestPath, policyPath) {
   assert.match(markdownReport(driftFirst), /simulated out-of-band change/);
   assert.match(markdownReport(driftFirst), new RegExp(missing.name));
 
+  selfTestMarkdown();
+  selfTestReportMarkdown();
+
+  await selfTestAwkwardNames(manifest, manifestPath, policyPath, selection, desiredLabels);
+
   process.stdout.write(
-    "SELF-TEST PASS: retry delays and deterministic no-drift and create/update/delete drift fixtures are read-only and match the canonical reconciler.\n"
+    "SELF-TEST PASS: retry delays, Markdown rendering and deterministic no-drift, create/update/delete and awkward-name drift fixtures are read-only and match the canonical reconciler.\n"
   );
+}
+
+// Live labels whose names hold backticks, pipes and line breaks: the
+// reconciler's plan table still parses and matches the local plan. The
+// fixture uses its own copy of the manifest with pruning enabled, so these
+// labels are planned for deletion whatever the repository's prune setting is.
+async function selfTestAwkwardNames(manifest, manifestPath, policyPath, selection, desiredLabels) {
+  const awkward = ["wip `x`", "a ``b`` c", "`edge", "edge`", "a|b", "cr\rlf\ncrlf\r\nend"];
+  const directory = await mkdtemp(join(tmpdir(), "label-drift-"));
+  try {
+    const pruning = { ...(await loadJson(manifestPath)), prune: true };
+    const pruningPath = join(directory, "labels.json");
+    await writeFile(pruningPath, JSON.stringify(pruning), "utf8");
+    const report = await checkedReport({
+      repository: "fixture/awkward",
+      manifestPath: pruningPath,
+      policyPath,
+      manifest: { ...manifest, prune: true },
+      selection,
+      desiredLabels,
+      liveLabels: [
+        ...structuredClone(desiredLabels),
+        ...awkward.map(name => ({ name, color: "abcdef", description: "x|y" }))
+      ]
+    });
+    assert.equal(report.counts.delete, awkward.length);
+    const lines = markdownReport(report).split("\n");
+    for (const row of [
+      "| delete | `` wip `x` `` | — | `` wip `x` `` / `ABCDEF` / x\\|y | — |",
+      "| delete | ```a ``b`` c``` | — | ```a ``b`` c``` / `ABCDEF` / x\\|y | — |",
+      "| delete | `` `edge `` | — | `` `edge `` / `ABCDEF` / x\\|y | — |",
+      "| delete | `` edge` `` | — | `` edge` `` / `ABCDEF` / x\\|y | — |",
+      "| delete | `a\\|b` | — | `a\\|b` / `ABCDEF` / x\\|y | — |",
+      "| delete | `cr lf crlf end` | — | `cr lf crlf end` / `ABCDEF` / x\\|y | — |"
+    ]) {
+      assert.ok(lines.includes(row), row);
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+// Names, colors, descriptions and paths with backticks, pipes and line breaks
+// stay inside their code span, their table cell and their line.
+function selfTestReportMarkdown() {
+  const lines = markdownReport({
+    status: "drift",
+    repository: "owner/re|po",
+    manifest: "dir`s/labels.json",
+    policy: "policy\r\n.json",
+    selection: { profile: null, domains: [] },
+    counts: { desired: 1, observed: 2, differences: 2, create: 0, update: 1, delete: 1 },
+    differences: [
+      {
+        action: "update",
+        name: "a|b",
+        fields: ["color", "description"],
+        observed: { name: "a|b", color: "ABC|DE", description: "old\r\nline|two" },
+        desired: { name: "a|b", color: "ABCDEF", description: "new" }
+      },
+      {
+        action: "delete",
+        name: "wip `x`",
+        fields: [],
+        observed: { name: "wip `x`", color: "`0000`", description: "cr\rlf\ncrlf\r\nend" },
+        desired: null
+      }
+    ]
+  }).split("\n");
+  for (const line of [
+    "- Repository: `owner/re|po`",
+    "- Manifest: ``dir`s/labels.json``",
+    "- Policy: `policy .json`",
+    "| update | `a\\|b` | color, description | `a\\|b` / `ABC\\|DE` / old line\\|two | `a\\|b` / `ABCDEF` / new |",
+    "| delete | `` wip `x` `` | — | `` wip `x` `` / `` `0000` `` / cr lf crlf end | — |"
+  ]) {
+    assert.ok(lines.includes(line), line);
+  }
 }
 
 async function main() {

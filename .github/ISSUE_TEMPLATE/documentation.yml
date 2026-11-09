@@ -4,26 +4,70 @@ title: "[Docs]: "
 labels: ["documentation", "P3"]
 assignees: ["danielep71"]
 body:
-  - type: textarea
-    id: issue
+  - type: input
+    id: location
     attributes:
-      label: "Affected document and discrepancy"
+      label: "Document and section"
+      description: "The file and heading, or a link to the exact line on the branch you read."
+      placeholder: "docs/GOVERNANCE.md, Issue triage"
+    validations:
+      required: true
+  - type: dropdown
+    id: problem_type
+    attributes:
+      label: "Problem type"
+      options:
+        - "Wrong"
+        - "Missing"
+        - "Outdated"
+        - "Unclear"
+        - "Broken link or reference"
     validations:
       required: true
   - type: textarea
-    id: result
+    id: problem
     attributes:
-      label: "Proposed improvement and acceptance criteria"
+      label: "Problem"
+      description: "What the text says now, what is wrong with it and whom it misleads."
+    validations:
+      required: true
+  - type: textarea
+    id: correction
+    attributes:
+      label: "Proposed correction"
+      description: "The text or change you propose, and its scope."
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: "Supporting source"
+      description: "What the corrected text must match: the code, a test, a model contract, a recorded decision or a regulatory text with its locator."
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: "Acceptance criteria"
+      placeholder: |
+        - [ ] ...
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: "Validation"
+      description: "How the correction is verified, for example `python tools/check.py` (it includes the link check), a review of the rendered page, or a comparison with the source."
     validations:
       required: true
   - type: input
     id: target_end_date
     attributes:
       label: "Target end date (Europe/Rome)"
-      description: "YYYY-MM-DD, before the milestone's due date. Leave empty if unsure; I set it during triage."
+      description: "Propose a date (YYYY-MM-DD, Europe/Rome) before the milestone's due date. I may change it during triage."
       placeholder: "2026-12-15"
     validations:
-      required: false
+      required: true
   - type: textarea
     id: dependencies
     attributes:

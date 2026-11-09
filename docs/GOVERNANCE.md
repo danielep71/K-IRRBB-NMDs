@@ -5,10 +5,11 @@
 - Active integration branch: the release branch named in
   [`RELEASING.md`](../RELEASING.md#current-status).
 - Start focused task branches from the release branch; open PRs back into it
-  and squash-merge them (the only method the release-branch ruleset allows).
+  and squash-merge them. The release-branch ruleset also allows a merge
+  commit, used only to level a release branch with `main`.
   The release branch goes into `main` with a merge commit; see
   [`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main).
-- No direct commits to `release/**` or `main` after the initial repository bootstrap, except when I bring a release branch level with `main` after an integration ([`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main)).
+- No direct commits to `release/**` or `main` after the initial repository bootstrap; even levelling a release branch with `main` is a pull request ([`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main)).
 - A release-to-main PR needs my explicit approval. No version tags or releases are implied.
 - Merge only with review sign-off and green repository checks, as recorded in the PR's final-head review ([pull requests](#pull-requests)). VBA may be merged before Excel evidence exists; a release needs Excel evidence on its candidate ([`EXCEL_EVIDENCE.md`](EXCEL_EVIDENCE.md)).
 
@@ -39,9 +40,10 @@ Every open issue carries what I need to plan it:
 
 - **Assignee:** `danielep71`.
 - **Priority:** exactly one of `P1`, `P2`, `P3`.
-  - `P1` only for a confirmed calculation or correctness bug, so it always
-    comes with `bug`.
-  - `P2` for material correctness, robustness or maintainability work.
+  - `P1` only for a confirmed calculation bug: the application gives wrong
+    results for valid inputs. It always comes with `bug`.
+  - `P2` for other material correctness defects (for example a broken import
+    or a contract violation) and for robustness or maintainability work.
   - `P3` for non-blocking quality, testing, documentation or technical-debt
     improvements.
 - **Milestone:** an open milestone with a due date.
@@ -59,9 +61,14 @@ Every open issue carries what I need to plan it:
   and acceptance criteria are verifiable checkboxes.
 
 The issue forms set the assignee and a provisional priority (`P2` for bugs and
-features, `P3` for documentation) and ask for the target end date and the
-dependencies; I confirm or change the priority and set the milestone during
-triage. No automation changes an issue's priority or milestone.
+features, `P3` for documentation) and require the dependencies and a target
+end date, which you propose before the milestone's due date. Each form also
+requires acceptance criteria; the bug form requires the host environment and a
+validation plan, and the documentation form requires the document and section,
+the problem, the proposed correction, a supporting source and how the
+correction is validated. I confirm or change the priority, set the milestone
+and may change the target end date during triage. No automation changes an
+issue's priority or milestone.
 
 `.github/workflows/issue-triage.yml` runs `tools/check_issues.py` from the
 default branch on issue and milestone events and on demand, with read-only
@@ -89,13 +96,14 @@ settings with it ([tools/README.md](../tools/README.md#repository-settings)).
 After any settings change I run it with `--check` and keep the evidence file;
 an unsaved edit or an authentication prompt does not establish enforcement.
 The script never changes or deletes a ruleset the baseline does not name.
-
-Administrator bypass is an exceptional capability, not permission to skip review
-or failing checks. On `main` it applies to pull requests only; on `release/**`
-it is always available, so that I can bring a release branch level with `main`
-after an integration
-([`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main));
-it is used for nothing else.
+No ruleset has a bypass, for admins included: every change reaches `main` and
+`release/**` through a pull request whose required check passed on a head that
+is up to date with its base. "Protect release branches" accepts a squash (task
+pull requests) or a merge commit (levelling a release branch with `main` after
+an integration,
+[`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main)).
+"Prevent release branch deletion" forbids deleting `release/**`, so merging an
+integration pull request never deletes the release branch.
 
 ## Privacy and intellectual property
 

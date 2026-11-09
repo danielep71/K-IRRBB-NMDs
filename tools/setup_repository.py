@@ -36,7 +36,6 @@ SECURITY_PUBLIC_ONLY = {
     "secret_scanning_push_protection": True,
 }
 ANALYSIS_KEYS = ("secret_scanning", "secret_scanning_push_protection")
-BYPASS_MODES = {"always", "pull_request"}
 
 Json = Any
 Call = Callable[..., Json]
@@ -102,10 +101,9 @@ def check_ruleset(rule: dict[str, Json]) -> None:
         raise SetupError(f"Invalid baseline ruleset: {rule.get('name')!r}.")
     if rule["conditions"]["ref_name"]["exclude"]:
         raise SetupError(f"Baseline ruleset {rule['name']!r} must not exclude refs.")
-    for actor in rule["bypass_actors"]:
-        if set(actor) != {"actor_id", "actor_type", "bypass_mode"} \
-                or actor["bypass_mode"] not in BYPASS_MODES:
-            raise SetupError(f"Invalid bypass actor in {rule['name']!r}.")
+    # No one, admins included, may bypass the documented route.
+    if rule["bypass_actors"]:
+        raise SetupError(f"Baseline ruleset {rule['name']!r} must not have bypass actors.")
 
 
 def load_config(path: Path) -> dict[str, Json]:
@@ -176,16 +174,34 @@ def missing(call: Call, endpoint: str) -> tuple[Json, bool]:
         raise
 
 
+def security_fixes(call: Call, root: str) -> tuple[bool, bool]:
+    """Whether Dependabot security updates are enabled, and whether GitHub has paused them."""
+    value, absent = missing(call, root + "/automated-security-fixes")
+    if absent:
+        return False, False
+    value = value or {}
+    return bool(value.get("enabled")), bool(value.get("paused"))
+
+
 def security_state(call: Call, root: str, metadata: dict[str, Json], feature: str) -> bool:
+    """Whether a feature is in effect: paused security updates are enabled, not in effect."""
     if feature == "private_vulnerability_reporting":
         return bool((call("GET", root + "/private-vulnerability-reporting") or {}).get("enabled"))
     if feature == "vulnerability_alerts":
         return not missing(call, root + "/vulnerability-alerts")[1]
     if feature == "automated_security_fixes":
-        value, absent = missing(call, root + "/automated-security-fixes")
-        return not absent and bool((value or {}).get("enabled"))
+        enabled, paused = security_fixes(call, root)
+        return enabled and not paused
     analysis = metadata.get("security_and_analysis") or {}
     return bool((analysis.get(feature) or {}).get("status") == "enabled")
+
+
+def matches(call: Call, root: str, metadata: dict[str, Json], feature: str, desired: bool) -> bool:
+    """Wanted on: the feature must be in effect. Wanted off: security updates must not even be
+    enabled, since paused ones resume on their own."""
+    if feature == "automated_security_fixes" and not desired:
+        return not security_fixes(call, root)[0]
+    return security_state(call, root, metadata, feature) == desired
 
 
 def security_plan(call: Call, root: str, metadata: dict[str, Json], config: dict[str, Json],
@@ -205,7 +221,7 @@ def security_plan(call: Call, root: str, metadata: dict[str, Json], config: dict
         desired = config["security"][feature]
         if SECURITY_PUBLIC_ONLY[feature] and not public:
             continue
-        if security_state(call, root, metadata, feature) == desired:
+        if matches(call, root, metadata, feature, desired):
             continue
         if feature in ANALYSIS_KEYS:
             analysis[feature] = {"status": "enabled" if desired else "disabled"}
@@ -257,9 +273,12 @@ def evidence(call: Call, repo: str, config: dict[str, Json], metadata: dict[str,
               for key, value in config["repository"].items()]
     lines += ["", "## Security features", "", "| Feature | Baseline | Observed |", "| --- | --- | --- |"]
     for feature, value in config["security"].items():
-        observed = ("not applied (public repositories only)"
-                    if SECURITY_PUBLIC_ONLY[feature] and not public
-                    else cell(security_state(call, root, metadata, feature)))
+        if SECURITY_PUBLIC_ONLY[feature] and not public:
+            observed = "not applied (public repositories only)"
+        elif feature == "automated_security_fixes" and security_fixes(call, root) == (True, True):
+            observed = "on (paused)"
+        else:
+            observed = cell(security_state(call, root, metadata, feature))
         lines.append(f"| `{feature}` | {cell(value)} | {observed} |")
     lines += ["", "## Managed rulesets", "", "| Ruleset | ID | Status |", "| --- | --- | --- |"]
     for rule in config["rulesets"]:
