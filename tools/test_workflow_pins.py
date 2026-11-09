@@ -95,6 +95,13 @@ class DependabotTests(unittest.TestCase):
                 self.assertRegex(entry, r'\n    assignees:\n      - "danielep71"\n')
                 self.assertRegex(entry, r'\n    labels:\n      - "ci"\n      - "P3"\n')
 
+    def test_codeql_action_steps_update_together(self) -> None:
+        config = self.CONFIG.read_text(encoding="utf-8")
+        actions = re.split(r"^  - package-ecosystem:", config, flags=re.M)[1]
+        self.assertTrue(actions.lstrip().startswith('"github-actions"'))
+        self.assertRegex(actions, r'\n    groups:\n      codeql-action:\n        patterns:\n'
+                                  r'          - "github/codeql-action\*"\n')
+
 
 class MutatingJobTests(unittest.TestCase):
     """Jobs that change the repository run only from the default branch."""

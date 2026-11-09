@@ -23,6 +23,12 @@ updates:
     # Issue triage requires an assignee on every item.
     assignees:
       - "danielep71"
+    # CodeQL refuses to run when its init and analyze steps differ in version,
+    # so every github/codeql-action step moves in one pull request.
+    groups:
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
   - package-ecosystem: "pip"
     directory: "/tools"
     target-branch: "release/v0.2.0"
