@@ -20,6 +20,15 @@ updates:
     labels:
       - "ci"
       - "P3"
+    # Issue triage requires an assignee on every item.
+    assignees:
+      - "danielep71"
+    # CodeQL refuses to run when its init and analyze steps differ in version,
+    # so every github/codeql-action step moves in one pull request.
+    groups:
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
   - package-ecosystem: "pip"
     directory: "/tools"
     target-branch: "release/v0.2.0"
@@ -34,6 +43,9 @@ updates:
     labels:
       - "ci"
       - "P3"
+    # Issue triage requires an assignee on every item.
+    assignees:
+      - "danielep71"
     # Ruff, mypy and their dependencies move together in one pull request.
     groups:
       python-quality-tools:

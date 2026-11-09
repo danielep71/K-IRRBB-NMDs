@@ -30,6 +30,13 @@ body:
     validations:
       required: true
   - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternatives considered"
+      description: "Optional. Other ways to meet the need, including doing nothing, and why you prefer the proposed behavior."
+    validations:
+      required: false
+  - type: textarea
     id: acceptance
     attributes:
       label: "Acceptance checklist"
@@ -48,10 +55,10 @@ body:
     id: target_end_date
     attributes:
       label: "Target end date (Europe/Rome)"
-      description: "YYYY-MM-DD, before the milestone's due date. Leave empty if unsure; I set it during triage."
+      description: "Propose a date (YYYY-MM-DD, Europe/Rome) before the milestone's due date. I may change it during triage."
       placeholder: "2026-12-15"
     validations:
-      required: false
+      required: true
   - type: textarea
     id: dependencies
     attributes:
