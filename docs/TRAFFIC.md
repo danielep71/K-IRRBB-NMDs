@@ -31,7 +31,10 @@ The traffic API requires **Administration: read**, which the workflow token
 cannot have. A GitHub App that I own, with that permission only, issues a
 short-lived installation token in each run:
 
-- Environment: `analytics`, with deployment access restricted to `main`.
+- Environment: `analytics`, with deployment access restricted to `main`. The
+  settings baseline records this branch policy and
+  `tools/setup_repository.py --check` verifies it
+  ([tools/README.md](../tools/README.md#repository-settings)).
 - Environment variable: `TRAFFIC_APP_CLIENT_ID`, the App's client ID.
 - Environment secret: `TRAFFIC_APP_PRIVATE_KEY`, a private key of the App.
 - `actions/create-github-app-token` turns them into an installation token for
