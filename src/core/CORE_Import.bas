@@ -84,6 +84,9 @@ Private Const CONTROL_HEADER As String = "as_of_date,segment,currency,accounts,b
 ' Largest absolute difference between a control balance and the import total,
 ' in currency units (DATA_CONTRACT.md, reconciliation).
 Private Const CONTROL_TOLERANCE As Double = 0.005
+' Balances carry at most four decimals: differences are compared in
+' ten-thousandths of a currency unit, so exactly 0.005 stays within tolerance.
+Private Const BALANCE_SCALE As Double = 10000
 Private Const BALANCE_DECIMALS As Long = 4
 Private Const OUTLIER_RATIO As Double = 10
 Private Const MAX_TOTAL As Double = 1E+307
@@ -964,7 +967,8 @@ End Function
 ' totals of the last CORE_AccountsSummarize and add E13 for each row whose
 ' (as_of_date, segment, currency) has no total, whose accounts differ from
 ' the total's, or whose balance differs from the total's by more than
-' CONTROL_TOLERANCE (both at input precision; nothing is rounded). Call it
+' CONTROL_TOLERANCE, compared in ten-thousandths of a currency unit (the
+' input precision), so a difference of exactly 0.005 is within it. Call it
 ' once, after CORE_ControlEnd, and only when the account panel has no finding
 ' and no missing extract: otherwise the import is rejected and has no totals.
 ' Returns the number of control findings, format findings included.
@@ -984,7 +988,8 @@ Public Function CORE_ControlReconcile() As Long
         If HasKey(totals, mCtlRowKey(i)) Then
             t = totals.Item(mCtlRowKey(i))
             differs = (mCtlRowAccounts(i) <> CStr(mTotAccounts(t))) _
-                      Or (Abs((mTotSum(t) + mTotComp(t)) - mCtlRowBalance(i)) > CONTROL_TOLERANCE)
+                      Or (Round(Abs((mTotSum(t) + mTotComp(t)) - mCtlRowBalance(i)) * BALANCE_SCALE, 0) _
+                          > Round(CONTROL_TOLERANCE * BALANCE_SCALE, 0))
         Else
             differs = True
         End If

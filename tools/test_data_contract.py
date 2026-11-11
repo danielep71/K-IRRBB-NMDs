@@ -6,6 +6,7 @@ hand-computed expectations consistent. It is not the toolkit's import routine.
 from __future__ import annotations
 
 import calendar
+import decimal
 import json
 import math
 import re
@@ -25,6 +26,9 @@ REQUIRED = {"as_of_date", "account_id", "segment", "currency", "balance", "index
 RATE_FIELDS = ["as_of_date", "rate_id", "currency", "tenor_months", "rate"]
 CONTROL_FIELDS = ["as_of_date", "segment", "currency", "accounts", "balance"]
 CONTROL_TOLERANCE = 0.005
+# Balances carry at most four decimals, so differences are compared in
+# ten-thousandths of a currency unit: exactly 0.005 stays within the tolerance.
+BALANCE_SCALE = 10_000
 SEGMENTS = {"RET_TX", "RET_NTX", "WHS_NFC"}
 ISO_DATE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
 ACCOUNT_ID = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
@@ -243,7 +247,8 @@ def read_control_totals(path: Path, totals: list[dict[str, Any]] | None,
             seen.add(key)
             total = imported.get(key)
             if totals is not None and (total is None or str(total["accounts"]) != row["accounts"]
-                                       or abs(total["balance"] - float(row["balance"])) > CONTROL_TOLERANCE):
+                                       or round(abs(total["balance"] - float(row["balance"])) * BALANCE_SCALE)
+                                       > round(CONTROL_TOLERANCE * BALANCE_SCALE)):
                 code = "E13"
         if code:
             errors.append({"line": number, "code": code})
@@ -585,6 +590,12 @@ class ControlTotals(unittest.TestCase):
             gaps = [abs(float(b) - totals[(d, s, c)]) for d, s, c, _, b in (line.split(",") for line in lines)]
             with self.subTest(fixture=name):
                 self.assertTrue(any(0.0048 < gap < 0.005 if inside else 0.005 < gap < 0.0052 for gap in gaps))
+        # The exact boundary, on both sides of a total, is within the tolerance.
+        within = (FIXTURES / "control_totals_within.csv").read_text(encoding="ascii").splitlines()[1:]
+        exact = [decimal.Decimal(b) - decimal.Decimal(str(totals[(d, s, c)]))
+                 for d, s, c, _, b in (line.split(",") for line in within)]
+        self.assertIn(decimal.Decimal("0.0050"), exact)
+        self.assertIn(decimal.Decimal("-0.0050"), exact)
 
     def test_a_rejected_panel_is_not_reconciled(self) -> None:
         for case in self.expected["cases"]:

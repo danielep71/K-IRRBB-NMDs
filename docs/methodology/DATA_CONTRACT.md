@@ -191,7 +191,8 @@ its own currency: currencies are never added together.
 **Rule.** For every row, the import must have a total for its key, with
 exactly the same number of accounts and a balance that differs from the
 control balance by at most **0.005 currency units** in absolute value. Both are
-compared at input precision; nothing is rounded first. A row with no import
+compared in ten-thousandths of a currency unit, the input precision, so a
+difference of exactly 0.005 is within the tolerance. A row with no import
 total (for example a date outside the data window), a different count or a
 larger balance difference is `E13` and **rejects the whole import**, like every
 error. Totals the file does not list are not checked. The check runs only

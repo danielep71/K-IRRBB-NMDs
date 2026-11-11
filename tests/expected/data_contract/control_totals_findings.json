@@ -5,7 +5,7 @@
     "steps": [
       "Took the hand-computed totals of tests/expected/data_contract/accounts_summary.json for accounts.csv and the window 2025-01-31 to 2025-06-30.",
       "Wrote control_totals.csv as those 23 totals, unchanged.",
-      "Wrote each variant from chosen rows of those totals with one deliberate change per deviating row: a balance 0.0049 above or below the total (within the 0.005 tolerance), 0.0051 above or below it (beyond the tolerance), one account more, the EUR and USD totals of a date added together, and keys the import has no total for (a month end where WHS_NFC EUR has no account, a month end after the window, a currency the segment never has).",
+      "Wrote each variant from chosen rows of those totals with one deliberate change per deviating row: a balance 0.0049 or exactly 0.0050 above or below the total (within the 0.005 tolerance), 0.0051 above or below it (beyond the tolerance), one account more, the EUR and USD totals of a date added together, and keys the import has no total for (a month end where WHS_NFC EUR has no account, a month end after the window, a currency the segment never has).",
       "Wrote control_totals_invalid.csv with one row per format rule (E01, E03, E02, E04 for the accounts and the balance, E06, E07, E09, E05) and two rows equal to their totals.",
       "Assigned by hand, per row, the first failing rule in the order of DATA_CONTRACT.md (validation), then E13 for a locally valid row that does not match its total."
     ],
@@ -17,7 +17,7 @@
   "balance_tolerance": 0.005,
   "cases": [
     {"fixture": "tests/fixtures/data_contract/control_totals.csv", "rows": 23, "accepted": true, "errors": []},
-    {"fixture": "tests/fixtures/data_contract/control_totals_within.csv", "rows": 3, "accepted": true, "errors": []},
+    {"fixture": "tests/fixtures/data_contract/control_totals_within.csv", "rows": 5, "accepted": true, "errors": []},
     {"fixture": "tests/fixtures/data_contract/control_totals_balance.csv", "rows": 3, "accepted": false,
      "errors": [{"line": 3, "code": "E13"}, {"line": 4, "code": "E13"}]},
     {"fixture": "tests/fixtures/data_contract/control_totals_count.csv", "rows": 3, "accepted": false,

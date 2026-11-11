@@ -228,11 +228,13 @@ End Function
 
 
 Private Function Data_ControlTotalsWithinCsv() As Variant
-    Dim a(1 To 4) As String
+    Dim a(1 To 6) As String
     a(1) = "as_of_date,segment,currency,accounts,balance"
     a(2) = "2025-01-31,WHS_NFC,EUR,1,150000.0049"
     a(3) = "2025-05-31,RET_TX,EUR,4,2820.4951"
     a(4) = "2025-06-30,WHS_NFC,USD,1,84000.00"
+    a(5) = "2025-01-31,RET_TX,EUR,5,6600.0050"
+    a(6) = "2025-02-28,RET_NTX,EUR,2,22599.9950"
     Data_ControlTotalsWithinCsv = a
 End Function
 
@@ -496,7 +498,7 @@ End Function
 Private Function Data_ControlTotalsFindingsFixtures() As Variant
     Dim a(1 To 6) As String
     a(1) = "control_totals.csv|23"
-    a(2) = "control_totals_within.csv|3"
+    a(2) = "control_totals_within.csv|5"
     a(3) = "control_totals_balance.csv|3"
     a(4) = "control_totals_count.csv|3"
     a(5) = "control_totals_unknown.csv|4"
