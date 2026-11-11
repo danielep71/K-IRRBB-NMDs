@@ -115,7 +115,14 @@ Use only the categories needed by a release.
   and `tools/check_excel_evidence.py` validates a bundle offline: source and
   log digests, and every stage judged again against values read from the
   candidate commit. Only 64-bit Excel certifies: a run whose stages all pass
-  in another Office is `BEST_EFFORT`, never `PASS`. The manual procedure stays
+  in another Office is `BEST_EFFORT`, never `PASS`. The session also checks
+  the template's appearance in Excel against the template at the candidate:
+  tab colours, the brand strip and title, the dropdowns (whose values Excel
+  joins with the locale's list separator, such as `;`), the print titles and
+  areas, and the page setup read from a copy Excel saves, never from Excel's
+  print objects. A `buttons` stage checks every button of the development
+  workbook and the macro it runs, and presses Import data and Run tests
+  (#247). The manual procedure stays
   as the fallback. It passed in 64-bit Excel on `14e0aae` (#238).
 - The import can reconcile its totals against control totals from the source
   system. An optional third CSV file (`as_of_date,segment,currency,accounts,balance`),

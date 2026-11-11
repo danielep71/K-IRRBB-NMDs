@@ -12,8 +12,11 @@ For the commit checked out in this repository, with a clean working tree:
 3. opens the macro-free template read-only and records whether Excel opened it
    without repair, its sheets, CodeNames, defined names, title fonts and data
    validation (each validated cell refuses an invalid value and accepts a
-   valid one) (template.log). Nothing is printed or exported, so Excel never
-   waits on a printer;
+   valid one), and its appearance: tab colours, the brand strip and title,
+   the dropdowns, the print titles and areas, and the page setup Excel writes
+   when it saves a copy of the template into the bundle (template.log).
+   Nothing is printed, exported or previewed, and no print object is read, so
+   Excel never waits on a printer;
 4. builds the development workbook with tools\devbuild\build_dev_workbook.py
    (build.log) and opens it in a visible Excel with its macros enabled for
    that Excel session only (AutomationSecurity "low"): the Trust Center is
@@ -23,7 +26,11 @@ For the commit checked out in this repository, with a clean working tree:
    and runs the harness (harness.log), its failure path: injected failures,
    a rerun, an injected write fault and a final run (failure.log), and the
    import: accepted, matching and differing control totals, a pasted invalid
-   window date, a pasted invalid attestation and a rerun (import.log). Excel's
+   window date, a pasted invalid attestation and a rerun (import.log). It then
+   records every button, its label and the macro it runs, checks that each
+   macro is a procedure of a standard module, and presses Import data and Run
+   tests by running their macros as a click does (buttons.log); the
+   file-choice buttons open a dialog, so only their wiring is checked. Excel's
    calculation, events, screen updating and alerts are recorded before and
    after every run. The workbook is then closed without saving;
 6. saves the template as IRRBB_Sync.xlsm, synchronizes it with
@@ -77,6 +84,9 @@ $msoAutomationSecurityLow = 1
 $msoAutomationSecurityForceDisable = 3
 $compileControlId = 578
 $xlOpenXMLWorkbookMacroEnabled = 52
+$xlCellTypeAllValidation = -4174
+$xlValidateList = 3
+$xlListSeparator = 5
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $fixtures = Join-Path $RepoRoot "tests\fixtures\data_contract"
 $templatePath = Join-Path $RepoRoot "src\workbook\IRRBB_Template.xlsx"
@@ -200,6 +210,106 @@ function Close-Excel {
 function Get-ExcelState {
     param($App)
     return "{0}|{1}|{2}|{3}" -f $App.Calculation, $App.EnableEvents, $App.ScreenUpdating, $App.DisplayAlerts
+}
+
+function ConvertTo-Rgb {
+    # Excel gives a colour as a BGR integer; the template states it as RRGGBB.
+    param($Color)
+    if (-not ($Color -is [double] -or $Color -is [int] -or $Color -is [long])) { return [string]$Color }
+    $value = [long]$Color
+    return "{0:X2}{1:X2}{2:X2}" -f ($value -band 0xFF), (($value -shr 8) -band 0xFF), (($value -shr 16) -band 0xFF)
+}
+
+function Read-ZipXml {
+    param($Zip, [string]$Name)
+    $entry = $Zip.GetEntry($Name)
+    if ($null -eq $entry) { throw "$Name is missing from the saved copy" }
+    $reader = New-Object System.IO.StreamReader($entry.Open())
+    try { return [xml]$reader.ReadToEnd() } finally { $reader.Dispose() }
+}
+
+function Get-XmlAttribute {
+    param($Node, [string]$Name)
+    if ($null -eq $Node) { return "" }
+    return [string]$Node.GetAttribute($Name)
+}
+
+function Read-SavedPageLayout {
+    # Each sheet's page layout as Excel saved it: read from the saved package,
+    # never through Excel's print objects, which query the printer. One entry
+    # per sheet: name|orientation|paperSize|fitToWidth|fitToHeight|fitToPage.
+    param([string]$Path)
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $relNs = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+    $rows = New-Object System.Collections.Generic.List[string]
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($Path)
+    try {
+        $workbook = Read-ZipXml $zip "xl/workbook.xml"
+        $targets = @{}
+        foreach ($rel in (Read-ZipXml $zip "xl/_rels/workbook.xml.rels").GetElementsByTagName("Relationship")) {
+            $targets[$rel.GetAttribute("Id")] = $rel.GetAttribute("Target")
+        }
+        foreach ($sheet in $workbook.GetElementsByTagName("sheet")) {
+            $target = [string]$targets[$sheet.GetAttribute("id", $relNs)]
+            $part = if ($target.StartsWith("/")) { $target.Substring(1) } else { "xl/" + $target }
+            $xml = Read-ZipXml $zip $part
+            $setup = $xml.GetElementsByTagName("pageSetup") | Select-Object -First 1
+            $fit = $xml.GetElementsByTagName("pageSetUpPr") | Select-Object -First 1
+            $rows.Add(("{0}|{1}|{2}|{3}|{4}|{5}" -f $sheet.GetAttribute("name"),
+                       (Get-XmlAttribute $setup "orientation"), (Get-XmlAttribute $setup "paperSize"),
+                       (Get-XmlAttribute $setup "fitToWidth"), (Get-XmlAttribute $setup "fitToHeight"),
+                       (Get-XmlAttribute $fit "fitToPage")))
+        }
+    }
+    finally {
+        $zip.Dispose()
+    }
+    return ,$rows
+}
+
+function Write-Buttons {
+    # Every button of the development workbook and the macro it runs; then
+    # Import data and Run tests pressed by running their actions as recorded,
+    # as a click does. An action that names no workbook, or the file format's
+    # "this workbook" ([0]), runs in this workbook.
+    param($App, $Book, [string]$Qualified, [string]$Log)
+    $actions = @{}
+    foreach ($sheet in $Book.Worksheets) {
+        foreach ($shape in $sheet.Shapes) {
+            $label = [string]$shape.TextFrame2.TextRange.Text
+            $actions[$label] = [string]$shape.OnAction
+            Add-Evidence $Log "BUTTON" ("{0}|{1}|{2}" -f $sheet.Name, $label, $shape.OnAction)
+        }
+    }
+    $macros = @($actions.Values | ForEach-Object { ($_ -split '!')[-1] } | Sort-Object -Unique)
+    foreach ($macro in $macros) {
+        $where = ""
+        foreach ($component in $Book.VBProject.VBComponents) {
+            try {
+                [void]$component.CodeModule.ProcStartLine($macro, 0)
+                $where = "{0}|{1}" -f $component.Name, $component.Type
+                break
+            }
+            catch {}
+        }
+        Add-Evidence $Log "MACRO" ("{0}|{1}" -f $macro, $where)
+    }
+    foreach ($press in @(@("Import data", "DataSummary_Status"), @("Run tests", "Checks_Status"))) {
+        Add-Evidence $Log "PRESS" $press[0]
+        Add-Evidence $Log "STATE_BEFORE" (Get-ExcelState $App)
+        try {
+            $action = [string]$actions[$press[0]]
+            if ($action -notmatch '!' -or $action.StartsWith("[0]!")) { $action = $Qualified + ($action -split '!')[-1] }
+            [void]$App.Run($action)
+        }
+        catch {
+            Add-Evidence $Log "ERROR" $_.Exception.Message
+        }
+        Add-Evidence $Log "STATE_AFTER" (Get-ExcelState $App)
+        $status = (Get-Area -Book $Book -Name $press[1]).Value2
+        Add-Evidence $Log "STATUS" $status
+        Write-Session ("  button {0}: {1}" -f $press[0], $status)
+    }
 }
 
 function Get-Area {
@@ -520,13 +630,34 @@ try {
     Add-Evidence $log "OPENED" "True"
     Add-Evidence $log "CAPTION" $book.Windows.Item(1).Caption
     try { $null = $book.VBProject.Name } catch {}
+    # A list's values are shown joined by the list separator of the Windows locale.
+    Add-Evidence $log "LIST_SEPARATOR" $excel.International($xlListSeparator)
     foreach ($sheet in $book.Worksheets) {
         Add-Evidence $log "SHEET" ("{0}|{1}" -f $sheet.Name, $sheet.CodeName)
         Add-Evidence $log "FONT" ("{0}|{1}" -f $sheet.Name, $sheet.Range("A2").Font.Name)
+        Add-Evidence $log "TAB" ("{0}|{1}" -f $sheet.Name, (ConvertTo-Rgb $sheet.Tab.Color))
+        foreach ($ref in @("A1", "A2")) {
+            $cell = $sheet.Range($ref)
+            Add-Evidence $log "STRIP" ("{0}!{1}|{2}|{3}|{4}" -f $sheet.Name, $ref, $cell.Value2,
+                                       (ConvertTo-Rgb $cell.Interior.Color), (ConvertTo-Rgb $cell.Font.Color))
+        }
+        $validated = $null
+        try { $validated = $sheet.Cells.SpecialCells($xlCellTypeAllValidation) } catch {}
+        if ($null -ne $validated) {
+            foreach ($cell in $validated.Cells) {
+                if ($cell.Validation.Type -eq $xlValidateList) {
+                    Add-Evidence $log "DROPDOWN" ("{0}!{1}|{2}|{3}" -f $sheet.Name, $cell.Address($false, $false),
+                                                  $cell.Validation.InCellDropdown, $cell.Validation.Formula1)
+                }
+            }
+        }
     }
     foreach ($name in $book.Names) {
         if ($name.Name -notmatch '!') {
             Add-Evidence $log "NAME" ("{0}|{1}" -f $name.Name, $name.RefersTo)
+        }
+        elseif ($name.Name -match '!Print_(Titles|Area)$') {
+            Add-Evidence $log "PRINT" ("{0}|{1}" -f $name.Name, $name.RefersTo)
         }
     }
     $probes = @(
@@ -539,6 +670,13 @@ try {
         if ($probe[2] -is [datetime]) { $cell.Value = $probe[2] } else { $cell.Value2 = $probe[2] }
         $outcome = if ($cell.Validation.Value) { "accepted" } else { "refused" }
         Add-Evidence $log "VALIDATION" ("{0}!{1}|{2}|{3}" -f $probe[0], $probe[1], (ConvertTo-EvidenceText $probe[2]), $outcome)
+    }
+    # The page layout as Excel saves it, read back from a copy in the bundle.
+    $copyPath = Join-Path $BundleDir "template-copy.xlsx"
+    $book.SaveCopyAs($copyPath)
+    Add-Evidence $log "COPY" "template-copy.xlsx"
+    foreach ($entry in (Read-SavedPageLayout -Path $copyPath)) {
+        Add-Evidence $log "PAGE" $entry
     }
 }
 catch {
@@ -607,6 +745,9 @@ if ($buildCode -eq 0 -and (Test-Path -LiteralPath $devPath)) {
                 Config_WindowStart = (Get-Date -Year 2025 -Month 1 -Day 31).Date; Config_ClosureAttested = "Maybe" })
             Write-ImportScenario $excel $book $qualified $log "rerun" ([ordered]@{
                 Config_ClosureAttested = "Yes" })
+
+            $log = New-EvidenceLog "buttons.log"
+            Write-Buttons -App $excel -Book $book -Qualified $qualified -Log $log
         }
     }
     catch {
