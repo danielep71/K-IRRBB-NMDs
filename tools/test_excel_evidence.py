@@ -89,6 +89,20 @@ def passing_logs(exp: ev.Expected, sha: str) -> dict[str, Lines]:
     template += [("NAME", f"{name}|{ref}") for name, ref in exp.names.items()]
     for cell in exp.validated:
         template += [("VALIDATION", f"{cell}|x|refused"), ("VALIDATION", f"{cell}|Yes|accepted")]
+    template += [("TAB", f"{name}|{color}") for name, color in exp.tabs.items()]
+    template += [("STRIP", f"{cell}|{value}") for cell, value in exp.strips.items()]
+    template += [("DROPDOWN", f"{cell}|{value}") for cell, value in exp.dropdowns.items()]
+    # As Excel writes them: Print_Titles names quoted, and an attribute left out at its default.
+    template += [("PRINT", f"{name}|='{ref.replace('!', chr(39) + '!', 1)}") for name, ref in exp.prints.items()]
+    template += [("COPY", "template-copy.xlsx")]
+    template += [("PAGE", f"{name}|" + "|".join("" if v == "1" and i == 2 else v for i, v in enumerate(page.split("|"))))
+                 for name, page in exp.pages.items()]
+    buttons: Lines = [("BUTTON", f"{sheet}|{label}|'IRRBB_Dev.xlsm'!{macro}")
+                      for sheet, rows in exp.buttons.items() for label, macro in rows]
+    buttons += [("MACRO", f"{macro}|{'TEST_Harness' if macro == 'RunTests' else 'WB_Import'}|1")
+                for macro in sorted({m for rows in exp.buttons.values() for _, m in rows})]
+    for label, status in zip(ev.PRESSES, (ev.ACCEPTED, ev.COMPLETE), strict=True):
+        buttons += [("PRESS", label), ("STATE_BEFORE", STATE), ("STATE_AFTER", STATE), ("STATUS", status)]
     return {
         "template.log": template,
         "build.log": [("COMMAND", "python tools/devbuild/build_dev_workbook.py IRRBB_Dev.xlsm"), ("EXIT", "0")],
@@ -97,6 +111,7 @@ def passing_logs(exp: ev.Expected, sha: str) -> dict[str, Lines]:
                         + harness_run(exp, sha, ev.FAILURE_RUNS[1]) + fault_run(sha)
                         + harness_run(exp, sha, ev.FAILURE_RUNS[3])),
         "import.log": [line for name in ev.SCENARIOS for line in scenario(name, exp)],
+        "buttons.log": buttons,
         "sync.log": [("COMMAND", "Sync-IRRBB-VBA.ps1"),
                      ("OUTPUT", "SUCCESS: VBA synchronized. Workbook sheets were not removed or recreated."),
                      ("EXIT", "0"), ("COMPILE", "PASS")] + harness_run(exp, sha, "TEST_Harness.RunTests"),
@@ -274,6 +289,44 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(host["result"], "FAIL")
         self.assertEqual(host["stages"]["round_trip"]["reasons"], ["roundtrip.log is missing"])
 
+    def test_appearance_failures(self) -> None:
+        cases: list[tuple[str, str, str, str]] = [
+            ("TAB", "Config|BF9000", "Config|FFFFFF", "tab colours differ"),
+            ("STRIP", "Config!A1|K-IRRBB|000000|FFC000", "Config!A1|K-IRRBB|FFFFFF|FFC000", "brand strip"),
+            ("STRIP", "Config!A2|Run settings|265A99|FFFFFF", "Config!A2|Settings|265A99|FFFFFF", "title"),
+            ("DROPDOWN", "Segments!C7|True|Yes,No", "Segments!C7|False|Yes,No", "dropdowns differ"),
+            ("PRINT", "Config!Print_Area|='Config'!$A$1:$D$26", "Config!Print_Area|='Config'!$A$1:$D$20",
+             "print titles and areas"),
+            ("PAGE", "Config|landscape|9||0|1", "Config|portrait|9||0|1", "page setups differ"),
+        ]
+        for key, old, new, reason in cases:
+            with self.subTest(key=key, reason=reason):
+                self.setUp()
+                self.breaks("template", lambda: self.replace("template.log", key, old, new), reason)
+        self.setUp()
+        self.breaks("template", lambda: self.logs["template.log"].remove(("PAGE", "Checks|landscape|9|0|0|1")),
+                    "Checks 'missing'")
+
+    def test_button_failures(self) -> None:
+        def drop(key: str, value: str) -> Callable[[], None]:
+            return lambda: self.logs["buttons.log"].remove((key, value))
+
+        cases: list[tuple[Callable[[], None], str]] = [
+            (drop("BUTTON", "Checks|Run tests|'IRRBB_Dev.xlsm'!RunTests"), "buttons"),
+            (lambda: self.replace("buttons.log", "BUTTON", "Config|Import data|'IRRBB_Dev.xlsm'!WB_ImportData",
+                                  "Config|Import data|'IRRBB_Dev.xlsm'!WB_ImportDataOld"), "buttons"),
+            (lambda: self.replace("buttons.log", "MACRO", "WB_ImportData|WB_Import|1", "WB_ImportData|"),
+             "WB_ImportData is not a procedure"),
+            (lambda: self.replace("buttons.log", "STATUS", ev.ACCEPTED, "FAILED"), "Import data: status"),
+            (lambda: self.replace("buttons.log", "STATUS", ev.COMPLETE, "COMPLETE - FAILURES"), "Run tests: status"),
+            (drop("PRESS", "Run tests"), "not pressed"),
+            (lambda: self.logs["buttons.log"].append(("ERROR", "Macro not found")), "run error"),
+        ]
+        for change, reason in cases:
+            with self.subTest(reason=reason):
+                self.setUp()
+                self.breaks("buttons", change, reason)
+
     def test_template_failures(self) -> None:
         cases: list[tuple[Callable[[], None], str]] = [
             (lambda: self.replace("template.log", "CAPTION", "IRRBB_Template.xlsx  [Read-Only]",
@@ -389,7 +442,7 @@ class ScriptShapeTests(unittest.TestCase):
     def test_logs_scenarios_and_runs_match_the_validator(self) -> None:
         self.assertEqual(re.findall(r'New-EvidenceLog "([a-z-]+\.log)"', self.text),
                          ["template.log", "build.log", "harness.log", "failure.log", "import.log",
-                          "sync.log", "roundtrip.log", "sync-failure.log"])
+                          "buttons.log", "sync.log", "roundtrip.log", "sync-failure.log"])
         self.assertEqual(set(re.findall(r'New-EvidenceLog "([a-z-]+\.log)"', self.text)), set(ev.LOGS))
         scenarios = re.findall(r'Write-ImportScenario \$excel \$book \$qualified \$log "([a-z-]+)"', self.text)
         self.assertEqual(scenarios, list(ev.SCENARIOS))
@@ -414,9 +467,17 @@ class ScriptShapeTests(unittest.TestCase):
         self.assertIn("GetValue(", self.text)
 
     def test_the_script_never_waits_on_a_printer(self) -> None:
-        # Exporting or printing makes Excel query the default printer, which can stall a run.
-        for call in ("ExportAsFixedFormat", "PrintOut", "PrintPreview", "PageSetup", "ActivePrinter"):
+        # Exporting, printing or reading the print objects makes Excel query the default
+        # printer, which can stall a run. The page layout is read from a saved copy instead.
+        for call in ("ExportAsFixedFormat", "PrintOut", "PrintPreview", "PageSetup", "ActivePrinter",
+                     "PrintCommunication", "HPageBreaks", "VPageBreaks"):
             self.assertNotIn(call, self.text)
+        self.assertIn("SaveCopyAs($copyPath)", self.text)
+
+    def test_the_presses_match_the_validator(self) -> None:
+        presses = re.search(r'foreach \(\$press in @\((.*?)\)\) \{', self.text)
+        assert presses is not None
+        self.assertEqual(tuple(re.findall(r'@\("([^"]+)", "\w+"\)', presses.group(1))), ev.PRESSES)
 
     @unittest.skipUnless(PWSH, "PowerShell 7 (pwsh) is not installed")
     def test_the_script_parses(self) -> None:
