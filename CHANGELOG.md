@@ -528,6 +528,10 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- INSTALLATION and the CONTRIBUTING review checklist no longer require Excel
+  evidence for every VBA change before merge: as GOVERNANCE states, a VBA
+  change records Excel results when run, or states them as not run, and a
+  release candidate needs them (#191).
 - The release checklist no longer asks for a fast-forward of the release
   branch, which the rulesets refuse: it asks for the levelling pull request of
   step 4. RELEASING and CONTRIBUTING state that this pull request is the one
