@@ -20,6 +20,12 @@ Public Function TEST_FixtureLines(ByVal name As String) As Variant
         Case "accounts_invalid.csv": TEST_FixtureLines = Data_AccountsInvalidCsv()
         Case "market_rates.csv": TEST_FixtureLines = Data_MarketRatesCsv()
         Case "availability.csv": TEST_FixtureLines = Data_AvailabilityCsv()
+        Case "control_totals.csv": TEST_FixtureLines = Data_ControlTotalsCsv()
+        Case "control_totals_within.csv": TEST_FixtureLines = Data_ControlTotalsWithinCsv()
+        Case "control_totals_balance.csv": TEST_FixtureLines = Data_ControlTotalsBalanceCsv()
+        Case "control_totals_count.csv": TEST_FixtureLines = Data_ControlTotalsCountCsv()
+        Case "control_totals_unknown.csv": TEST_FixtureLines = Data_ControlTotalsUnknownCsv()
+        Case "control_totals_invalid.csv": TEST_FixtureLines = Data_ControlTotalsInvalidCsv()
         Case Else
             Err.Raise 5, "TEST_Fixtures.TEST_FixtureLines", "No fixture data named " & name & "."
     End Select
@@ -42,8 +48,17 @@ Public Function TEST_ExpectedLines(ByVal name As String) As Variant
         Case "availability_outcomes.visible": TEST_ExpectedLines = Data_AvailabilityOutcomesVisible()
         Case "availability_outcomes.origins": TEST_ExpectedLines = Data_AvailabilityOutcomesOrigins()
         Case "availability_outcomes.lineage": TEST_ExpectedLines = Data_AvailabilityOutcomesLineage()
+        Case "control_totals_findings.window": TEST_ExpectedLines = Data_ControlTotalsFindingsWindow()
+        Case "control_totals_findings.fixtures": TEST_ExpectedLines = Data_ControlTotalsFindingsFixtures()
+        Case "control_totals_findings.control_totals.csv": TEST_ExpectedLines = Data_ControlTotalsFindingsControlTotalsCsv()
+        Case "control_totals_findings.control_totals_within.csv": TEST_ExpectedLines = Data_ControlTotalsFindingsControlTotalsWithinCsv()
+        Case "control_totals_findings.control_totals_balance.csv": TEST_ExpectedLines = Data_ControlTotalsFindingsControlTotalsBalanceCsv()
+        Case "control_totals_findings.control_totals_count.csv": TEST_ExpectedLines = Data_ControlTotalsFindingsControlTotalsCountCsv()
+        Case "control_totals_findings.control_totals_unknown.csv": TEST_ExpectedLines = Data_ControlTotalsFindingsControlTotalsUnknownCsv()
+        Case "control_totals_findings.control_totals_invalid.csv": TEST_ExpectedLines = Data_ControlTotalsFindingsControlTotalsInvalidCsv()
         Case "sha256.accounts.csv": TEST_ExpectedLines = Data_Sha256AccountsCsv()
         Case "sha256.market_rates.csv": TEST_ExpectedLines = Data_Sha256MarketRatesCsv()
+        Case "sha256.control_totals.csv": TEST_ExpectedLines = Data_Sha256ControlTotalsCsv()
         Case Else
             Err.Raise 5, "TEST_Fixtures.TEST_ExpectedLines", "No fixture data named " & name & "."
     End Select
@@ -179,6 +194,96 @@ Private Function Data_AvailabilityCsv() As Variant
     a(27) = "2025-06-30,P06,WHS_NFC,EUR,5250.00,0.0150,1,2017-01-10,2025-08-31"
     a(28) = "2025-06-30,P07,RET_TX,EUR,270.00,0.0050,0,2025-03-10,"
     Data_AvailabilityCsv = a
+End Function
+
+
+Private Function Data_ControlTotalsCsv() As Variant
+    Dim a(1 To 24) As String
+    a(1) = "as_of_date,segment,currency,accounts,balance"
+    a(2) = "2025-01-31,RET_TX,EUR,5,6600.00"
+    a(3) = "2025-01-31,RET_NTX,EUR,2,23000.00"
+    a(4) = "2025-01-31,WHS_NFC,EUR,1,150000.00"
+    a(5) = "2025-01-31,WHS_NFC,USD,1,80000.00"
+    a(6) = "2025-02-28,RET_TX,EUR,5,6760.00"
+    a(7) = "2025-02-28,RET_NTX,EUR,2,22600.00"
+    a(8) = "2025-02-28,WHS_NFC,EUR,1,148000.00"
+    a(9) = "2025-02-28,WHS_NFC,USD,1,81000.00"
+    a(10) = "2025-03-31,RET_TX,EUR,6,56300.00"
+    a(11) = "2025-03-31,RET_NTX,EUR,2,21400.00"
+    a(12) = "2025-03-31,WHS_NFC,USD,1,79000.00"
+    a(13) = "2025-04-30,RET_TX,EUR,4,2750.00"
+    a(14) = "2025-04-30,RET_NTX,EUR,2,23800.00"
+    a(15) = "2025-04-30,WHS_NFC,EUR,1,152000.00"
+    a(16) = "2025-04-30,WHS_NFC,USD,1,82000.00"
+    a(17) = "2025-05-31,RET_TX,EUR,4,2820.50"
+    a(18) = "2025-05-31,RET_NTX,EUR,2,24000.00"
+    a(19) = "2025-05-31,WHS_NFC,EUR,1,151000.00"
+    a(20) = "2025-05-31,WHS_NFC,USD,1,83000.00"
+    a(21) = "2025-06-30,RET_TX,EUR,4,2810.00"
+    a(22) = "2025-06-30,RET_NTX,EUR,2,24200.00"
+    a(23) = "2025-06-30,WHS_NFC,EUR,1,149500.00"
+    a(24) = "2025-06-30,WHS_NFC,USD,1,84000.00"
+    Data_ControlTotalsCsv = a
+End Function
+
+
+Private Function Data_ControlTotalsWithinCsv() As Variant
+    Dim a(1 To 4) As String
+    a(1) = "as_of_date,segment,currency,accounts,balance"
+    a(2) = "2025-01-31,WHS_NFC,EUR,1,150000.0049"
+    a(3) = "2025-05-31,RET_TX,EUR,4,2820.4951"
+    a(4) = "2025-06-30,WHS_NFC,USD,1,84000.00"
+    Data_ControlTotalsWithinCsv = a
+End Function
+
+
+Private Function Data_ControlTotalsBalanceCsv() As Variant
+    Dim a(1 To 4) As String
+    a(1) = "as_of_date,segment,currency,accounts,balance"
+    a(2) = "2025-01-31,WHS_NFC,EUR,1,150000.00"
+    a(3) = "2025-05-31,RET_TX,EUR,4,2820.5051"
+    a(4) = "2025-06-30,WHS_NFC,USD,1,83999.9949"
+    Data_ControlTotalsBalanceCsv = a
+End Function
+
+
+Private Function Data_ControlTotalsCountCsv() As Variant
+    Dim a(1 To 4) As String
+    a(1) = "as_of_date,segment,currency,accounts,balance"
+    a(2) = "2025-01-31,RET_TX,EUR,6,6600.00"
+    a(3) = "2025-03-31,RET_TX,EUR,6,56300.00"
+    a(4) = "2025-01-31,WHS_NFC,EUR,2,230000.00"
+    Data_ControlTotalsCountCsv = a
+End Function
+
+
+Private Function Data_ControlTotalsUnknownCsv() As Variant
+    Dim a(1 To 5) As String
+    a(1) = "as_of_date,segment,currency,accounts,balance"
+    a(2) = "2025-02-28,WHS_NFC,USD,1,81000.00"
+    a(3) = "2025-03-31,WHS_NFC,EUR,1,150000.00"
+    a(4) = "2025-07-31,RET_TX,EUR,4,2810.00"
+    a(5) = "2025-06-30,RET_TX,USD,4,2810.00"
+    Data_ControlTotalsUnknownCsv = a
+End Function
+
+
+Private Function Data_ControlTotalsInvalidCsv() As Variant
+    Dim a(1 To 13) As String
+    a(1) = "as_of_date,segment,currency,accounts,balance"
+    a(2) = "2025-01-31,RET_TX,EUR,5"
+    a(3) = "2025-01-31,RET_TX,EUR,,6600.00"
+    a(4) = "2025-01-30,RET_TX,EUR,5,6600.00"
+    a(5) = "2025-01-31,RET_TX,EUR,05,6600.00"
+    a(6) = "2025-01-31,RET_TX,EUR,0,6600.00"
+    a(7) = "2025-01-31,RET_TX,EUR,5,6600.00001"
+    a(8) = "2025-01-31,RET_XX,EUR,5,6600.00"
+    a(9) = "2025-01-31,RET_TX,GBP,5,6600.00"
+    a(10) = "2025-01-31,RET_TX,EUR,5,-6600.00"
+    a(11) = "2025-02-28,RET_TX,EUR,5,6760.00"
+    a(12) = "2025-02-28,RET_TX,EUR,5,6760.00"
+    a(13) = "2025-03-31,RET_TX,EUR,6,56300.00"
+    Data_ControlTotalsInvalidCsv = a
 End Function
 
 
@@ -380,6 +485,77 @@ Private Function Data_AvailabilityOutcomesLineage() As Variant
 End Function
 
 
+Private Function Data_ControlTotalsFindingsWindow() As Variant
+    Dim a(1 To 2) As String
+    a(1) = "2025-01-31"
+    a(2) = "2025-06-30"
+    Data_ControlTotalsFindingsWindow = a
+End Function
+
+
+Private Function Data_ControlTotalsFindingsFixtures() As Variant
+    Dim a(1 To 6) As String
+    a(1) = "control_totals.csv|23"
+    a(2) = "control_totals_within.csv|3"
+    a(3) = "control_totals_balance.csv|3"
+    a(4) = "control_totals_count.csv|3"
+    a(5) = "control_totals_unknown.csv|4"
+    a(6) = "control_totals_invalid.csv|12"
+    Data_ControlTotalsFindingsFixtures = a
+End Function
+
+
+Private Function Data_ControlTotalsFindingsControlTotalsCsv() As Variant
+    Data_ControlTotalsFindingsControlTotalsCsv = Array()
+End Function
+
+
+Private Function Data_ControlTotalsFindingsControlTotalsWithinCsv() As Variant
+    Data_ControlTotalsFindingsControlTotalsWithinCsv = Array()
+End Function
+
+
+Private Function Data_ControlTotalsFindingsControlTotalsBalanceCsv() As Variant
+    Dim a(1 To 2) As String
+    a(1) = "3|E13"
+    a(2) = "4|E13"
+    Data_ControlTotalsFindingsControlTotalsBalanceCsv = a
+End Function
+
+
+Private Function Data_ControlTotalsFindingsControlTotalsCountCsv() As Variant
+    Dim a(1 To 2) As String
+    a(1) = "2|E13"
+    a(2) = "4|E13"
+    Data_ControlTotalsFindingsControlTotalsCountCsv = a
+End Function
+
+
+Private Function Data_ControlTotalsFindingsControlTotalsUnknownCsv() As Variant
+    Dim a(1 To 3) As String
+    a(1) = "3|E13"
+    a(2) = "4|E13"
+    a(3) = "5|E13"
+    Data_ControlTotalsFindingsControlTotalsUnknownCsv = a
+End Function
+
+
+Private Function Data_ControlTotalsFindingsControlTotalsInvalidCsv() As Variant
+    Dim a(1 To 10) As String
+    a(1) = "2|E01"
+    a(2) = "3|E03"
+    a(3) = "4|E02"
+    a(4) = "5|E04"
+    a(5) = "6|E04"
+    a(6) = "7|E04"
+    a(7) = "8|E06"
+    a(8) = "9|E07"
+    a(9) = "10|E09"
+    a(10) = "12|E05"
+    Data_ControlTotalsFindingsControlTotalsInvalidCsv = a
+End Function
+
+
 Private Function Data_Sha256AccountsCsv() As Variant
     Dim a(1 To 1) As String
     a(1) = "fa1382f858ba2555e05df992a1db457ec6edded56d871efaf05b56f706d71adc"
@@ -391,4 +567,11 @@ Private Function Data_Sha256MarketRatesCsv() As Variant
     Dim a(1 To 1) As String
     a(1) = "5ae226a3acdba8e73e20a7d1cd142a9b37f148e4475a87522f26629bb7917520"
     Data_Sha256MarketRatesCsv = a
+End Function
+
+
+Private Function Data_Sha256ControlTotalsCsv() As Variant
+    Dim a(1 To 1) As String
+    a(1) = "8b8047802df8249d5b15efded4aafef6ebad6a4e0bd0bf412f21f285306c24f5"
+    Data_Sha256ControlTotalsCsv = a
 End Function

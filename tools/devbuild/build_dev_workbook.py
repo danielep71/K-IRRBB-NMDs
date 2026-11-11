@@ -35,7 +35,8 @@ COMPONENT_DIRS = ["src/core", "src/modules", "src/workbook", "tests/modules", "e
 BUTTONS = {
     "Config": [("Choose account file", "WB_ChooseAccountsFile", 0, 13, build_template.NAVY),
                ("Choose rate file", "WB_ChooseRatesFile", 0, 16, build_template.NAVY),
-               ("Import data", "WB_ImportData", 0, 19, build_template.OUTPUT_BLUE)],
+               ("Choose control totals file", "WB_ChooseControlTotalsFile", 0, 19, build_template.NAVY),
+               ("Import data", "WB_ImportData", 0, 22, build_template.OUTPUT_BLUE)],
     "Checks": [("Run tests", "RunTests", 6, 5, build_template.OUTPUT_BLUE)],
 }
 EVIDENCE_STEPS = [

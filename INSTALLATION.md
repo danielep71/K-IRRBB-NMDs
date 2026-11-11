@@ -180,8 +180,8 @@ the commit on the `Readme` sheet; a dirty checkout is stamped as not
 evidence-grade. Open the file, enable macros, run **Debug → Compile
 VBAProject**, then **Run tests** on the `Checks` sheet. To import data, fill
 the settings on `Config` (or use **Choose account file** and **Choose rate
-file**), attest timely closure reporting, and click **Import data**; the result
-appears on `DataSummary`. Details and the
+file**, and optionally **Choose control totals file**), attest timely closure
+reporting, and click **Import data**; the result appears on `DataSummary`. Details and the
 LibreOffice early-warning run are in
 [`tools/devbuild/README.md`](tools/devbuild/README.md).
 

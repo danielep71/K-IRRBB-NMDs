@@ -35,6 +35,15 @@ Attribute VB_Name = "CORE_Import"
 '   CORE_RatesBegin, CORE_RatesAddLine, CORE_RatesEnd and CORE_RateFinding*,
 '   as above.
 '
+' CONTROL TOTALS (DATA_CONTRACT.md, reconciliation; issue #202)
+'   CORE_ControlBegin, CORE_ControlAddLine, CORE_ControlEnd as above, for the
+'   optional control-totals file; then, only for an account panel with no
+'   finding and no missing extract, CORE_ControlReconcile adds E13 for every
+'   locally valid row whose (as_of_date, segment, currency) has no import
+'   total, a different number of accounts, or a balance more than
+'   CONTROL_TOLERANCE away from the total. Findings: CORE_ControlFinding*,
+'   sorted by line.
+'
 ' RULES
 '   Each line reports its first failing rule in the contract's order: E01
 '   (field count, or a character outside ASCII), E03, E02, E04, E06, E07, E09,
@@ -71,6 +80,10 @@ Option Private Module
 Private Const ACCOUNT_HEADER As String = _
     "as_of_date,account_id,segment,currency,balance,customer_rate,indexed,open_date,close_date"
 Private Const RATE_HEADER As String = "as_of_date,rate_id,currency,tenor_months,rate"
+Private Const CONTROL_HEADER As String = "as_of_date,segment,currency,accounts,balance"
+' Largest absolute difference between a control balance and the import total,
+' in currency units (DATA_CONTRACT.md, reconciliation).
+Private Const CONTROL_TOLERANCE As Double = 0.005
 Private Const BALANCE_DECIMALS As Long = 4
 Private Const OUTLIER_RATIO As Double = 10
 Private Const MAX_TOTAL As Double = 1E+307
@@ -79,6 +92,7 @@ Private Const STATE_NONE As Long = 0
 Private Const STATE_READING As Long = 1
 Private Const STATE_ENDED As Long = 2
 Private Const STATE_REJECTED As Long = 3
+Private Const STATE_RECONCILED As Long = 4
 
 ' Account panel state.
 Private mState As Long
@@ -157,6 +171,20 @@ Private mRateFindCode() As String
 Private mRateFindCount As Long
 Private mRateSeen As Collection
 Private mRateSeries As Collection
+
+' Control totals state: locally valid rows (parallel arrays) and findings.
+Private mCtlState As Long
+Private mCtlLine As Long
+Private mCtlRowLine() As Long
+Private mCtlRowKey() As String
+Private mCtlRowAccounts() As String
+Private mCtlRowBalance() As Double
+Private mCtlRowCount As Long
+Private mCtlSeen As Collection
+Private mCtlFindLine() As Long
+Private mCtlFindCode() As String
+Private mCtlFindCount As Long
+Private mCtlFindOrder() As Long
 
 
 '==============================================================================
@@ -825,6 +853,171 @@ End Function
 
 
 '==============================================================================
+' Control totals
+'==============================================================================
+
+'------------------------------------------------------------------------------
+' CORE_ControlBegin: start a new control-totals import. Returns False, with the
+' single finding (1, E01), when header is not the contract header exactly.
+'------------------------------------------------------------------------------
+Public Function CORE_ControlBegin(ByVal header As String) As Boolean
+    mCtlRowCount = 0
+    mCtlFindCount = 0
+    ReDim mCtlRowLine(1 To 16)
+    ReDim mCtlRowKey(1 To 16)
+    ReDim mCtlRowAccounts(1 To 16)
+    ReDim mCtlRowBalance(1 To 16)
+    ReDim mCtlFindLine(1 To 16)
+    ReDim mCtlFindCode(1 To 16)
+    ReDim mCtlFindOrder(1 To 1)
+    Set mCtlSeen = New Collection
+    mCtlLine = 1
+    If StripCr(header) <> CONTROL_HEADER Then
+        AddControlFinding 1, "E01"
+        mCtlFindOrder(1) = 1
+        mCtlState = STATE_REJECTED
+        Exit Function
+    End If
+    mCtlState = STATE_READING
+    CORE_ControlBegin = True
+End Function
+
+
+'------------------------------------------------------------------------------
+' CORE_ControlAddLine: validate one control-totals line: E01, E03, E02, E04
+' (accounts not a positive integer, or balance not a decimal with up to 4
+' places), E06, E07, E09, then E05 (date, segment and currency repeated from
+' an earlier locally valid row).
+'------------------------------------------------------------------------------
+Public Sub CORE_ControlAddLine(ByVal text As String)
+    Dim fields() As String, asOf As Date, balance As Double, code As String, key As String
+
+    RequireState mCtlState, STATE_READING, "CORE_Import.CORE_ControlAddLine"
+    mCtlLine = mCtlLine + 1
+    text = StripCr(text)
+    If Not IsAscii(text) Then
+        AddControlFinding mCtlLine, "E01"
+        Exit Sub
+    End If
+    fields = Split(text, ",")
+    If UBound(fields) - LBound(fields) + 1 <> 5 Then
+        AddControlFinding mCtlLine, "E01"
+        Exit Sub
+    End If
+
+    key = fields(0) & "|" & fields(1) & "|" & fields(2)
+    If Len(fields(0)) = 0 Or Len(fields(1)) = 0 Or Len(fields(2)) = 0 Or Len(fields(3)) = 0 _
+            Or Len(fields(4)) = 0 Then
+        code = "E03"
+    ElseIf CORE_ParseIsoDate(fields(0), asOf) <> CORE_PARSE_OK Then
+        code = "E02"
+    ElseIf Not CORE_IsMonthEnd(asOf) Then
+        code = "E02"
+    ElseIf Not IsPositiveInteger(fields(3)) _
+            Or CORE_ParseDecimal(fields(4), BALANCE_DECIMALS, balance) <> CORE_PARSE_OK Then
+        code = "E04"
+    ElseIf Not CORE_IsSegmentCode(fields(1)) Then
+        code = "E06"
+    ElseIf Not CORE_IsCurrencyAllowed(fields(2)) Then
+        code = "E07"
+    ElseIf balance < 0 Then
+        code = "E09"
+    ElseIf HasKey(mCtlSeen, key) Then
+        code = "E05"
+    End If
+
+    If Len(code) > 0 Then
+        AddControlFinding mCtlLine, code
+        Exit Sub
+    End If
+    ' Segment and currency are exact upper-case codes here, so the key needs no
+    ' case marking.
+    mCtlSeen.Add mCtlLine, key
+    mCtlRowCount = mCtlRowCount + 1
+    If mCtlRowCount > UBound(mCtlRowLine) Then
+        ReDim Preserve mCtlRowLine(1 To 2 * UBound(mCtlRowLine))
+        ReDim Preserve mCtlRowKey(1 To 2 * UBound(mCtlRowKey))
+        ReDim Preserve mCtlRowAccounts(1 To 2 * UBound(mCtlRowAccounts))
+        ReDim Preserve mCtlRowBalance(1 To 2 * UBound(mCtlRowBalance))
+    End If
+    mCtlRowLine(mCtlRowCount) = mCtlLine
+    mCtlRowKey(mCtlRowCount) = key
+    mCtlRowAccounts(mCtlRowCount) = fields(3)
+    mCtlRowBalance(mCtlRowCount) = balance
+End Sub
+
+
+'------------------------------------------------------------------------------
+' CORE_ControlEnd: end the control-totals file; returns its number of format
+' findings.
+'------------------------------------------------------------------------------
+Public Function CORE_ControlEnd() As Long
+    RequireState mCtlState, STATE_READING, "CORE_Import.CORE_ControlEnd"
+    SortControlFindings
+    mCtlState = STATE_ENDED
+    CORE_ControlEnd = mCtlFindCount
+End Function
+
+
+'------------------------------------------------------------------------------
+' CORE_ControlReconcile: compare every locally valid control row with the
+' totals of the last CORE_AccountsSummarize and add E13 for each row whose
+' (as_of_date, segment, currency) has no total, whose accounts differ from
+' the total's, or whose balance differs from the total's by more than
+' CONTROL_TOLERANCE (both at input precision; nothing is rounded). Call it
+' once, after CORE_ControlEnd, and only when the account panel has no finding
+' and no missing extract: otherwise the import is rejected and has no totals.
+' Returns the number of control findings, format findings included.
+'------------------------------------------------------------------------------
+Public Function CORE_ControlReconcile() As Long
+    Dim totals As New Collection, i As Long, t As Long, differs As Boolean
+
+    RequireState mCtlState, STATE_ENDED, "CORE_Import.CORE_ControlReconcile"
+    RequireState mState, STATE_ENDED, "CORE_Import.CORE_ControlReconcile"
+    If Not mSummarized Then
+        Err.Raise 5, "CORE_Import.CORE_ControlReconcile", "Import procedures were called out of order."
+    End If
+    For t = 1 To mTotCount
+        totals.Add t, mTotDate(t) & "|" & mTotSegment(t) & "|" & mTotCurrency(t)
+    Next t
+    For i = 1 To mCtlRowCount
+        If HasKey(totals, mCtlRowKey(i)) Then
+            t = totals.Item(mCtlRowKey(i))
+            differs = (mCtlRowAccounts(i) <> CStr(mTotAccounts(t))) _
+                      Or (Abs((mTotSum(t) + mTotComp(t)) - mCtlRowBalance(i)) > CONTROL_TOLERANCE)
+        Else
+            differs = True
+        End If
+        If differs Then AddControlFinding mCtlRowLine(i), "E13"
+    Next i
+    SortControlFindings
+    mCtlState = STATE_RECONCILED
+    CORE_ControlReconcile = mCtlFindCount
+End Function
+
+
+' Data lines given to CORE_ControlAddLine since the last CORE_ControlBegin.
+Public Function CORE_ControlLinesRead() As Long
+    CORE_ControlLinesRead = mCtlLine - 1
+End Function
+
+
+Public Function CORE_ControlFindingCount() As Long
+    CORE_ControlFindingCount = mCtlFindCount
+End Function
+
+
+Public Function CORE_ControlFindingLine(ByVal index As Long) As Long
+    CORE_ControlFindingLine = mCtlFindLine(mCtlFindOrder(index))
+End Function
+
+
+Public Function CORE_ControlFindingCode(ByVal index As Long) As String
+    CORE_ControlFindingCode = mCtlFindCode(mCtlFindOrder(index))
+End Function
+
+
+'==============================================================================
 ' Row rules
 '==============================================================================
 
@@ -1107,6 +1300,28 @@ Private Sub AddRateFinding(ByVal lineNo As Long, ByVal code As String)
     End If
     mRateFindLine(mRateFindCount) = lineNo
     mRateFindCode(mRateFindCount) = code
+End Sub
+
+
+Private Sub AddControlFinding(ByVal lineNo As Long, ByVal code As String)
+    mCtlFindCount = mCtlFindCount + 1
+    If mCtlFindCount > UBound(mCtlFindLine) Then
+        ReDim Preserve mCtlFindLine(1 To 2 * UBound(mCtlFindLine))
+        ReDim Preserve mCtlFindCode(1 To 2 * UBound(mCtlFindCode))
+    End If
+    mCtlFindLine(mCtlFindCount) = lineNo
+    mCtlFindCode(mCtlFindCount) = code
+End Sub
+
+
+' Control findings in line order (a line has at most one finding).
+Private Sub SortControlFindings()
+    Dim keys() As String, i As Long
+    ReDim keys(1 To mCtlFindCount + 1)
+    For i = 1 To mCtlFindCount
+        keys(i) = Format$(mCtlFindLine(i), "0000000000")
+    Next i
+    SortOrder keys, mCtlFindCount, mCtlFindOrder
 End Sub
 
 

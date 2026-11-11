@@ -19,6 +19,8 @@ Attribute VB_Name = "WB_Import"
 '
 ' SETTINGS
 '   Config_AccountsFile, Config_RatesFile: paths of the two files (read only).
+'   Config_ControlTotalsFile: path of the optional control-totals file (read
+'   only); empty runs no reconciliation.
 '   Config_WindowStart, Config_WindowEnd: month-end dates.
 '   Config_RateSeries: rate_id, may be empty.
 '   Config_ClosureAttested: "Yes" to attest timely closure reporting.
@@ -46,7 +48,7 @@ Private Const INFO_CLEANUP As Long = 9
 Public Sub WB_ImportData()
     Dim primary As String, cleanup As String, started As Date, errors As Long, cut As Boolean
     Dim accountsPath As String, ratesPath As String, first As Date, last As Date
-    Dim rateSeries As String, attested As Boolean, segments As String
+    Dim rateSeries As String, attested As Boolean, segments As String, controlPath As String
 
     On Error GoTo Fail
     started = Now
@@ -54,6 +56,7 @@ Public Sub WB_ImportData()
 
     accountsPath = CStr(Setting("Config_AccountsFile"))
     ratesPath = CStr(Setting("Config_RatesFile"))
+    controlPath = CStr(Setting("Config_ControlTotalsFile"))
     first = DateSetting("Config_WindowStart", "Data window start")
     last = DateSetting("Config_WindowEnd", "Data window end")
     rateSeries = CStr(Setting("Config_RateSeries"))
@@ -67,7 +70,7 @@ Public Sub WB_ImportData()
     Info INFO_ATTESTED, IIf(attested, "Yes", "No")
 
     errors = IRRBB_ImportData(accountsPath, ratesPath, first, last, rateSeries, segments, attested, _
-                              CStr(Setting("Readme_SourceCommit")))
+                              CStr(Setting("Readme_SourceCommit")), controlPath)
 
     cut = WriteTable("DataSummary_Findings", IRRBB_ImportFindings(), Array(1, 3, 4))
     cut = WriteTable("DataSummary_Warnings", IRRBB_ImportWarnings(), Array(1, 2, 3)) Or cut
@@ -105,8 +108,9 @@ End Sub
 
 
 '------------------------------------------------------------------------------
-' WB_ChooseAccountsFile / WB_ChooseRatesFile: file pickers that only store the
-' chosen path; nothing is read until WB_ImportData.
+' WB_ChooseAccountsFile / WB_ChooseRatesFile / WB_ChooseControlTotalsFile:
+' file pickers that only store the chosen path; nothing is read until
+' WB_ImportData.
 '------------------------------------------------------------------------------
 Public Sub WB_ChooseAccountsFile()
     ChooseFile "Config_AccountsFile", "Account panel CSV"
@@ -115,6 +119,11 @@ End Sub
 
 Public Sub WB_ChooseRatesFile()
     ChooseFile "Config_RatesFile", "Market-rate CSV"
+End Sub
+
+
+Public Sub WB_ChooseControlTotalsFile()
+    ChooseFile "Config_ControlTotalsFile", "Control-totals CSV"
 End Sub
 
 

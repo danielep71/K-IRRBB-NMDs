@@ -23,6 +23,8 @@ ACCOUNT_FIELDS = ["as_of_date", "account_id", "segment", "currency", "balance",
                   "customer_rate", "indexed", "open_date", "close_date"]
 REQUIRED = {"as_of_date", "account_id", "segment", "currency", "balance", "indexed"}
 RATE_FIELDS = ["as_of_date", "rate_id", "currency", "tenor_months", "rate"]
+CONTROL_FIELDS = ["as_of_date", "segment", "currency", "accounts", "balance"]
+CONTROL_TOLERANCE = 0.005
 SEGMENTS = {"RET_TX", "RET_NTX", "WHS_NFC"}
 ISO_DATE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
 ACCOUNT_ID = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
@@ -198,6 +200,53 @@ def read_market_rates(path: Path, currencies: Collection[str] = SUPPORTED_CURREN
         else:
             seen.add(key)
             series[row["rate_id"]] = properties
+    return errors
+
+
+def read_control_totals(path: Path, totals: list[dict[str, Any]] | None,
+                        currencies: Collection[str] = SUPPORTED_CURRENCIES) -> list[dict[str, Any]]:
+    """Findings of a control-totals file (DATA_CONTRACT.md#reconciliation): the first failing format
+    rule of each row; then, when the import's totals are given (an accepted panel), E13 for every
+    locally valid row whose key has no total, whose accounts differ or whose balance is more than
+    0.005 away from the total. Totals are per currency, so currencies are never added together."""
+    lines = path.read_text(encoding="ascii").splitlines()
+    if not lines or lines[0].split(",") != CONTROL_FIELDS:
+        return [{"line": 1, "code": "E01"}]
+    imported = {(t["as_of_date"], t["segment"], t["currency"]): t for t in totals or []}
+    errors: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for number, line in enumerate(lines[1:], 2):
+        values = line.split(",")
+        if len(values) != len(CONTROL_FIELDS):
+            errors.append({"line": number, "code": "E01"})
+            continue
+        row = dict(zip(CONTROL_FIELDS, values))
+        as_of = parse_date(row["as_of_date"])
+        key = (row["as_of_date"], row["segment"], row["currency"])
+        code = None
+        if not all(values):
+            code = "E03"
+        elif as_of is None or not is_month_end(as_of):
+            code = "E02"
+        elif (not re.fullmatch(r"[1-9]\d*", row["accounts"]) or not BALANCE.fullmatch(row["balance"])
+              or not math.isfinite(float(row["balance"]))):
+            code = "E04"
+        elif row["segment"] not in SEGMENTS:
+            code = "E06"
+        elif row["currency"] not in currencies:
+            code = "E07"
+        elif float(row["balance"]) < 0:
+            code = "E09"
+        elif key in seen:
+            code = "E05"
+        else:
+            seen.add(key)
+            total = imported.get(key)
+            if totals is not None and (total is None or str(total["accounts"]) != row["accounts"]
+                                       or abs(total["balance"] - float(row["balance"])) > CONTROL_TOLERANCE):
+                code = "E13"
+        if code:
+            errors.append({"line": number, "code": code})
     return errors
 
 
@@ -491,6 +540,66 @@ class PointInTimeAvailability(unittest.TestCase):
         without_march = [(n, r) for n, r in rows if r["as_of_date"] != "2025-03-31"]
         self.assertEqual(missing_extracts(without_march, self.first, self.last),
                          [{"code": "E12", "as_of_date": "2025-03-31"}])
+
+
+class ControlTotals(unittest.TestCase):
+    """DATA-RECON-01: the import's totals against a control-totals file, as hand-assigned."""
+
+    expected = json.loads((EXPECTED / "control_totals_findings.json").read_text(encoding="utf-8"))
+
+    def totals(self) -> list[dict[str, Any]]:
+        rows, errors = read_accounts(ROOT / self.expected["accounts_fixture"])
+        self.assertEqual(errors, [])
+        first, last = (valid_date(self.expected["window"][k]) for k in ("first", "last"))
+        self.assertEqual(missing_extracts(rows, first, last), [])
+        return warnings_and_totals(rows, first, last)[1]
+
+    def test_findings_match_hand_assignment(self) -> None:
+        totals = self.totals()
+        self.assertEqual(self.expected["balance_tolerance"], CONTROL_TOLERANCE)
+        for case in self.expected["cases"]:
+            path = ROOT / case["fixture"]
+            with self.subTest(fixture=path.name):
+                errors = read_control_totals(path, totals)
+                self.assertEqual(errors, case["errors"])
+                self.assertEqual(case["accepted"], not errors)
+                self.assertEqual(len(path.read_text(encoding="ascii").splitlines()) - 1, case["rows"])
+
+    def test_every_format_rule_and_outcome_is_covered(self) -> None:
+        codes = {e["code"] for case in self.expected["cases"] for e in case["errors"]}
+        self.assertEqual(codes, {"E01", "E02", "E03", "E04", "E05", "E06", "E07", "E09", "E13"})
+        self.assertTrue(any(case["accepted"] for case in self.expected["cases"][1:]))
+
+    def test_matching_file_lists_every_total_of_the_panel(self) -> None:
+        lines = (FIXTURES / "control_totals.csv").read_text(encoding="ascii").splitlines()[1:]
+        summary = json.loads((EXPECTED / "accounts_summary.json").read_text(encoding="utf-8"))
+        self.assertEqual(sorted(tuple(line.split(",")[:4]) for line in lines),
+                         sorted((t["as_of_date"], t["segment"], t["currency"], str(t["accounts"]))
+                                for t in summary["totals"]))
+
+    def test_tolerance_cases_straddle_the_limit(self) -> None:
+        # Within and beyond the tolerance by 0.0001 currency unit, on both sides of the total.
+        totals = {(t["as_of_date"], t["segment"], t["currency"]): t["balance"] for t in self.totals()}
+        for name, inside in (("control_totals_within.csv", True), ("control_totals_balance.csv", False)):
+            lines = (FIXTURES / name).read_text(encoding="ascii").splitlines()[1:]
+            gaps = [abs(float(b) - totals[(d, s, c)]) for d, s, c, _, b in (line.split(",") for line in lines)]
+            with self.subTest(fixture=name):
+                self.assertTrue(any(0.0048 < gap < 0.005 if inside else 0.005 < gap < 0.0052 for gap in gaps))
+
+    def test_a_rejected_panel_is_not_reconciled(self) -> None:
+        for case in self.expected["cases"]:
+            path = ROOT / case["fixture"]
+            with self.subTest(fixture=path.name):
+                self.assertEqual(read_control_totals(path, None),
+                                 [e for e in case["errors"] if e["code"] != "E13"])
+
+    def test_wrong_header_stops_the_check(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "control.csv"
+            path.write_text("as_of_date,segment,currency,balance,accounts\n2025-01-31,RET_TX,EUR,6600.00,5\n",
+                            encoding="ascii")
+            self.assertEqual(read_control_totals(path, self.totals()), [{"line": 1, "code": "E01"}])
 
 
 class DataContractFixtures(unittest.TestCase):
