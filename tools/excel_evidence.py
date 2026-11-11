@@ -32,9 +32,9 @@ REPOSITORY = "danielep71/K-IRRBB-NMDs"
 SCHEMA_VERSION = 1
 SHA = re.compile(r"^[0-9a-f]{40}$")
 LOGS = ("template.log", "build.log", "harness.log", "failure.log", "import.log", "buttons.log",
-        "sync.log", "sync-failure.log", "roundtrip.log")
+        "timing.log", "sync.log", "sync-failure.log", "roundtrip.log")
 STAGES = ("template", "build", "references", "compile", "smoke", "failure_path", "import", "buttons",
-          "cleanup", "synchronize", "synchronize_failure", "round_trip")
+          "timing", "cleanup", "synchronize", "synchronize_failure", "round_trip")
 DEV_BUILDER = "tools/devbuild/build_dev_workbook.py"
 # The buttons the session presses, in order, and the status each must leave. The
 # file-choice buttons open a dialog, so only their wiring is checked.
@@ -61,7 +61,10 @@ FAILURE_RUNS = ("TEST_Harness.TEST_RunTestsWithInjectedFailures", "TEST_Harness.
                 "TEST_Harness.TEST_RunTestsWithWriteFault", "TEST_Harness.RunTests")
 INJECTED = {"HARN-OUT-01": "FAIL", "DATA-CODES-01": "ERROR"}
 WRITE_FAULT = "-2147220503"
-SCENARIOS = ("accepted", "control-match", "control-differ", "pasted-window", "pasted-attestation", "rerun")
+SCENARIOS = ("accepted", "control-match", "control-differ", "pasted-window", "pasted-attestation", "locked-file",
+             "rerun")
+# A file another program holds open for writing is refused when it is opened.
+LOCKED_ERROR = "Primary error 70:"
 FAILED_BECAUSE = {"pasted-window": "data window", "pasted-attestation": "not attested"}
 # Checks_Info rows B4:B11 and DataSummary_Info rows B4:B12, 0-based.
 CHECKS_COMMIT, CHECKS_COUNTS, CHECKS_ASSERTIONS, CHECKS_PRIMARY, CHECKS_CLEANUP = 2, 4, 5, 6, 7
@@ -492,9 +495,35 @@ def _scenario(name: str, block: Lines, exp: Expected) -> list[str]:
     info = values(block, "INFO")
     primary = info[IMPORT_PRIMARY] if len(info) == 9 else ""
     found = []
+    if name == "locked-file":
+        if one(block, "STATUS") != "FAILED" or not primary.startswith(LOCKED_ERROR):
+            found.append(f"status {one(block, 'STATUS')!r} with primary error {primary!r}, expected error 70")
+        return found + _withdrawn(block)
     if one(block, "STATUS") != "FAILED" or FAILED_BECAUSE[name] not in primary.lower():
         found.append(f"status {one(block, 'STATUS')!r} with primary error {primary!r}")
     return found + _withdrawn(block)
+
+
+def judge_timing(lines: Lines) -> list[str]:
+    """The import of the large synthetic panel: accepted, with its size and its time recorded.
+    The time is a measurement, not a pass mark: no speed target is set (#71)."""
+    reasons = judge_exit(lines, "make_large_panel.py")
+    runs = blocks(lines, "SCENARIO")
+    if len(runs) != 1:
+        return reasons + ["the large-panel import is not recorded"]
+    block = runs[0]
+    reasons += _state(block)
+    if one(block, "STATUS") != ACCEPTED:
+        reasons.append(f"status {one(block, 'STATUS')!r}, expected {ACCEPTED!r}")
+    if values(block, "FINDING"):
+        reasons.append("findings listed for the large panel")
+    size, recorded = one(lines, "FILE_BYTES"), pairs(values(block, "LINEAGE")).get("Account panel bytes")
+    if not size or recorded != size:
+        reasons.append(f"the lineage records {recorded!r} account panel bytes, the file has {size!r}")
+    seconds = one(block, "SECONDS") or ""
+    if not re.fullmatch(r"\d+(\.\d+)?", seconds) or float(seconds) <= 0:
+        reasons.append(f"the import time {seconds!r} is not recorded")
+    return reasons + [f"run error: {e}" for e in values(block, "ERROR")]
 
 
 def judge_synchronize(lines: Lines, exp: Expected, sha: str) -> list[str]:
@@ -564,6 +593,7 @@ def evaluate(root: Path, sha: str, bundle: Path, session: dict[str, Any]) -> dic
         "failure_path": ("failure.log", lambda ls: judge_failure_path(ls, exp, sha)),
         "import": ("import.log", lambda ls: judge_import(ls, exp)),
         "buttons": ("buttons.log", lambda ls: judge_buttons(ls, exp)),
+        "timing": ("timing.log", judge_timing),
         "synchronize": ("sync.log", lambda ls: judge_synchronize(ls, exp, sha)),
         "synchronize_failure": ("sync-failure.log", judge_synchronize_failure),
         "round_trip": ("roundtrip.log", judge_round_trip),

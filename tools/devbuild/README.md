@@ -15,7 +15,8 @@ python tools/devbuild/build_dev_workbook.py
 python tools/devbuild/lo_smoke.py            # optional
 ```
 
-**Timing an import in Excel.** Run `python tools/devbuild/make_large_panel.py`
+**Timing an import in Excel.** The [one-command session](../../docs/EXCEL_EVIDENCE.md#one-command-session)
+does this and records it in `timing.log`. By hand: run `python tools/devbuild/make_large_panel.py`
 (it prints the two file paths and the data window). In the development
 workbook, enter both paths and the window on `Config`, attest closure
 reporting, click **Import data**, and record from `DataSummary` the started and

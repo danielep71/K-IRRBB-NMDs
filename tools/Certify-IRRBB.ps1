@@ -26,11 +26,15 @@ For the commit checked out in this repository, with a clean working tree:
    and runs the harness (harness.log), its failure path: injected failures,
    a rerun, an injected write fault and a final run (failure.log), and the
    import: accepted, matching and differing control totals, a pasted invalid
-   window date, a pasted invalid attestation and a rerun (import.log). It then
+   window date, a pasted invalid attestation, an account file another
+   process holds open for writing (error 70) and a rerun (import.log). It then
    records every button, its label and the macro it runs, checks that each
    macro is a procedure of a standard module, and presses Import data and Run
    tests by running their macros as a click does (buttons.log); the
-   file-choice buttons open a dialog, so only their wiring is checked. Excel's
+   file-choice buttons open a dialog, so only their wiring is checked. It
+   then writes a large synthetic panel (about 47 MB) with
+   tools\devbuild\make_large_panel.py and times its import (timing.log); the
+   time is recorded, not judged against a target. Excel's
    calculation, events, screen updating and alerts are recorded before and
    after every run. The workbook is then closed without saving;
 6. saves the template as IRRBB_Sync.xlsm, synchronizes it with
@@ -743,11 +747,49 @@ if ($buildCode -eq 0 -and (Test-Path -LiteralPath $devPath)) {
                 Config_ControlTotalsFile = ""; Config_WindowStart = "2025-02-15" })
             Write-ImportScenario $excel $book $qualified $log "pasted-attestation" ([ordered]@{
                 Config_WindowStart = (Get-Date -Year 2025 -Month 1 -Day 31).Date; Config_ClosureAttested = "Maybe" })
+            # An account file another program holds open for writing: the import must
+            # refuse it when it opens it (error 70), and the rerun must then succeed.
+            $lockedPath = Join-Path $BundleDir "locked_accounts.csv"
+            Copy-Item -LiteralPath (Join-Path $fixtures "accounts.csv") -Destination $lockedPath
+            $holder = [System.IO.File]::Open($lockedPath, [System.IO.FileMode]::Open,
+                                             [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::ReadWrite)
+            try {
+                Write-ImportScenario $excel $book $qualified $log "locked-file" ([ordered]@{
+                    Config_ClosureAttested = "Yes"; Config_AccountsFile = $lockedPath })
+            }
+            finally {
+                $holder.Dispose()
+            }
             Write-ImportScenario $excel $book $qualified $log "rerun" ([ordered]@{
-                Config_ClosureAttested = "Yes" })
+                Config_AccountsFile = (Join-Path $fixtures "accounts.csv") })
 
             $log = New-EvidenceLog "buttons.log"
             Write-Buttons -App $excel -Book $book -Qualified $qualified -Log $log
+
+            # The import of a large synthetic panel, timed (#71). The time is a
+            # measurement, not a pass mark.
+            $timingLog = New-EvidenceLog "timing.log"
+            $panelDir = Join-Path $BundleDir "large_panel"
+            Write-Session "Timing: a large synthetic panel (about 47 MB); the import can take several minutes"
+            $panelCode = Invoke-Logged -Log $timingLog -Label "python tools/devbuild/make_large_panel.py" -Command {
+                & $Python (Join-Path $RepoRoot "tools\devbuild\make_large_panel.py") --out $panelDir
+            }
+            if ($panelCode -eq 0) {
+                $panelPath = Join-Path $panelDir "accounts_large.csv"
+                Add-Evidence $timingLog "FILE_BYTES" (Get-Item -LiteralPath $panelPath).Length
+                $clock = [System.Diagnostics.Stopwatch]::StartNew()
+                Write-ImportScenario $excel $book $qualified $timingLog "large-panel" ([ordered]@{
+                    Config_AccountsFile = $panelPath
+                    Config_RatesFile    = (Join-Path $panelDir "market_rates_large.csv")
+                    Config_WindowStart  = (Get-Date -Year 2024 -Month 1 -Day 31).Date
+                    Config_WindowEnd    = (Get-Date -Year 2025 -Month 4 -Day 30).Date
+                })
+                $clock.Stop()
+                $seconds = [math]::Round($clock.Elapsed.TotalSeconds, 1)
+                Add-Evidence $timingLog "SECONDS" $seconds.ToString([System.Globalization.CultureInfo]::InvariantCulture)
+                Write-Session ("  large panel: {0:N1} MB imported in {1} s" -f ((Get-Item -LiteralPath $panelPath).Length / 1MB),
+                               $seconds.ToString([System.Globalization.CultureInfo]::InvariantCulture))
+            }
         }
     }
     catch {
