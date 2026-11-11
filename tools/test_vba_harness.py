@@ -14,7 +14,6 @@ not execute VBA.
 """
 from __future__ import annotations
 
-import math
 import re
 import sys
 import unittest
@@ -162,8 +161,8 @@ class Expectations(unittest.TestCase):
     def test_every_expect_line_is_read_and_every_helper_is_checked(self) -> None:
         lines = [line for line in read(CORE_CASES).splitlines() if line.strip().startswith("Expect")]
         self.assertEqual(len(self.calls), len(lines))
-        checked = {"ExpectOutcome", "ExpectWithin", "ExpectDate", "ExpectMonthEnd", "ExpectDecimal",
-                   "ExpectRate", "ExpectSegment", "ExpectCurrency"}
+        checked = {"ExpectOutcome", "ExpectWithin", "ExpectRows", "ExpectDate", "ExpectMonthEnd",
+                   "ExpectDecimal", "ExpectRate", "ExpectSegment", "ExpectCurrency"}
         self.assertEqual({name for _, name, _ in self.calls}, checked)
 
     def test_result_codes_are_distinct(self) -> None:
@@ -187,6 +186,14 @@ class Expectations(unittest.TestCase):
             self.assertIn((kind, True), kinds)
             self.assertIn((kind, False), kinds)
 
+    def test_tables_are_cut_at_their_area(self) -> None:
+        cut = False
+        for case, (rows, area_rows, expected) in self.of("ExpectRows"):
+            with self.subTest(case=case, rows=rows, area_rows=area_rows):
+                self.assertEqual(min(rows, area_rows), expected)
+                cut = cut or rows > area_rows
+        self.assertTrue(cut, "no expectation cuts a table")
+
     def test_dates(self) -> None:
         for case, (text, status, y, m, d) in self.of("ExpectDate"):
             with self.subTest(case=case, text=text):
@@ -204,7 +211,7 @@ class Expectations(unittest.TestCase):
         for case, (text, places, status, value) in self.of("ExpectDecimal"):
             with self.subTest(case=case, text=text):
                 self.assertEqual(places, 4, "the reference covers balances (4 places) only")
-                accepted = reference.BALANCE.fullmatch(text) is not None and math.isfinite(float(text))
+                accepted = reference.balance_ok(text)
                 self.assertEqual(status, parse_status(text, accepted, self.ok, self.missing, self.invalid))
                 if status == self.ok:
                     self.assertEqual(float(value), float(text))

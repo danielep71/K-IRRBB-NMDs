@@ -97,7 +97,8 @@ The key is (`as_of_date`, `account_id`). A missing `customer_rate` excludes
 that account-month from rate-model inputs only. Missing `open_date` means
 opened before the data window or unknown.
 
-Balances must convert to finite VBA Double values; overflow is `E04`. A total
+A balance has at most 300 digits before the decimal point, leading zeros not
+counted, so it is always a finite VBA Double; a longer one is `E04`. A total
 balance above 1E+307 fails the import rather than produce an infinite result.
 Known non-empty opening/closure dates must be consistent throughout an account's
 history (`E11`); an omitted repeat does not erase a known date. A row dated on or
