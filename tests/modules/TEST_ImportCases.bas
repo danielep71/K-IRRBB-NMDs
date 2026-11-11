@@ -101,7 +101,7 @@ Private Sub CaseImport()
     RunImport accounts, rates, window(1), window(2), "", "Yes"
     TEST_AssertTrue C, "no segment selected: refused", InStr(1, CellText("DataSummary_Info", 8, 1), "No segment") > 0
 
-    ' A segment left out of the run is still imported and reconciled; only the
+    ' A segment left out of the run is still imported and totalled; only the
     ' lineage's segment list changes.
     NamedRange("Segments_Include").Value = "Yes"
     NamedRange("Segments_Include").Cells(2, 1).Value = "No"

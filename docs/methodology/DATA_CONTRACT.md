@@ -143,7 +143,7 @@ counts in the segment stated for that month, and the model specification
 (issue #9) decides how a transition across segments enters estimation.
 
 **Segment selection.** A run selects the segments it models (the segment
-list of the [lineage](#lineage)). The import still validates and reconciles
+list of the [lineage](#lineage)). The import still validates and totals
 every segment, so leaving a segment out never turns a migration into a gap or
 a disappearance. The selection applies when a model builds its sample: a
 transition enters only when the segment stated at its origin month is
@@ -153,17 +153,19 @@ selected.
 
 ## ⚖️ Reconciliation
 
-After import, the toolkit reports for every (`as_of_date`, `segment`,
-`currency`) the number of accounts and the total balance, and checks that:
+After an accepted import, the toolkit reports for every (`as_of_date`,
+`segment`, `currency`) the number of accounts and the total balance
+(`IRRBB_ImportTotals`, shown on `DataSummary`):
 
-- totals retain input precision; round only for presentation, after reconciliation;
-- the segment totals for each date and currency add up to the panel total for
-  that date and currency; and
-- if the user supplies control totals, the counts match exactly and balances
-  within 0.005 currency units.
+- totals retain input precision; round only for presentation;
+- every account row in the data window is counted in exactly one total, the
+  one of its own date, segment and currency, so the segment totals for each
+  date and currency add up to the panel total for that date and currency; and
+- balances in different currencies are never added together.
 
-Balances in different currencies are never added together. A reconciliation
-difference fails the import.
+The import takes no control totals: it does not check these totals against
+figures from the source system. That reconciliation, in which a difference
+would fail the import, is tracked in #202.
 
 <a id="validation"></a>
 
