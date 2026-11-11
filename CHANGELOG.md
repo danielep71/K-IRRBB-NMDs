@@ -528,6 +528,11 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The data contract no longer requires a reconciliation the import does not
+  run: it states that the import reports per date, segment and currency
+  totals, each account row counted once, and takes no control totals. The
+  check against control totals from the source system is tracked in #202
+  (#188).
 - Dependabot updates every `github/codeql-action` step in one grouped pull
   request, since CodeQL fails when `init` and `analyze` differ in version; both
   steps are pinned to v4.39.3, in place of the separate #180 and #181 (#183).
