@@ -184,9 +184,16 @@ class SetupTests(unittest.TestCase):
         self.addCleanup(__import__("shutil").rmtree, folder)
         self.report = Path(folder) / "evidence" / "settings.md"
         self.args = argparse.Namespace(repo="owner/repo", config=setup.CONFIG, apply=False,
-                                       check=False, update_existing=False, report=self.report)
+                                       check=False, update_existing=False, report=self.report,
+                                       approve_plan=None)
 
-    def run_setup(self) -> tuple[int, str]:
+    def run_setup(self, approve: bool = True) -> tuple[int, str]:
+        if self.args.apply and approve:
+            # Approve the plan as a preview just before would show it.
+            with redirect_stdout(io.StringIO()):
+                plan = setup.inspect(self.api, self.args.repo, setup.load_config(self.args.config),
+                                     report=False).plan
+            self.args.approve_plan = setup.plan_digest(plan)
         output = io.StringIO()
         with redirect_stdout(output):
             code = setup.run(self.args, self.api, NOW)
@@ -196,6 +203,41 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(self.run_setup()[0], 0)
         self.assertEqual(self.api.writes, [])
         self.assertIn("- Result: **DRIFT**", self.report.read_text(encoding="utf-8"))
+
+    def preview_digest(self) -> str:
+        code, output = self.run_setup()
+        self.assertEqual(code, 0)
+        self.assertIn("PREVIEW ONLY", output)
+        return output.split("Plan digest: ", 1)[1].split()[0]
+
+    def test_apply_writes_the_plan_whose_digest_was_approved(self) -> None:
+        digest = self.preview_digest()
+        self.assertRegex(digest, r"^[0-9a-f]{64}$")
+        self.args.apply, self.args.approve_plan = True, digest
+        self.assertEqual(self.run_setup(approve=False)[0], 0)
+        self.assertEqual(len(self.api.writes), 12)
+
+    def test_a_changed_plan_is_refused_before_any_write(self) -> None:
+        digest = self.preview_digest()
+        # The live settings change between my preview and my apply.
+        self.api.repo["has_projects"] = False
+        self.args.apply, self.args.approve_plan = True, digest
+        with self.assertRaisesRegex(setup.SetupError, "Nothing was changed: the plan differs"):
+            self.run_setup(approve=False)
+        self.assertEqual(self.api.writes, [])
+
+    def test_apply_without_an_approved_digest_is_refused(self) -> None:
+        self.args.apply = True
+        with self.assertRaisesRegex(setup.SetupError, "Nothing was changed: --apply needs --approve-plan"):
+            self.run_setup(approve=False)
+        self.assertEqual(self.api.writes, [])
+        # With nothing to write, there is nothing to approve.
+        self.assertEqual(self.run_setup()[0], 0)
+        self.api.writes.clear()
+        self.args.approve_plan = None
+        code, output = self.run_setup(approve=False)
+        self.assertEqual((code, self.api.writes), (0, []))
+        self.assertIn("VERIFIED", output)
 
     def test_check_reports_drift_without_writing(self) -> None:
         self.args.check = True
@@ -841,6 +883,27 @@ class OneReadingTests(unittest.TestCase):
 
 
 class CommandLineTests(unittest.TestCase):
+    def test_the_plan_digest_covers_order_and_content_not_key_order(self) -> None:
+        plan: setup.Plan = [("PUT", "repos/a/b/vulnerability-alerts", None),
+                             ("PATCH", "repos/a/b", {"has_projects": False, "has_downloads": False})]
+        same: setup.Plan = [plan[0], ("PATCH", "repos/a/b", {"has_downloads": False, "has_projects": False})]
+        self.assertEqual(setup.plan_digest(plan), setup.plan_digest(same))
+        self.assertNotEqual(setup.plan_digest(plan), setup.plan_digest(plan[::-1]))
+        self.assertNotEqual(setup.plan_digest(plan), setup.plan_digest(
+            [plan[0], ("PATCH", "repos/a/b", {"has_projects": True, "has_downloads": False})]))
+        self.assertNotEqual(setup.plan_digest(plan), setup.plan_digest(
+            [("DELETE", "repos/a/b/vulnerability-alerts", None), plan[1]]))
+        self.assertEqual(setup.plan_digest([]), setup.plan_digest([]))
+
+    def test_approve_plan_requires_apply_and_a_digest(self) -> None:
+        digest = "A" * 64
+        self.assertEqual(setup.parse_args(["--repo", "o/r", "--apply", "--approve-plan", digest])
+                         .approve_plan, "a" * 64)
+        for argv in (["--approve-plan", digest], ["--apply", "--approve-plan", "abc"]):
+            with self.subTest(argv=argv), redirect_stdout(io.StringIO()), \
+                    patch("sys.stderr", io.StringIO()), self.assertRaises(SystemExit):
+                setup.parse_args(["--repo", "o/r", *argv])
+
     def test_pagination_reads_beyond_the_first_page(self) -> None:
         calls: list[str] = []
 

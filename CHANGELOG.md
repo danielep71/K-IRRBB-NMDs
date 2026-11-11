@@ -273,6 +273,12 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- `tools/setup_repository.py --apply` writes only the plan I reviewed: the
+  preview prints `Plan digest: <sha256>` over the ordered plan (method,
+  endpoint and payload of each operation), and `--apply` requires
+  `--approve-plan <digest>`, recomputes the plan and stops before any write
+  when the digest is missing or differs. A plan with nothing to write needs no
+  digest. `tools/README.md` shows the two-step preview and apply (#223).
 - The settings baseline `docs/repository-settings.json` records the
   repository's Actions settings: SHA pinning required, `read` default workflow
   permissions, no pull-request approval by GitHub Actions, approval required

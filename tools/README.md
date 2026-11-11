@@ -215,9 +215,16 @@ by admins included.
 
 ```shell
 python tools/setup_repository.py --repo danielep71/K-IRRBB-NMDs            # preview; never writes
-python tools/setup_repository.py --repo danielep71/K-IRRBB-NMDs --apply    # write, then read back
+python tools/setup_repository.py --repo danielep71/K-IRRBB-NMDs --apply --approve-plan <digest>  # write, then read back
 python tools/setup_repository.py --repo danielep71/K-IRRBB-NMDs --check    # read-only; exit 1 on drift
 ```
+
+Applying takes two steps. The preview prints the plan, then
+`Plan digest: <sha256>`, the SHA-256 of the ordered plan (each operation's
+method, endpoint and payload, as canonical JSON). After reviewing the plan, run `--apply` with
+that digest in `--approve-plan`: it recomputes the plan and stops before any
+write when the digest is missing or differs, so it never writes a plan that
+changed after the preview. With nothing to write, `--apply` needs no digest.
 
 The preview and `--check` need only read access. What they cannot read is
 recorded as unknown: a value whose endpoint answers 403 or 404 to the caller
