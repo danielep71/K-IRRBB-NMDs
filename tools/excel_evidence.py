@@ -363,6 +363,10 @@ def _differ(what: str, found: dict[str, str], want: dict[str, str]) -> list[str]
 def _appearance(lines: Lines, exp: Expected) -> list[str]:
     """Tab colours, brand strip and title, dropdowns, print titles and areas and the page
     setup, as Excel shows and saves them, against the template at the candidate."""
+    # Excel shows a list's values joined by the list separator of the Windows locale
+    # (";" in Italian, for example); the template stores them joined by ",".
+    separator = one(lines, "LIST_SEPARATOR") or ","
+    dropdowns = {cell: value.replace(separator, ",") for cell, value in pairs(values(lines, "DROPDOWN")).items()}
     pages = {}
     for value in values(lines, "PAGE"):
         parts = value.split("|")
@@ -370,7 +374,7 @@ def _appearance(lines: Lines, exp: Expected) -> list[str]:
             pages[parts[0]] = page_layout(parts[1:])
     return (_differ("tab colours", {k: v.upper() for k, v in pairs(values(lines, "TAB")).items()}, exp.tabs)
             + _differ("brand strip and title", pairs(values(lines, "STRIP")), exp.strips)
-            + _differ("dropdowns", pairs(values(lines, "DROPDOWN")), exp.dropdowns)
+            + _differ("dropdowns", dropdowns, exp.dropdowns)
             + _differ("print titles and areas",
                       {k: reference(v) for k, v in pairs(values(lines, "PRINT")).items()}, exp.prints)
             + _differ("page setups", pages, exp.pages))

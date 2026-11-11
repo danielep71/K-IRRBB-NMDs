@@ -117,7 +117,8 @@ Use only the categories needed by a release.
   candidate commit. Only 64-bit Excel certifies: a run whose stages all pass
   in another Office is `BEST_EFFORT`, never `PASS`. The session also checks
   the template's appearance in Excel against the template at the candidate:
-  tab colours, the brand strip and title, the dropdowns, the print titles and
+  tab colours, the brand strip and title, the dropdowns (whose values Excel
+  joins with the locale's list separator, such as `;`), the print titles and
   areas, and the page setup read from a copy Excel saves, never from Excel's
   print objects. A `buttons` stage checks every button of the development
   workbook and the macro it runs, and presses Import data and Run tests

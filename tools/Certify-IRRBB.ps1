@@ -86,6 +86,7 @@ $compileControlId = 578
 $xlOpenXMLWorkbookMacroEnabled = 52
 $xlCellTypeAllValidation = -4174
 $xlValidateList = 3
+$xlListSeparator = 5
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $fixtures = Join-Path $RepoRoot "tests\fixtures\data_contract"
 $templatePath = Join-Path $RepoRoot "src\workbook\IRRBB_Template.xlsx"
@@ -629,6 +630,8 @@ try {
     Add-Evidence $log "OPENED" "True"
     Add-Evidence $log "CAPTION" $book.Windows.Item(1).Caption
     try { $null = $book.VBProject.Name } catch {}
+    # A list's values are shown joined by the list separator of the Windows locale.
+    Add-Evidence $log "LIST_SEPARATOR" $excel.International($xlListSeparator)
     foreach ($sheet in $book.Worksheets) {
         Add-Evidence $log "SHEET" ("{0}|{1}" -f $sheet.Name, $sheet.CodeName)
         Add-Evidence $log "FONT" ("{0}|{1}" -f $sheet.Name, $sheet.Range("A2").Font.Name)
