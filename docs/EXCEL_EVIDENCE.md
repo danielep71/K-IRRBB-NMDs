@@ -93,7 +93,7 @@ first line `CANDIDATE=` and the SHA:
 
 | Log | What the script does and records |
 | --- | --- |
-| `template.log` | Opens the macro-free template read-only: no repair, its sheets, CodeNames, defined names and title font, and every validated cell refusing an invalid value and accepting a valid one; exports the print view to `template.pdf` |
+| `template.log` | Opens the macro-free template read-only: no repair, its sheets, CodeNames, defined names and title font, and every validated cell refusing an invalid value and accepting a valid one. Nothing is printed or exported, so Excel never waits on a printer; the print view stays a manual check |
 | `build.log` | Builds `IRRBB_Dev.xlsm` in the bundle with the [development builder](../INSTALLATION.md#development-workbook) (stage 1) |
 | `harness.log` | Opens it in a visible Excel that follows the macro setting, compiles it (stage 2) and runs the harness (stage 3) |
 | `failure.log` | The four runs of [stage 4](#4-failure-path) |

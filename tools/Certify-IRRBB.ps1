@@ -12,7 +12,8 @@ For the commit checked out in this repository, with a clean working tree:
 3. opens the macro-free template read-only and records whether Excel opened it
    without repair, its sheets, CodeNames, defined names, title fonts and data
    validation (each validated cell refuses an invalid value and accepts a
-   valid one), and exports its print view to template.pdf (template.log);
+   valid one) (template.log). Nothing is printed or exported, so Excel never
+   waits on a printer;
 4. builds the development workbook with tools\devbuild\build_dev_workbook.py
    (build.log), opens it in a visible Excel that follows the Trust Center macro
    setting and, when the macros are disabled, asks the operator to click
@@ -74,7 +75,6 @@ $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
 $msoAutomationSecurityByUI = 2
 $msoAutomationSecurityForceDisable = 3
 $compileControlId = 578
-$xlTypePDF = 0
 $xlOpenXMLWorkbookMacroEnabled = 52
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $fixtures = Join-Path $RepoRoot "tests\fixtures\data_contract"
@@ -530,9 +530,6 @@ try {
         $outcome = if ($cell.Validation.Value) { "accepted" } else { "refused" }
         Add-Evidence $log "VALIDATION" ("{0}!{1}|{2}|{3}" -f $probe[0], $probe[1], (ConvertTo-EvidenceText $probe[2]), $outcome)
     }
-    $pdf = Join-Path $BundleDir "template.pdf"
-    $book.ExportAsFixedFormat($xlTypePDF, $pdf)
-    Add-Evidence $log "PDF" (Get-Item -LiteralPath $pdf).Length
 }
 catch {
     if ($null -eq $book) { Add-Evidence $log "OPENED" "False" }

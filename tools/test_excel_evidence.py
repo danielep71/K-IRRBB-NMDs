@@ -89,7 +89,6 @@ def passing_logs(exp: ev.Expected, sha: str) -> dict[str, Lines]:
     template += [("NAME", f"{name}|{ref}") for name, ref in exp.names.items()]
     for cell in exp.validated:
         template += [("VALIDATION", f"{cell}|x|refused"), ("VALIDATION", f"{cell}|Yes|accepted")]
-    template.append(("PDF", "51234"))
     return {
         "template.log": template,
         "build.log": [("COMMAND", "python tools/devbuild/build_dev_workbook.py IRRBB_Dev.xlsm"), ("EXIT", "0")],
@@ -271,7 +270,6 @@ class BundleTests(unittest.TestCase):
             (lambda: self.replace("template.log", "VALIDATION", "Config!B11|x|refused", "Config!B11|x|accepted"),
              "Config!B11"),
             (lambda: self.replace("template.log", "FONT", "Readme|Aptos", "Readme|Calibri"), "Aptos"),
-            (lambda: self.replace("template.log", "PDF", "51234", "0"), "template.pdf"),
         ]
         for change, reason in cases:
             with self.subTest(reason=reason):
@@ -389,6 +387,11 @@ class ScriptShapeTests(unittest.TestCase):
         for forbidden in ("Set-ItemProperty", "New-ItemProperty", "Remove-ItemProperty", "reg add", "reg.exe"):
             self.assertNotIn(forbidden, self.text)
         self.assertIn("This script never changes it.", self.text)
+
+    def test_the_script_never_waits_on_a_printer(self) -> None:
+        # Exporting or printing makes Excel query the default printer, which can stall a run.
+        for call in ("ExportAsFixedFormat", "PrintOut", "PrintPreview", "PageSetup", "ActivePrinter"):
+            self.assertNotIn(call, self.text)
 
     @unittest.skipUnless(PWSH, "PowerShell 7 (pwsh) is not installed")
     def test_the_script_parses(self) -> None:

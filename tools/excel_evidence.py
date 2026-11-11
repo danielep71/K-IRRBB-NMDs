@@ -249,9 +249,6 @@ def judge_template(lines: Lines, exp: Expected) -> list[str]:
     fonts = {v.split("|", 1)[1] for v in values(lines, "FONT") if "|" in v}
     if fonts != {"Aptos"}:
         reasons.append(f"title fonts {sorted(fonts)}, expected Aptos")
-    pdf = one(lines, "PDF") or ""
-    if not (pdf.isdigit() and int(pdf) > 0):
-        reasons.append("the print view could not be exported to template.pdf")
     return reasons
 
 
