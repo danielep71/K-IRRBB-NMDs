@@ -274,13 +274,13 @@ class BundleTests(unittest.TestCase):
                 self.setUp()
                 self.session["office_bitness"] = bitness
                 code, output = self.run_writer()
-                self.assertEqual(code, 1)
+                self.assertEqual(code, 3)
                 self.assertIn("RESULT=BEST_EFFORT", output)
                 result, findings = ev.validate(ROOT, self.bundle, self.sha)
                 self.assertEqual(result, "BEST_EFFORT")
                 self.assertEqual(findings, [f"Office is {bitness}: only 64-bit Excel certifies, "
                                             "so this pass is best-effort evidence"])
-                self.assertEqual(self.run_checker()[0], 1)
+                self.assertEqual(self.run_checker()[0], 3)
 
     def test_every_log_is_bound_to_the_candidate(self) -> None:
         self.write()
@@ -503,6 +503,12 @@ class ScriptShapeTests(unittest.TestCase):
                      "PrintCommunication", "HPageBreaks", "VPageBreaks"):
             self.assertNotIn(call, self.text)
         self.assertIn("SaveCopyAs($copyPath)", self.text)
+
+    def test_the_script_reports_each_result_by_its_exit_code(self) -> None:
+        for result, code in ev.EXIT_CODES.items():
+            if code:
+                self.assertIn(f"if ($code -eq {code})" if result != "FAIL" else "RESULT=FAIL:", self.text)
+            self.assertIn(f"RESULT={result}:", self.text)
 
     def test_the_presses_match_the_validator(self) -> None:
         presses = re.search(r'foreach \(\$press in @\((.*?)\)\) \{', self.text)
