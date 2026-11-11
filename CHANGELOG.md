@@ -122,7 +122,10 @@ Use only the categories needed by a release.
   areas, and the page setup read from a copy Excel saves, never from Excel's
   print objects. A `buttons` stage checks every button of the development
   workbook and the macro it runs, and presses Import data and Run tests
-  (#247). The manual procedure stays
+  (#247). The import scenarios include an account file another process
+  holds open for writing, which must be refused with error 70, and a
+  `timing` stage records the import time of the large synthetic panel,
+  with no speed target (#71). The manual procedure stays
   as the fallback. It passed in 64-bit Excel on `14e0aae` (#238).
 - The import can reconcile its totals against control totals from the source
   system. An optional third CSV file (`as_of_date,segment,currency,accounts,balance`),
