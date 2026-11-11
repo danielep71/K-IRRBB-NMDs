@@ -100,6 +100,23 @@ Use only the categories needed by a release.
 
 ### Added
 
+- One command runs the Excel evidence session: `tools/Certify-IRRBB.ps1`, with
+  the launcher `tools/Certify-IRRBB.cmd`, certifies the checked-out commit in
+  Windows Excel. It records the host and its security settings without
+  changing them, and checks the template: no repair, its names, CodeNames
+  and validation, without printing or exporting it, so Excel never waits on a
+  printer. It builds and compiles the development workbook
+  and runs the harness and its failure path. It exercises the import
+  (accepted, control totals matching and differing, a pasted invalid window
+  date and attestation, a rerun), synchronizes a workbook from the template,
+  makes the synchronizer fail on purpose and runs the source round trip. Each
+  stage writes its own log, first line `CANDIDATE=`, in a bundle outside the
+  checkout. `tools/write_excel_evidence.py` writes `host.json` from the logs,
+  and `tools/check_excel_evidence.py` validates a bundle offline: source and
+  log digests, and every stage judged again against values read from the
+  candidate commit. Only 64-bit Excel certifies: a run whose stages all pass
+  in another Office is `BEST_EFFORT`, never `PASS`. The manual procedure stays
+  as the fallback. It passed in 64-bit Excel on `14e0aae` (#238).
 - The import can reconcile its totals against control totals from the source
   system. An optional third CSV file (`as_of_date,segment,currency,accounts,balance`),
   chosen on `Config` (`Config_ControlTotalsFile`, **Choose control totals file**
@@ -427,6 +444,23 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The coefficients of `CORE_NormSInv` are spelled with 15 significant digits,
+  the precision the VBE keeps: it rewrote `-0.007784894002430293` as
+  `-7.78489400243029E-03`, so the workbook did not hold the source's numbers
+  and the source round trip failed. The result is unchanged: a Halley step
+  refines the approximation. `test_vba_double_literals.py` rejects a number
+  with more than 15 significant digits in any module (#238).
+- The source round trip compares numbers in code by value and type: the VBE
+  rewrites their spelling on import (`1E+11` as `100000000000#`,
+  `0.0000000000000000001` as `1E-19`, `&H1000000&` as `&H1000000`), which
+  `compare_vba_export.py` reported as three differences in the first Excel
+  run. `&H8000` and `&H8000&` still differ, as their values do; such lines
+  are counted (#238).
+- `CORE_Import` compiles in Excel: `IndexOfTotal` and `IndexOfPeriod` named a
+  parameter `currency`, a reserved word of VBA, so Excel rejected both
+  declarations and reported "Sub or Function not defined"; LibreOffice accepts
+  the name. The parameter is `currencyCode`, and `test_vba_reserved_words.py`
+  rejects a reserved word declared as a name in any module (#241).
 - `MODEL_CONTRACTS.md` no longer says structural breaks are declared in a run
   configuration, which does not exist: the caller of `IRRBB_DecayFit` passes
   the month ends at which declared breaks end, for the segment and currency of
