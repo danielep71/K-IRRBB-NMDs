@@ -19,6 +19,7 @@ import unittest
 from collections.abc import Callable
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from typing import Any
 
 import check_excel_evidence
 import excel_evidence as ev
@@ -220,6 +221,31 @@ class BundleTests(unittest.TestCase):
         host["stages"]["smoke"] = {"outcome": "PASS", "reasons": []}
         path.write_text(json.dumps(host), encoding="utf-8")
         self.assertEqual(self.run_checker()[0], 1)
+
+    def test_edited_host_metadata_fails(self) -> None:
+        def set_in(section: str, field: str, value: Any) -> Callable[[dict[str, Any]], None]:
+            return lambda host: host[section].__setitem__(field, value)
+
+        edits: list[tuple[str, Callable[[dict[str, Any]], None]]] = [
+            ("environment", set_in("environment", "office_bitness", "32-bit")),
+            ("environment", set_in("environment", "excel_build", "Version 2601")),
+            ("environment", set_in("environment", "trust_changes", True)),
+            ("operator", lambda host: host.__setitem__("operator", "Someone else")),
+            ("started_at", lambda host: host.__setitem__("started_at", "")),
+            ("finished_at", lambda host: host.pop("finished_at")),
+            ("extra", lambda host: host.__setitem__("extra", "field")),
+        ]
+        for key, edit in edits:
+            with self.subTest(key=key):
+                self.setUp()
+                self.assertEqual(self.run_writer()[0], 0)
+                path = self.bundle / "host.json"
+                host = json.loads(path.read_text(encoding="utf-8"))
+                edit(host)
+                path.write_text(json.dumps(host), encoding="utf-8")
+                code, output = self.run_checker()
+                self.assertEqual(code, 1)
+                self.assertIn(f"host.json {key} does not match", output)
 
     def test_every_log_is_bound_to_the_candidate(self) -> None:
         self.write()

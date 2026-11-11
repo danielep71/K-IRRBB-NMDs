@@ -464,12 +464,10 @@ def validate(root: Path, bundle: Path, sha: str | None = None) -> tuple[str, lis
         fresh = record(root, candidate, bundle)
     except EvidenceError as error:
         return "FAIL", [str(error)]
-    findings = []
-    for key in ("schema_version", "repository", "sources", "logs", "stages", "result"):
-        if host.get(key) != fresh[key]:
-            findings.append(f"host.json {key} does not match the bundle and the candidate")
-    if host.get("environment", {}).get("trust_changes") is not False:
-        findings.append("host.json does not record trust_changes: false")
+    # Every field is rebuilt from session.json, the logs and the candidate, so an edited
+    # host, operator, time, digest or outcome cannot pass.
+    findings = [f"host.json {key} does not match the bundle and the candidate"
+                for key in sorted(set(fresh) | set(host)) if host.get(key) != fresh.get(key)]
     for stage, outcome in fresh["stages"].items():
         findings += [f"{stage}: {reason}" for reason in outcome["reasons"]]
     result = "PASS" if not findings and fresh["result"] == "PASS" else "FAIL"
