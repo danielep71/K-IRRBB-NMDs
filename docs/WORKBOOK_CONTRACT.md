@@ -56,7 +56,8 @@ no function.
   and test code, the regression harness included, have no exception.
 - **Owner** is the only writer. *User* cells are typed by the user (or set by a
   picker VBA opens); *VBA* areas are written only by VBA; *Builder* is the
-  build stamp written when the workbook is built from source.
+  build stamp written when the workbook is built from source; *Template* cells
+  are fixed by the template generator and change only with this contract.
 - Every sheet starts with the `K-IRRBB` brand strip in `A1` and its title in
   `A2`. The purpose is in `A3` on input/documentation sheets and `D3` on output
   sheets, leaving the output status in `B3`. Presentation merges never cover
@@ -79,11 +80,12 @@ addresses, so a layout change is one change here and in the generator.
 | `Config_WindowEnd` | `Config!$B$9` | User | Last month end of the data window |
 | `Config_RateSeries` | `Config!$B$10` | User | `rate_id` of the market rate series used by the rate model |
 | `Config_ClosureAttested` | `Config!$B$11` | User | `Yes` when closures are reported by the month end in which they occur |
-| `Segments_Codes` | `Segments!$A$6:$A$8` | Contract | The segment codes of the data contract |
+| `Config_ControlTotalsFile` | `Config!$B$12` | User | Optional control-totals CSV path; empty runs no reconciliation |
+| `Segments_Codes` | `Segments!$A$6:$A$8` | Template | The segment codes of the data contract |
 | `Segments_Include` | `Segments!$C$6:$C$8` | User | `Yes` or `No` per segment: the run's segment list (lineage) and the segments model samples use; every segment is still imported |
 | `DataSummary_Info` | `DataSummary!$B$4:$B$12` | VBA | Run information: start, finish, file names, window, rate series, attestation, primary and cleanup error |
 | `DataSummary_Totals` | `DataSummary!$A$14:$E$20013` | VBA | Accounts and balance per date, segment and currency; only for an accepted import |
-| `DataSummary_Findings` | `DataSummary!$G$14:$J$20013` | VBA | Errors of the last import: file, line, code, month end (`E12`) |
+| `DataSummary_Findings` | `DataSummary!$G$14:$J$20013` | VBA | Errors of the last import, control totals included: file, line, code, month end (`E12`) |
 | `DataSummary_Warnings` | `DataSummary!$L$14:$N$20013` | VBA | Warnings `W01`–`W06`: code, account, month end |
 | `DataSummary_Lineage` | `DataSummary!$P$14:$Q$63` | VBA | Lineage items and values |
 | `DataSummary_Outcomes` | `DataSummary!$S$14:$AB$20013` | VBA | Per-period lineage: transition outcomes, the last balance of censored disappearances and the masked close dates per month end, segment and currency; only for an accepted import |
@@ -96,7 +98,9 @@ The settings follow [`DATA_CONTRACT.md`](methodology/DATA_CONTRACT.md): the
 data window, the segment list and the rate series are part of the
 [lineage](methodology/DATA_CONTRACT.md#lineage); the attestation is the
 [timely closure reporting](methodology/DATA_CONTRACT.md#look-ahead) the import
-cannot check. A blank or `No` attestation stops the import. File paths are
+cannot check. A blank or `No` attestation stops the import. The control-totals
+file is optional: when its path is set, the import fails unless every row matches
+its total ([reconciliation](methodology/DATA_CONTRACT.md#reconciliation)). File paths are
 read-only inputs ([`SECURITY.md`](../SECURITY.md#security-scope)).
 
 <a id="status"></a>
@@ -202,9 +206,13 @@ all three. Never edit the template in Excel and commit the saved file: Excel
 adds document properties and rewrites the package.
 
 The development workbook (`tools/devbuild/build_dev_workbook.py`) is this
-template plus a build stamp on `Readme`, a **Run tests** button on `Checks` and
-the VBA project assembled from source. Development buttons use the same navy
-and blue palette and Aptos lettering. The Checks button sits outside the status
+template plus a build stamp on `Readme`, four buttons on `Config` (**Choose
+account file**, **Choose rate file**, **Choose control totals file** and
+**Import data**, which run `WB_ChooseAccountsFile`, `WB_ChooseRatesFile`,
+`WB_ChooseControlTotalsFile` and `WB_ImportData`), a **Run tests** button on
+`Checks` and the VBA project assembled from source. Development buttons use the
+same navy and blue palette and Aptos lettering. The Config buttons sit below the
+settings, and the Checks button outside the status
 and purpose blocks. Development evidence instructions start at Readme row 34,
 after the workflow, and never overwrite the sheet map or build-stamp cells.
 

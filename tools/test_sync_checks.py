@@ -197,6 +197,23 @@ class SyncGateTests(unittest.TestCase):
         self.write("src/workbook/shInputs.cls", document.format("shInputs"))
         self.assertEqual(self.findings(), [])
 
+    def test_standard_modules_carry_their_role_prefix(self) -> None:
+        # folder: (home named in the finding, prefix)
+        homes = {"src/core/": ("src/core/", "CORE_"), "src/modules/": ("src/modules/", "IRRBB_"),
+                 "src/workbook/": ("src/workbook/", "WB_"), "tests/modules/": ("tests/", "TEST_"),
+                 "examples/modules/": ("examples/", "EX_")}
+        for folder, (home, prefix) in homes.items():
+            with self.subTest(folder=folder):
+                self.setUp()
+                core = "Option Private Module\r\n" if home == "src/core/" else ""
+                wrong = f"{folder}Other_Test.bas"
+                self.write(wrong, MODULE.replace("IRRBB_Test", "Other_Test") + core)
+                self.assertEqual(self.findings(),
+                                 [f"{wrong}: standard modules in {home} must be named {prefix}<subject>"])
+                (self.root / wrong).unlink()
+                self.write(f"{folder}{prefix}Test.bas", MODULE.replace("IRRBB_Test", prefix + "Test") + core)
+                self.assertEqual(self.findings(), [])
+
 
 if __name__ == "__main__":
     unittest.main()

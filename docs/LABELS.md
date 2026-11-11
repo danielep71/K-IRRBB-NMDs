@@ -9,7 +9,16 @@ The canonical label catalog is `.github/labels.json`; `.github/label-policy.json
 - `blocked` is the only dependency-status label; it is present exactly while
   a `Blocked by` line in an issue's dependencies section names an open issue,
   or the section names an external condition.
-- Type/area: `repository`, `enhancement`, `tests`, `documentation`, `ci`, `security`, etc.
+- Type: `bug` (a confirmed defect), `enhancement` (a new capability or an
+  improvement), `refactor` (restructuring that preserves supported behavior).
+  Add `behavior-change` to any of them that changes externally observable
+  behavior on purpose.
+- Area: `repository`, `ci`, `tests`, `documentation`, `security`, `release`.
+- Contribution: `good first issue` (a well-scoped first task) and `help wanted`
+  (I welcome outside work on it).
+- Status and resolution: `question` (further information or my decision is
+  required), `duplicate`, `invalid`, `wontfix`.
+- Each label's description in `.github/labels.json` states its meaning.
 - Labels are synchronized by `.github/workflows/labels-sync.yml` on trusted pushes to main or manual dispatch.
 - With `"prune": true`, a live label outside the catalog is deleted, which
   removes it from every issue and pull request and cannot be undone. Before
@@ -24,5 +33,3 @@ The canonical label catalog is `.github/labels.json`; `.github/label-policy.json
   label in use with the issues or pull requests that use it (up to ten
   numbers, then "and others"), changes nothing and exits 0.
 - Scheduled drift checks report differences; they must not silently change the repository.
-
-Do not equate version labels with GitHub milestone assignment.

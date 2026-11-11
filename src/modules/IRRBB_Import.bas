@@ -4,9 +4,11 @@ Attribute VB_Name = "IRRBB_Import"
 '------------------------------------------------------------------------------
 ' PURPOSE
 '   Import the account panel and the market-rate file of
-'   docs/methodology/DATA_CONTRACT.md from CSV files and expose the result as
-'   tables. Validation, warnings, totals and outcomes are CORE_Import's; this
-'   module reads the files and checks the run settings at the public boundary.
+'   docs/methodology/DATA_CONTRACT.md from CSV files, optionally reconcile the
+'   totals with a control-totals file (issue #202), and expose the result as
+'   tables. Validation, warnings, totals, outcomes and the reconciliation are
+'   CORE_Import's; this module reads the files and checks the run settings at
+'   the public boundary.
 '
 ' FILE ACCESS (SECURITY.md, security scope)
 '   Read only. Each file is opened for binary read with writing by others
@@ -19,7 +21,8 @@ Attribute VB_Name = "IRRBB_Import"
 '
 ' RESULTS
 '   IRRBB_ImportData returns the number of errors: account and market-rate
-'   findings plus missing extracts (E12). Zero means the panel is accepted.
+'   findings, missing extracts (E12) and control-totals findings (format
+'   errors and E13 differences). Zero means the panel is accepted.
 '   The import is all-or-nothing: totals and the per-period outcome lineage
 '   are returned only for an accepted panel. Every IRRBB_Import* table is a Variant array (0 To n, 1 To k)
 '   whose row 0 holds the column names, so a table is never empty.
@@ -36,12 +39,22 @@ Attribute VB_Name = "IRRBB_Import"
 Option Explicit
 
 Private Const CHUNK_SIZE As Long = 65536
+Private Const FILE_ACCOUNTS As Long = 1
+Private Const FILE_RATES As Long = 2
+Private Const FILE_CONTROL As Long = 3
+Private Const NO_CONTROL As String = "none"
 Private Const SOURCE As String = "IRRBB_Import.IRRBB_ImportData"
 
 Private mAccountsFile As String
 Private mAccountsBytes As Double
 Private mRatesFile As String
 Private mRatesBytes As Double
+Private mControlGiven As Boolean
+Private mControlFile As String
+Private mControlBytes As Double
+Private mControlSha As String
+Private mControlRows As Long
+Private mControlErrors As Long
 Private mAccountErrors As Long
 Private mMissingExtracts As Long
 Private mRateErrors As Long
@@ -76,15 +89,21 @@ Private mRatesSha As String
 '                          by the month end in which they occur (timely closure
 '                          reporting); the import refuses to run otherwise
 '   toolkitCommit    [in]  commit of the toolkit code running the import, as
-'                          stamped on the workbook: 40 hex digits, optionally
-'                          followed by the builder's " (dirty working tree:
-'                          NOT evidence-grade)"; recorded in the lineage
+'                          stamped on the workbook: 40 lower-case hex digits,
+'                          optionally followed by the builder's " (dirty working
+'                          tree: NOT evidence-grade)"; recorded in the lineage
+'   controlTotalsPath [in] control-totals CSV (DATA_CONTRACT.md,
+'                          reconciliation); "" (the default) runs no check.
+'                          Each row's account count must equal the import
+'                          total's and its balance be within 0.005 of it;
+'                          otherwise E13 and the import is rejected
 '   Returns the number of errors; 0 means the panel is accepted.
 '------------------------------------------------------------------------------
 Public Function IRRBB_ImportData(ByVal accountsPath As String, ByVal ratesPath As String, _
                                  ByVal firstMonthEnd As Date, ByVal lastMonthEnd As Date, _
                                  ByVal rateSeries As String, ByVal includedSegments As String, _
-                                 ByVal closuresAttested As Boolean, ByVal toolkitCommit As String) As Long
+                                 ByVal closuresAttested As Boolean, ByVal toolkitCommit As String, _
+                                 Optional ByVal controlTotalsPath As String = "") As Long
     mImported = False
     mAccepted = False
     If Not closuresAttested Then
@@ -104,6 +123,7 @@ Public Function IRRBB_ImportData(ByVal accountsPath As String, ByVal ratesPath A
     End If
     RequireFile accountsPath
     RequireFile ratesPath
+    If Len(controlTotalsPath) > 0 Then RequireFile controlTotalsPath
 
     mFirstMonthEnd = firstMonthEnd
     mLastMonthEnd = lastMonthEnd
@@ -114,11 +134,11 @@ Public Function IRRBB_ImportData(ByVal accountsPath As String, ByVal ratesPath A
     mImportTime = Now
     mAccountsFile = FileNameOf(accountsPath)
     mRatesFile = FileNameOf(ratesPath)
-    mAccountsBytes = StreamFile(accountsPath, True, mAccountsSha)
+    mAccountsBytes = StreamFile(accountsPath, FILE_ACCOUNTS, mAccountsSha)
     mAccountErrors = CORE_AccountFindingCount()
     mMissingExtracts = 0
     If mAccountErrors = 0 Then mMissingExtracts = CORE_AccountsSummarize(firstMonthEnd, lastMonthEnd)
-    mRatesBytes = StreamFile(ratesPath, False, mRatesSha)
+    mRatesBytes = StreamFile(ratesPath, FILE_RATES, mRatesSha)
     mRateErrors = CORE_RateFindingCount()
 
     If Len(rateSeries) > 0 And mRateErrors = 0 Then
@@ -126,9 +146,26 @@ Public Function IRRBB_ImportData(ByVal accountsPath As String, ByVal ratesPath A
             Err.Raise 5, SOURCE, "Rate series " & rateSeries & " is not in the market-rate file."
         End If
     End If
+
+    ' Control totals: format findings always; E13 only when the panel has
+    ' totals to reconcile (no account finding, no missing extract).
+    mControlErrors = 0
+    mControlRows = 0
+    mControlGiven = (Len(controlTotalsPath) > 0)
+    If Not mControlGiven Then
+        mControlFile = NO_CONTROL
+        mControlBytes = 0
+        mControlSha = NO_CONTROL
+    Else
+        mControlFile = FileNameOf(controlTotalsPath)
+        mControlBytes = StreamFile(controlTotalsPath, FILE_CONTROL, mControlSha)
+        If mHeaderAccepted And mAccountErrors + mMissingExtracts = 0 Then CORE_ControlReconcile
+        mControlErrors = CORE_ControlFindingCount()
+        mControlRows = CORE_ControlLinesRead()
+    End If
     mImported = True
-    mAccepted = (mAccountErrors + mMissingExtracts + mRateErrors = 0)
-    IRRBB_ImportData = mAccountErrors + mMissingExtracts + mRateErrors
+    mAccepted = (mAccountErrors + mMissingExtracts + mRateErrors + mControlErrors = 0)
+    IRRBB_ImportData = mAccountErrors + mMissingExtracts + mRateErrors + mControlErrors
 End Function
 
 
@@ -190,12 +227,13 @@ End Function
 '------------------------------------------------------------------------------
 ' IRRBB_ImportFindings: (0 To n, 1 To 4) File, Line, Code, Date: every error of
 ' the last import, account panel first, then missing extracts (Line 0, the
-' month end in Date), then market rates.
+' month end in Date), then market rates, then control totals; each file's in
+' line order.
 '------------------------------------------------------------------------------
 Public Function IRRBB_ImportFindings() As Variant
     Dim out() As Variant, i As Long, r As Long
     RequireImport
-    ReDim out(0 To mAccountErrors + mMissingExtracts + mRateErrors, 1 To 4)
+    ReDim out(0 To mAccountErrors + mMissingExtracts + mRateErrors + mControlErrors, 1 To 4)
     out(0, 1) = "File": out(0, 2) = "Line": out(0, 3) = "Code": out(0, 4) = "Date"
     For i = 1 To mAccountErrors
         r = r + 1
@@ -209,6 +247,11 @@ Public Function IRRBB_ImportFindings() As Variant
     For i = 1 To mRateErrors
         r = r + 1
         out(r, 1) = mRatesFile: out(r, 2) = CORE_RateFindingLine(i): out(r, 3) = CORE_RateFindingCode(i)
+        out(r, 4) = vbNullString
+    Next i
+    For i = 1 To mControlErrors
+        r = r + 1
+        out(r, 1) = mControlFile: out(r, 2) = CORE_ControlFindingLine(i): out(r, 3) = CORE_ControlFindingCode(i)
         out(r, 4) = vbNullString
     Next i
     IRRBB_ImportFindings = out
@@ -239,7 +282,9 @@ End Function
 ' and sizes in bytes, rows read and accepted, rows outside the window (W06),
 ' accounts, warnings by code, market-rate rows read, the run settings (data
 ' window, rate series, selected segments, attestation), the SHA-256 of each file's bytes, the
-' toolkit commit and the local import time (DATA_CONTRACT.md, lineage).
+' toolkit commit, the local import time and the control-totals file's name,
+' size, data lines read and SHA-256, each "none" when no file was given
+' (DATA_CONTRACT.md, lineage).
 '------------------------------------------------------------------------------
 Public Function IRRBB_ImportLineage() As Variant
     Dim out() As Variant, codes As Variant, i As Long, k As Long, counts(1 To 6) As Long
@@ -252,7 +297,7 @@ Public Function IRRBB_ImportLineage() As Variant
             Next k
         Next i
     End If
-    ReDim out(0 To 23, 1 To 2)
+    ReDim out(0 To 27, 1 To 2)
     out(0, 1) = "Item": out(0, 2) = "Value"
     out(1, 1) = "Account panel file": out(1, 2) = mAccountsFile
     out(2, 1) = "Account panel bytes": out(2, 2) = mAccountsBytes
@@ -275,6 +320,10 @@ Public Function IRRBB_ImportLineage() As Variant
     out(21, 1) = "Toolkit commit": out(21, 2) = mToolkitCommit
     out(22, 1) = "Import time (local; UTC offset not recorded)": out(22, 2) = Format$(mImportTime, "yyyy-mm-dd hh:nn:ss")
     out(23, 1) = "Segments selected": out(23, 2) = mSegments
+    out(24, 1) = "Control-totals file": out(24, 2) = mControlFile
+    out(25, 1) = "Control-totals bytes": out(25, 2) = ControlItem(mControlBytes)
+    out(26, 1) = "Control-totals rows read": out(26, 2) = ControlItem(mControlRows)
+    out(27, 1) = "Control-totals SHA-256": out(27, 2) = mControlSha
     IRRBB_ImportLineage = out
 End Function
 
@@ -285,7 +334,7 @@ End Function
 
 ' Stream one file into CORE_Import, line by line, and its bytes into the
 ' SHA-256 fingerprint (one pass); returns its size in bytes.
-Private Function StreamFile(ByVal path As String, ByVal accounts As Boolean, ByRef sha As String) As Double
+Private Function StreamFile(ByVal path As String, ByVal kind As Long, ByRef sha As String) As Double
     Dim f As Integer, size As Double, remaining As Double, want As Long, bytes() As Byte, carry As String
     Dim lineStart As Long, lf As Long, started As Boolean, opened As Boolean
 
@@ -314,7 +363,7 @@ Private Function StreamFile(ByVal path As String, ByVal accounts As Boolean, ByR
         lineStart = 1
         lf = InStr(lineStart, carry, vbLf, vbBinaryCompare)
         Do While lf > 0
-            EmitLine Mid$(carry, lineStart, lf - lineStart), accounts, started
+            EmitLine Mid$(carry, lineStart, lf - lineStart), kind, started
             lineStart = lf + 1
             lf = InStr(lineStart, carry, vbLf, vbBinaryCompare)
         Loop
@@ -326,13 +375,13 @@ Private Function StreamFile(ByVal path As String, ByVal accounts As Boolean, ByR
 
     ' A last line without a line ending still counts; an empty file is a
     ' missing header (E01).
-    If Len(carry) > 0 Or Not started Then EmitLine carry, accounts, started
+    If Len(carry) > 0 Or Not started Then EmitLine carry, kind, started
     If mHeaderAccepted Then
-        If accounts Then
-            CORE_AccountsEnd
-        Else
-            CORE_RatesEnd
-        End If
+        Select Case kind
+            Case FILE_ACCOUNTS: CORE_AccountsEnd
+            Case FILE_RATES: CORE_RatesEnd
+            Case Else: CORE_ControlEnd
+        End Select
     End If
     StreamFile = size
     Exit Function
@@ -348,23 +397,33 @@ End Function
 
 ' The first line of a file is its header; a rejected header ends the import of
 ' that file (only finding: line 1, E01).
-Private Sub EmitLine(ByVal text As String, ByVal accounts As Boolean, ByRef started As Boolean)
+Private Sub EmitLine(ByVal text As String, ByVal kind As Long, ByRef started As Boolean)
     If Not started Then
         started = True
-        If accounts Then
-            mHeaderAccepted = CORE_AccountsBegin(text)
-        Else
-            mHeaderAccepted = CORE_RatesBegin(text)
-        End If
+        Select Case kind
+            Case FILE_ACCOUNTS: mHeaderAccepted = CORE_AccountsBegin(text)
+            Case FILE_RATES: mHeaderAccepted = CORE_RatesBegin(text)
+            Case Else: mHeaderAccepted = CORE_ControlBegin(text)
+        End Select
         Exit Sub
     End If
     If Not mHeaderAccepted Then Exit Sub
-    If accounts Then
-        CORE_AccountsAddLine text
-    Else
-        CORE_RatesAddLine text
-    End If
+    Select Case kind
+        Case FILE_ACCOUNTS: CORE_AccountsAddLine text
+        Case FILE_RATES: CORE_RatesAddLine text
+        Case Else: CORE_ControlAddLine text
+    End Select
 End Sub
+
+
+' A control-totals lineage value, or "none" when no file was given.
+Private Function ControlItem(ByVal value As Variant) As Variant
+    If Not mControlGiven Then
+        ControlItem = NO_CONTROL
+    Else
+        ControlItem = value
+    End If
+End Function
 
 
 Private Sub RequireFile(ByVal path As String)
