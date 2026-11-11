@@ -114,8 +114,9 @@ Use only the categories needed by a release.
   checkout. `tools/write_excel_evidence.py` writes `host.json` from the logs,
   and `tools/check_excel_evidence.py` validates a bundle offline: source and
   log digests, and every stage judged again against values read from the
-  candidate commit. The manual procedure stays as the fallback. Not yet run in
-  Excel (#238).
+  candidate commit. Only 64-bit Excel certifies: a run whose stages all pass
+  in another Office is `BEST_EFFORT`, never `PASS`. The manual procedure stays
+  as the fallback. It passed in 64-bit Excel on `14e0aae` (#238).
 - The import can reconcile its totals against control totals from the source
   system. An optional third CSV file (`as_of_date,segment,currency,accounts,balance`),
   chosen on `Config` (`Config_ControlTotalsFile`, **Choose control totals file**

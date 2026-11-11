@@ -433,6 +433,7 @@ def record(root: Path, sha: str, bundle: Path) -> dict[str, Any]:
                    ("excel_version", "excel_build", "office_bitness", "os", "os_architecture",
                     "references", "macro_policy", "vba_project_access")}
     environment["trust_changes"] = False
+    passed = all(s["outcome"] == "PASS" for s in stages.values())
     return {
         "schema_version": SCHEMA_VERSION,
         "repository": REPOSITORY,
@@ -444,8 +445,14 @@ def record(root: Path, sha: str, bundle: Path) -> dict[str, Any]:
         "sources": expected(root, sha).sources,
         "logs": logs,
         "stages": stages,
-        "result": "PASS" if all(s["outcome"] == "PASS" for s in stages.values()) else "FAIL",
+        "result": ("PASS" if certifying(session) else "BEST_EFFORT") if passed else "FAIL",
     }
+
+
+def certifying(session: dict[str, Any]) -> bool:
+    """Only 64-bit Excel certifies; a pass on any other host is best-effort evidence
+    (docs/EXCEL_EVIDENCE.md#bitness)."""
+    return session.get("office_bitness") == "64-bit"
 
 
 def validate(root: Path, bundle: Path, sha: str | None = None) -> tuple[str, list[str]]:
@@ -467,6 +474,10 @@ def validate(root: Path, bundle: Path, sha: str | None = None) -> tuple[str, lis
                 for key in sorted(set(fresh) | set(host)) if host.get(key) != fresh.get(key)]
     for stage, outcome in fresh["stages"].items():
         findings += [f"{stage}: {reason}" for reason in outcome["reasons"]]
+    if fresh["result"] == "BEST_EFFORT":
+        bitness = fresh["environment"]["office_bitness"]
+        findings.append(f"Office is {bitness}: only 64-bit Excel certifies, so this pass is best-effort evidence")
+        return ("BEST_EFFORT" if len(findings) == 1 else "FAIL"), findings
     result = "PASS" if not findings and fresh["result"] == "PASS" else "FAIL"
     return result, findings
 

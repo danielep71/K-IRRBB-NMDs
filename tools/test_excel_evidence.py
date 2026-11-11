@@ -246,6 +246,20 @@ class BundleTests(unittest.TestCase):
                 self.assertEqual(code, 1)
                 self.assertIn(f"host.json {key} does not match", output)
 
+    def test_only_64_bit_excel_certifies(self) -> None:
+        for bitness in ("32-bit", "unknown"):
+            with self.subTest(bitness=bitness):
+                self.setUp()
+                self.session["office_bitness"] = bitness
+                code, output = self.run_writer()
+                self.assertEqual(code, 1)
+                self.assertIn("RESULT=BEST_EFFORT", output)
+                result, findings = ev.validate(ROOT, self.bundle, self.sha)
+                self.assertEqual(result, "BEST_EFFORT")
+                self.assertEqual(findings, [f"Office is {bitness}: only 64-bit Excel certifies, "
+                                            "so this pass is best-effort evidence"])
+                self.assertEqual(self.run_checker()[0], 1)
+
     def test_every_log_is_bound_to_the_candidate(self) -> None:
         self.write()
         path = self.bundle / "import.log"
