@@ -137,7 +137,7 @@ method, date and producer. I have not yet reviewed them (#36).
 | --- | --- | --- | --- | --- |
 | `OOS-FREEZE-01` | Coefficients unchanged across forecast origins in the test window | Property test | `exact` | Built (VBA) for decay; rate and stable registered |
 | `OOS-LEAK-01` | A forecast from origin $t$ is unchanged when data after $t$ are altered | Property test | `exact` | Built (VBA) for decay; rate and stable registered |
-| `OOS-SCORE-01` | Bias, MAE, RMSE and exceedance rate on a small hand case | Hand computation ([`OOS-SCORE-01.json`](../../tests/expected/decay/OOS-SCORE-01.json) for the decay exceedance rate) | `abs 1e-12` | Built (VBA) for the exceedance rate; bias, MAE, RMSE registered |
+| `OOS-SCORE-01` | Bias, MAE, RMSE and exceedance rate on a small hand case | Decay exceedance rate: a 7-month hand case whose (origin, horizon) pairs are counted by [`make_expected.py`](../../tests/expected/decay/make_expected.py) into [`OOS-SCORE-01.json`](../../tests/expected/decay/OOS-SCORE-01.json). The case scores a given frozen fit vector, so $z = -2.0$ is an independent input, not $\Phi^{-1}(1 - c)$; `confidence` (0.99) sets only the stated tail $1 - c$, which the case does not assert. Bias, MAE, RMSE: hand computation | `abs 1e-12` | Built (VBA) for the exceedance rate; bias, MAE, RMSE registered |
 
 ## ➕ Adding a case
 
