@@ -388,6 +388,14 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- Documentation describes the current files: the methodology roadmap states
+  that the draft decay model is built in VBA and under review (#36) while the
+  rate and stable-amount models are not built; `REPOSITORY_STRUCTURE.md` names
+  both facades in `PUBLIC_API.txt`; `DATA_CONTRACT.md` states that the importer
+  fails on aggregate overflow and places the account-panel rules (`E04`
+  balance overflow, `E10`, `E11`) under the account-panel heading; the v0.2.0
+  milestone guide lists the Issue triage workflow (#136) instead of the
+  replaced metadata workflow (#41) (#195).
 - INSTALLATION and the CONTRIBUTING review checklist no longer require Excel
   evidence for every VBA change before merge: as GOVERNANCE states, a VBA
   change records Excel results when run, or states them as not run, and a
