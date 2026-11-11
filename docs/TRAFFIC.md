@@ -117,9 +117,9 @@ CSV files, in the alert body and in the clones badge.
 The issue goes into the open milestone with the earliest due date after today
 (UTC). The milestone is chosen before anything else, so the alert job fails,
 with a message saying so, whenever no open milestone is due after today, even
-when no alert is due. The issue body carries a dependencies section and a
-target end date, a week ahead or the day before the milestone's due date if
-that is sooner, so it meets the [issue triage rules](GOVERNANCE.md#issue-triage).
+when no alert is due. The issue body carries a dependencies section, today as
+its start date and a target end date, a week ahead or the day before the
+milestone's due date if that is sooner, so it meets the [issue triage rules](GOVERNANCE.md#issue-triage).
 The job opens at most one alert per snapshot date.
 
 ## Verification

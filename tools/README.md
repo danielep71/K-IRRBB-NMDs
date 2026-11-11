@@ -28,7 +28,7 @@ The gate runner checks:
   `http://` link is an error (`test_check_links.py`);
 - the issue forms and label catalog (`check_issues.py --check-config`): each
   form assigns `danielep71`, sets its provisional priority and requires a
-  target end date and the dependencies, and `blocked` is the only
+  start date, a target end date and the dependencies, and `blocked` is the only
   dependency-status label (`test_check_issues.py`).
 
 CI runs these checks on GitHub's hosted Linux runner. **VBA compile, Excel workbook execution, econometric calibration and numerical result validation are not performed by these gates.** Record Excel host evidence separately under `docs/EXCEL_EVIDENCE.md`.

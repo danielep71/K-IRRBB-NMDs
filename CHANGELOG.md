@@ -259,6 +259,15 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- The bug, feature and documentation forms require a start date
+  (`YYYY-MM-DD`, Europe/Rome), asked just before the target end date. Issue
+  triage reports an open issue whose start date is missing, unreadable or
+  after its target end date; it reads the date under a level-2 or level-3
+  "Start date" heading or on a `- Start date:` line, as it reads the target.
+  `tools/check_issues.py --check-config` fails when a form does not require
+  the start date. The traffic alert issue carries its filing date as start
+  date. GOVERNANCE.md, CONTRIBUTING.md, TRAFFIC.md and tools/README.md
+  describe the rule (#208).
 - No ruleset can be bypassed any more, by admins included. "Protect main" and
   "Protect release branches" lose their admin bypass; release branches now
   require pull requests that are up to date with their base, and accept a
