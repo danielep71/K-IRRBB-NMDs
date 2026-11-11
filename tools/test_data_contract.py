@@ -39,11 +39,19 @@ CURRENCY = re.compile(r"^[A-Z]{3}$")
 # Explicit fixture/run allowlist, not a claim to maintain the entire ISO register.
 SUPPORTED_CURRENCIES = frozenset({"EUR", "USD"})
 BALANCE = re.compile(r"^-?\d+(\.\d{1,4})?$")
+# At most 300 digits before the point, leading zeros not counted: always a finite Double.
+MAX_INTEGER_DIGITS = 300
 RATE = re.compile(r"^-?\d+(\.\d{1,8})?$")
 RATE_BOUNDS = (-0.05, 0.25)
 OUTLIER_RATIO = 10.0
 # Locally valid rows with their file line numbers, as read_accounts returns them.
 Panel = list[tuple[int, dict[str, str]]]
+
+
+def balance_ok(text: str) -> bool:
+    """A balance as DATA_CONTRACT.md writes it: up to 4 places, at most 300 integer digits."""
+    return BALANCE.fullmatch(text) is not None \
+        and len(text.lstrip("-").split(".")[0].lstrip("0")) <= MAX_INTEGER_DIGITS
 
 
 def parse_date(text: str) -> date | None:
@@ -100,8 +108,7 @@ def row_error(row: dict[str, str], currencies: Collection[str] = SUPPORTED_CURRE
     rate_ok = not row["customer_rate"] or (
         RATE.match(row["customer_rate"])
         and RATE_BOUNDS[0] <= float(row["customer_rate"]) <= RATE_BOUNDS[1])
-    if (not ACCOUNT_ID.match(row["account_id"]) or not BALANCE.match(row["balance"])
-            or not math.isfinite(float(row["balance"]))
+    if (not ACCOUNT_ID.match(row["account_id"]) or not balance_ok(row["balance"])
             or not rate_ok or row["indexed"] not in {"0", "1"}):
         return "E04"
     if row["segment"] not in SEGMENTS:
@@ -235,8 +242,7 @@ def read_control_totals(path: Path, totals: list[dict[str, Any]] | None,
             code = "E03"
         elif as_of is None or not is_month_end(as_of):
             code = "E02"
-        elif (not re.fullmatch(r"[1-9]\d*", row["accounts"]) or not BALANCE.fullmatch(row["balance"])
-              or not math.isfinite(float(row["balance"]))
+        elif (not re.fullmatch(r"[1-9]\d*", row["accounts"]) or not balance_ok(row["balance"])
               or decimal.Decimal(row["balance"]) >= decimal.Decimal(CONTROL_BALANCE_LIMIT)):
             code = "E04"
         elif row["segment"] not in SEGMENTS:

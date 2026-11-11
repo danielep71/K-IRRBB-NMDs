@@ -30,6 +30,8 @@ The gate runner checks:
   LibreOffice accepts (`test_vba_reserved_words.py`);
 - no module spells a number with more than 15 significant digits, which the VBE
   rounds on import (`test_vba_double_literals.py`);
+- no error handler sets a new handler before ending with `Resume`, which VBA
+  would not trap (`test_vba_error_handlers.py`);
 - explicit public API declarations compared with `docs/PUBLIC_API.txt`;
 - changelog/version consistency;
 - `docs/LABELS.md` names every label of the catalog, and milestone titles use

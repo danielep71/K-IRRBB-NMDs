@@ -456,6 +456,19 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- Three VBA paths now do what their contracts say (#261):
+  - the decay example ends its error handler with `Resume` before cleaning up,
+    so a cleanup error is reported with the first error instead of escaping;
+    `test_vba_error_handlers.py` rejects a handler that sets a new handler
+    before `Resume`;
+  - the harness cuts the case and assertion tables at their named areas and
+    says so in the status, as the workbook contract's status protocol states
+    (`TEST_RowsToWrite`, tested in `HARN-OUT-01`); the template colours a status
+    by its prefix, so `COMPLETE - FAILURES` with that note stays red;
+  - `CORE_ParseDecimal` limits the digits before the point to 300 instead of
+    the digit total to 1E+300, so a balance such as 1E+296 written with four
+    decimals is no longer refused. The data contract and the Python reference
+    state the same rule (`DATA-PARSE-02`).
 - The coefficients of `CORE_NormSInv` are spelled with 15 significant digits,
   the precision the VBE keeps: it rewrote `-0.007784894002430293` as
   `-7.78489400243029E-03`, so the workbook did not hold the source's numbers

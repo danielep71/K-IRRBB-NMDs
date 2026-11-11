@@ -22,7 +22,9 @@ Attribute VB_Name = "CORE_Parse"
 '     a year from 1900 to 9999 (the Excel date system); no time part.
 '   - Decimals: an optional "-", one or more digits, then optionally "." and
 '     1 to maxDecimals digits. No "+", exponent, thousands separator, leading
-'     or trailing ".", or spaces. A value too large for a Double is invalid.
+'     or trailing ".", or spaces. At most 300 digits before the ".", leading
+'     zeros not counted, so every accepted value is a finite Double
+'     (DATA_CONTRACT.md); maxDecimals is 1 to 8.
 '   - Rates: decimals per annum with up to 8 places, from -0.05 to 0.25
 '     inclusive.
 '   No Excel object model, worksheet function or UI (src/core boundary).
@@ -40,7 +42,8 @@ Public Const CORE_RATE_MAX As Double = 0.25
 
 Private Const MIN_YEAR As Long = 1900
 Private Const MAX_YEAR As Long = 9999
-Private Const MAX_MAGNITUDE As Double = 1E+300
+Private Const MAX_INTEGER_DIGITS As Long = 300
+Private Const MAX_DECIMALS As Long = 8
 
 
 '------------------------------------------------------------------------------
@@ -96,7 +99,7 @@ End Function
 '   units in the last place. The result is the same on every host.
 '------------------------------------------------------------------------------
 Public Function CORE_ParseDecimal(ByVal text As String, ByVal maxDecimals As Long, ByRef value As Double) As Long
-    Dim pos As Long, dot As Long, digits As Long, decimals As Long
+    Dim pos As Long, dot As Long, digits As Long, decimals As Long, integerDigits As Long
     Dim acc As Double, factor As Double, ch As String, negative As Boolean
 
     If Len(text) = 0 Then
@@ -104,7 +107,7 @@ Public Function CORE_ParseDecimal(ByVal text As String, ByVal maxDecimals As Lon
         Exit Function
     End If
     CORE_ParseDecimal = CORE_PARSE_INVALID
-    If maxDecimals < 1 Then Exit Function
+    If maxDecimals < 1 Or maxDecimals > MAX_DECIMALS Then Exit Function
 
     pos = 1
     If Left$(text, 1) = "-" Then
@@ -120,10 +123,16 @@ Public Function CORE_ParseDecimal(ByVal text As String, ByVal maxDecimals As Lon
             dot = pos
         ElseIf ch >= "0" And ch <= "9" Then
             digits = digits + 1
-            If dot > 0 Then decimals = decimals + 1
-            If decimals > maxDecimals Then Exit Function
+            If dot > 0 Then
+                decimals = decimals + 1
+                If decimals > maxDecimals Then Exit Function
+            ElseIf acc > 0 Or ch <> "0" Then
+                ' Leading zeros are not counted. 300 integer digits and at most 8
+                ' decimals keep the accumulator below 1E+308: it cannot overflow.
+                integerDigits = integerDigits + 1
+                If integerDigits > MAX_INTEGER_DIGITS Then Exit Function
+            End If
             acc = acc * 10 + (Asc(ch) - 48)
-            If acc > MAX_MAGNITUDE Then Exit Function
         Else
             Exit Function
         End If
