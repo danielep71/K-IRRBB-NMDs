@@ -443,6 +443,12 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The coefficients of `CORE_NormSInv` are spelled with 15 significant digits,
+  the precision the VBE keeps: it rewrote `-0.007784894002430293` as
+  `-7.78489400243029E-03`, so the workbook did not hold the source's numbers
+  and the source round trip failed. The result is unchanged: a Halley step
+  refines the approximation. `test_vba_double_literals.py` rejects a number
+  with more than 15 significant digits in any module (#238).
 - The source round trip compares numbers in code by value and type: the VBE
   rewrites their spelling on import (`1E+11` as `100000000000#`,
   `0.0000000000000000001` as `1E-19`, `&H1000000&` as `&H1000000`), which
