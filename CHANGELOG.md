@@ -426,6 +426,10 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- `MODEL_CONTRACTS.md` no longer says structural breaks are declared in a run
+  configuration, which does not exist: the caller of `IRRBB_DecayFit` passes
+  the month ends at which declared breaks end, for the segment and currency of
+  the call, as `DATA_CONTRACT.md` states (#230).
 - The preview and `--check` of `tools/setup_repository.py` run without admin
   rights: they read what the caller can read and record every value an
   endpoint refuses with 403 or 404 as unknown, with the endpoint and HTTP
