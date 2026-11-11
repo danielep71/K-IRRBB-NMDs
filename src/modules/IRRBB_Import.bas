@@ -68,7 +68,7 @@ Private mRatesSha As String
 '   rateSeries       [in]  rate_id the rate model uses; "" when none is chosen
 '   includedSegments [in]  segment codes selected for the run, comma-separated
 '                          (e.g. "RET_TX,WHS_NFC"); at least one, no repeats.
-'                          The import still validates and reconciles every
+'                          The import still validates and totals every
 '                          segment; the list is recorded in the lineage and
 '                          decides which transitions enter model samples
 '                          (DATA_CONTRACT.md, segment selection)
