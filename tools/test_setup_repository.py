@@ -34,6 +34,10 @@ class FakeAPI:
         self.alerts = False
         self.fixes = False
         self.paused = False
+        self.environments: dict[str, dict[str, Any]] = {}
+        self.branch_policies: dict[str, list[dict[str, Any]]] = {}
+        self.next_policy = 100
+        self.default_setup = "configured"
 
     def not_found(self, endpoint: str) -> Any:
         raise setup.SetupError(f"GET {endpoint} failed (HTTP 404). Check gh authentication.")
@@ -49,6 +53,44 @@ class FakeAPI:
         self.writes.append((method, endpoint, payload))
         setattr(self, attribute, method == "PUT")
         return None
+
+    def environment(self, method: str, endpoint: str, payload: Any) -> Any:
+        """GitHub's environment API: a PUT replaces every protection rule it does not name."""
+        path = endpoint.split("?")[0].split("/environments/", 1)[1].split("/")
+        name = path[0]
+        if method != "GET":
+            self.writes.append((method, endpoint, copy.deepcopy(payload)))
+        if len(path) == 1:
+            if method == "GET":
+                return (copy.deepcopy(self.environments[name]) if name in self.environments
+                        else self.not_found(endpoint))
+            rules: list[dict[str, Any]] = []
+            if payload.get("wait_timer"):
+                rules.append({"id": 1, "type": "wait_timer", "wait_timer": payload["wait_timer"]})
+            if payload.get("reviewers"):
+                rules.append({"id": 2, "type": "required_reviewers",
+                              "prevent_self_review": payload.get("prevent_self_review", False),
+                              "reviewers": [{"type": r["type"], "reviewer": {"id": r["id"]}}
+                                            for r in payload["reviewers"]]})
+            policy = payload.get("deployment_branch_policy")
+            if not (policy or {}).get("custom_branch_policies"):
+                self.branch_policies.pop(name, None)
+            self.environments[name] = {"name": name, "deployment_branch_policy": policy,
+                                       "protection_rules": rules}
+            return {}
+        policy = self.environments.get(name, {}).get("deployment_branch_policy") or {}
+        if not policy.get("custom_branch_policies"):
+            return self.not_found(endpoint)
+        current = self.branch_policies.setdefault(name, [])
+        if method == "GET":
+            return {"total_count": len(current), "branch_policies": copy.deepcopy(current)}
+        if method == "POST":
+            self.next_policy += 1
+            current.append(dict(payload, id=self.next_policy))
+        else:
+            number = int(path[-1])
+            self.branch_policies[name] = [p for p in current if p["id"] != number]
+        return {}
 
     def write(self, method: str, endpoint: str, payload: Any) -> Any:
         self.writes.append((method, endpoint, copy.deepcopy(payload)))
@@ -72,6 +114,14 @@ class FakeAPI:
         for suffix, attribute in switches.items():
             if endpoint.endswith(suffix):
                 return self.switch(method, endpoint, attribute, payload)
+        if "/environments/" in endpoint:
+            return self.environment(method, endpoint, payload)
+        if endpoint.endswith("/code-scanning/default-setup"):
+            if method == "GET":
+                return {"state": self.default_setup, "languages": []}
+            self.writes.append((method, endpoint, copy.deepcopy(payload)))
+            self.default_setup = payload["state"]
+            return {}
         if method != "GET":
             return self.write(method, endpoint, payload)
         if "/check-runs?" in endpoint:
@@ -119,7 +169,15 @@ class SetupTests(unittest.TestCase):
         self.args.apply = True
         self.assertEqual(self.run_setup()[0], 0)
         methods = [w[0] for w in self.api.writes]
-        self.assertEqual(methods, ["POST"] * 5 + ["PUT", "PUT", "PATCH", "PATCH"])
+        # Rulesets, security features, the environment and its branch, the
+        # CodeQL default setup, then the general settings.
+        self.assertEqual(methods, ["POST"] * 5 + ["PUT", "PUT", "PATCH", "PUT", "POST", "PATCH", "PATCH"])
+        self.assertEqual(self.api.writes[8:11], [
+            ("PUT", "repos/owner/repo/environments/analytics",
+             {"deployment_branch_policy": {"protected_branches": False, "custom_branch_policies": True}}),
+            ("POST", "repos/owner/repo/environments/analytics/deployment-branch-policies",
+             {"name": "main", "type": "branch"}),
+            ("PATCH", "repos/owner/repo/code-scanning/default-setup", {"state": "not-configured"})])
         self.assertEqual(self.api.writes[-1][2], {
             "delete_branch_on_merge": True, "allow_update_branch": True,
             "allow_rebase_merge": False, "has_projects": False, "has_downloads": False})
@@ -260,6 +318,31 @@ class SetupTests(unittest.TestCase):
                     self.assertRaisesRegex(setup.SetupError, message):
                 setup.load_config(Path("settings.json"))
 
+    def test_the_baseline_rejects_invalid_environments_and_codeql_setup(self) -> None:
+        config = setup.load_config(setup.CONFIG)
+        cases: list[tuple[str, Any, str]] = [
+            ("environments", ["analytics"], "object keyed by name"),
+            ("environments", {"analytics": {"deployment_branches": ["main"], "reviewers": []}},
+             "Invalid baseline environment"),
+            ("environments", {"../x": {"deployment_branches": ["main"]}}, "Invalid baseline environment"),
+            ("environments", {"analytics": {"deployment_branches": []}}, "unique deployment branches"),
+            ("environments", {"analytics": {"deployment_branches": ["main", "main"]}},
+             "unique deployment branches"),
+            ("environments", {"analytics": {"deployment_branches": [""]}}, "unique deployment branches"),
+            ("code_scanning_default_setup", "configured", "default setup"),
+            ("code_scanning_default_setup", None, "default setup")]
+        for key, value, message in cases:
+            broken = copy.deepcopy(config)
+            broken[key] = value
+            with self.subTest(value=value), \
+                    patch.object(Path, "read_text", return_value=json.dumps(broken)), \
+                    self.assertRaisesRegex(setup.SetupError, message):
+                setup.load_config(Path("settings.json"))
+        del config["environments"]
+        with patch.object(Path, "read_text", return_value=json.dumps(config)), \
+                self.assertRaisesRegex(setup.SetupError, "Unsupported configuration schema"):
+            setup.load_config(Path("settings.json"))
+
     def test_duplicate_live_names_are_rejected_before_any_write(self) -> None:
         name = setup.load_config(setup.CONFIG)["rulesets"][0]["name"]
         self.api.rules = [{"name": name, "id": 1}, {"name": name, "id": 2}]
@@ -273,6 +356,88 @@ class SetupTests(unittest.TestCase):
         with self.assertRaisesRegex(setup.SetupError, "Read-back"):
             self.run_setup()
         self.assertIn("- Result: **DRIFT**", self.report.read_text(encoding="utf-8"))
+
+    def analytics(self, policy: Any, branches: list[dict[str, Any]] | None = None) -> None:
+        """An existing analytics environment with a reviewer, a wait timer and a secret."""
+        self.api.environments["analytics"] = {
+            "name": "analytics", "deployment_branch_policy": policy, "secrets_count": 1,
+            "protection_rules": [
+                {"id": 1, "type": "wait_timer", "wait_timer": 5},
+                {"id": 2, "type": "required_reviewers", "prevent_self_review": True,
+                 "reviewers": [{"type": "User", "reviewer": {"id": 7, "login": "me"}}]},
+                {"id": 3, "type": "branch_policy"}]}
+        if branches is not None:
+            self.api.branch_policies["analytics"] = branches
+
+    def environment_writes(self) -> list[tuple[str, str, Any]]:
+        return [w for w in self.api.writes if "/environments/" in w[1]]
+
+    def test_a_missing_environment_is_created_for_main_only(self) -> None:
+        self.args.check = True
+        self.assertEqual(self.run_setup()[0], 1)
+        self.assertIn("| `analytics` deployment branches | main | missing |",
+                      self.report.read_text(encoding="utf-8"))
+        self.args.check, self.args.apply = False, True
+        self.assertEqual(self.run_setup()[0], 0)
+        self.assertEqual(self.api.branch_policies["analytics"],
+                         [{"name": "main", "type": "branch", "id": 101}])
+        self.assertIn("| `analytics` deployment branches | main | main |",
+                      self.report.read_text(encoding="utf-8"))
+
+    def test_a_wrong_policy_is_updated_keeping_reviewers_and_the_wait_timer(self) -> None:
+        self.analytics({"protected_branches": True, "custom_branch_policies": False})
+        self.args.check = True
+        self.assertEqual(self.run_setup()[0], 1)
+        self.assertIn("| `analytics` deployment branches | main | protected branches |",
+                      self.report.read_text(encoding="utf-8"))
+        self.args.check, self.args.apply = False, True
+        self.assertEqual(self.run_setup()[0], 0)
+        self.assertEqual(self.environment_writes()[0], (
+            "PUT", "repos/owner/repo/environments/analytics",
+            {"deployment_branch_policy": {"protected_branches": False, "custom_branch_policies": True},
+             "wait_timer": 5, "prevent_self_review": True, "reviewers": [{"type": "User", "id": 7}]}))
+        rules = self.api.environments["analytics"]["protection_rules"]
+        self.assertEqual([r["wait_timer"] for r in rules if r["type"] == "wait_timer"], [5])
+        self.assertEqual([(r["prevent_self_review"], r["reviewers"][0]["reviewer"]["id"])
+                          for r in rules if r["type"] == "required_reviewers"],
+                         [(True, 7)])
+        # Secrets and variables have their own endpoints, which are never called.
+        self.assertFalse(any("/secrets" in e or "/variables" in e for _, e, _ in self.api.writes))
+
+    def test_extra_branch_policies_are_deleted(self) -> None:
+        self.analytics({"protected_branches": False, "custom_branch_policies": True},
+                       [{"id": 1, "name": "main", "type": "branch"},
+                        {"id": 2, "name": "release/*", "type": "branch"},
+                        {"id": 3, "name": "main", "type": "tag"}])
+        self.args.apply = True
+        self.assertEqual(self.run_setup()[0], 0)
+        self.assertEqual(self.environment_writes(), [
+            ("DELETE", "repos/owner/repo/environments/analytics/deployment-branch-policies/2", None),
+            ("DELETE", "repos/owner/repo/environments/analytics/deployment-branch-policies/3", None)])
+        self.assertEqual(self.api.branch_policies["analytics"], [{"id": 1, "name": "main", "type": "branch"}])
+
+    def test_the_codeql_default_setup_is_drift_until_turned_off(self) -> None:
+        self.args.check = True
+        self.assertEqual(self.run_setup()[0], 1)
+        self.assertIn("| `code_scanning_default_setup` | not-configured | configured |",
+                      self.report.read_text(encoding="utf-8"))
+        self.args.check, self.args.apply = False, True
+        self.assertEqual(self.run_setup()[0], 0)
+        self.assertIn(("PATCH", "repos/owner/repo/code-scanning/default-setup",
+                       {"state": "not-configured"}), self.api.writes)
+        self.assertEqual(self.api.default_setup, "not-configured")
+
+    def test_a_verified_environment_and_codeql_setup_need_no_write(self) -> None:
+        self.args.apply = True
+        self.run_setup()
+        self.api.writes.clear()
+        self.analytics({"protected_branches": False, "custom_branch_policies": True},
+                       [{"id": 1, "name": "main", "type": "branch"}])
+        self.assertEqual(self.run_setup()[0], 0)
+        self.assertEqual(self.api.writes, [])
+        text = self.report.read_text(encoding="utf-8")
+        self.assertIn("- Result: **VERIFIED**", text)
+        self.assertIn("| `code_scanning_default_setup` | not-configured | not-configured |", text)
 
     def test_evidence_records_each_managed_setting(self) -> None:
         self.args.check = True
@@ -332,6 +497,13 @@ class BaselineTests(unittest.TestCase):
                    and r["conditions"]["ref_name"]["include"] == ["refs/heads/release/**"]
                    and r["rules"] == [{"type": "deletion"}]]
         self.assertEqual(len(keepers), 1)
+
+    def test_the_traffic_environment_deploys_only_from_main(self) -> None:
+        workflow = (ROOT / ".github/workflows/daily-traffic.yml").read_text(encoding="utf-8")
+        self.assertIn("    environment: analytics\n", workflow)
+        config = setup.load_config(setup.CONFIG)
+        self.assertEqual(config["environments"], {"analytics": {"deployment_branches": ["main"]}})
+        self.assertEqual(config["code_scanning_default_setup"], "not-configured")
 
     def test_the_required_check_is_the_integrity_job(self) -> None:
         workflow = (ROOT / ".github/workflows/static-checks.yml").read_text(encoding="utf-8")

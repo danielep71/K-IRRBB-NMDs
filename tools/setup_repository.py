@@ -5,7 +5,8 @@ The baseline is docs/repository-settings.json. Without a mode the script preview
 the difference and never writes; --apply writes the difference and reads it back;
 --check verifies read-only and exits 1 on drift. Every run writes a dated
 evidence file. It needs an authenticated gh with admin rights on the repository,
-and it changes only the rulesets the baseline names.
+and it changes only the rulesets and environments the baseline names; it never
+touches environment secrets or variables.
 """
 from __future__ import annotations
 
@@ -36,6 +37,10 @@ SECURITY_PUBLIC_ONLY = {
     "secret_scanning_push_protection": True,
 }
 ANALYSIS_KEYS = ("secret_scanning", "secret_scanning_push_protection")
+CONFIG_KEYS = {"schema_version", "repository", "security", "environments",
+               "code_scanning_default_setup", "rulesets"}
+# Only main may deploy: custom branch policies, not "protected branches".
+CUSTOM_BRANCHES = {"protected_branches": False, "custom_branch_policies": True}
 
 Json = Any
 Call = Callable[..., Json]
@@ -106,10 +111,23 @@ def check_ruleset(rule: dict[str, Json]) -> None:
         raise SetupError(f"Baseline ruleset {rule['name']!r} must not have bypass actors.")
 
 
+def check_environments(environments: Json) -> None:
+    if not isinstance(environments, dict):
+        raise SetupError("Baseline environments must be an object keyed by name.")
+    for name, environment in environments.items():
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 ._-]*", name) \
+                or not isinstance(environment, dict) or set(environment) != {"deployment_branches"}:
+            raise SetupError(f"Invalid baseline environment: {name!r}.")
+        branches = environment["deployment_branches"]
+        if not isinstance(branches, list) or not branches \
+                or any(not isinstance(b, str) or not b.strip() for b in branches) \
+                or len(set(branches)) != len(branches):
+            raise SetupError(f"Baseline environment {name!r} must list unique deployment branches.")
+
+
 def load_config(path: Path) -> dict[str, Json]:
     value = json.loads(path.read_text(encoding="utf-8"))
-    if set(value) != {"schema_version", "repository", "security", "rulesets"} \
-            or value["schema_version"] != 1:
+    if set(value) != CONFIG_KEYS or value["schema_version"] != 1:
         raise SetupError("Unsupported configuration schema.")
     security = value["security"]
     if set(security) != set(SECURITY_PUBLIC_ONLY) or any(type(v) is not bool for v in security.values()):
@@ -121,6 +139,10 @@ def load_config(path: Path) -> dict[str, Json]:
     general = value["repository"]
     if set(general) != GENERAL_KEYS or any(type(v) is not bool for v in general.values()):
         raise SetupError("The configuration must hold exactly the seven boolean repository settings.")
+    check_environments(value["environments"])
+    # .github/workflows/codeql.yml uploads its own results; the two cannot run together.
+    if value["code_scanning_default_setup"] != "not-configured":
+        raise SetupError('The CodeQL default setup must be "not-configured".')
     names = [rule.get("name") for rule in value["rulesets"]]
     for rule in value["rulesets"]:
         check_ruleset(rule)
@@ -157,6 +179,11 @@ def inspect(call: Call, repo: str, config: dict[str, Json],
             if rule_spec(call("GET", endpoint)) != rule_spec(desired):
                 plan.append(("PUT", endpoint, desired))
     plan += security_plan(call, root, metadata, config, report)
+    for name, environment in config["environments"].items():
+        plan += environment_plan(call, root, name, environment["deployment_branches"])
+    desired_setup = config["code_scanning_default_setup"]
+    if default_setup(call, root) != desired_setup:
+        plan.append(("PATCH", root + "/code-scanning/default-setup", {"state": desired_setup}))
     changes = {k: v for k, v in config["repository"].items() if metadata.get(k) != v}
     # Protection first, then the general settings.
     if changes:
@@ -232,6 +259,65 @@ def security_plan(call: Call, root: str, metadata: dict[str, Json], config: dict
     return plan
 
 
+def environment_state(call: Call, root: str, name: str) -> tuple[Json, list[Json] | None]:
+    """The environment (None when missing) and its custom branch policies (None when the
+    environment does not restrict deployments to custom branch policies)."""
+    endpoint = f"{root}/environments/{quote(name, safe='')}"
+    environment, absent = missing(call, endpoint)
+    if absent:
+        return None, None
+    if (environment.get("deployment_branch_policy") or {}).get("custom_branch_policies") is not True:
+        return environment, None
+    return environment, pages(call, endpoint + "/deployment-branch-policies", "branch_policies")
+
+
+def carried_protection(environment: dict[str, Json]) -> dict[str, Json]:
+    """The wait timer and required reviewers a PUT would otherwise clear."""
+    kept: dict[str, Json] = {}
+    for rule in environment.get("protection_rules") or []:
+        if rule.get("type") == "wait_timer":
+            kept["wait_timer"] = rule.get("wait_timer", 0)
+        elif rule.get("type") == "required_reviewers":
+            kept["prevent_self_review"] = bool(rule.get("prevent_self_review"))
+            kept["reviewers"] = [{"type": r["type"], "id": r["reviewer"]["id"]}
+                                 for r in rule.get("reviewers") or []]
+    return kept
+
+
+def environment_plan(call: Call, root: str, name: str, branches: list[str]) -> Plan:
+    """Restrict an environment's deployments to exactly the baseline branches."""
+    endpoint = f"{root}/environments/{quote(name, safe='')}"
+    environment, policies = environment_state(call, root, name)
+    plan: Plan = []
+    if environment is None or environment.get("deployment_branch_policy") != CUSTOM_BRANCHES:
+        payload = {"deployment_branch_policy": dict(CUSTOM_BRANCHES)}
+        if environment is not None:
+            payload.update(carried_protection(environment))
+        plan.append(("PUT", endpoint, payload))
+    current = policies or []
+    kept = {p["name"] for p in current
+            if p.get("type", "branch") == "branch" and p["name"] in branches}
+    plan += [("POST", endpoint + "/deployment-branch-policies", {"name": branch, "type": "branch"})
+             for branch in branches if branch not in kept]
+    plan += [("DELETE", f"{endpoint}/deployment-branch-policies/{p['id']}", None) for p in current
+             if p.get("type", "branch") != "branch" or p["name"] not in branches]
+    return plan
+
+
+def describe_environment(call: Call, root: str, name: str) -> str:
+    environment, policies = environment_state(call, root, name)
+    if environment is None:
+        return "missing"
+    if policies is None:
+        return "protected branches" if environment.get("deployment_branch_policy") else "all branches"
+    return ", ".join(sorted(p["name"] if p.get("type", "branch") == "branch"
+                            else f"{p['name']} ({p['type']})" for p in policies)) or "none"
+
+
+def default_setup(call: Call, root: str) -> str:
+    return str((call("GET", root + "/code-scanning/default-setup") or {}).get("state"))
+
+
 def report_unmanaged(call: Call, root: str, current: list[Json], config: dict[str, Json]) -> None:
     """Name the repository rulesets outside the baseline; they stay active alongside it."""
     managed = {rule["name"] for rule in config["rulesets"]}
@@ -257,7 +343,8 @@ def evidence(call: Call, repo: str, config: dict[str, Json], metadata: dict[str,
     root = f"repos/{repo}"
     public = metadata.get("visibility") == "public"
     differs = {endpoint for method, endpoint, _ in plan if method == "PUT" and "/rulesets/" in endpoint}
-    created = {payload["name"] for method, _, payload in plan if method == "POST"}
+    created = {payload["name"] for method, endpoint, payload in plan
+               if method == "POST" and endpoint.endswith("/rulesets")}
     current = pages(call, root + "/rulesets?includes_parents=false")
     inherited = [r for r in pages(call, root + "/rulesets?includes_parents=true")
                  if r.get("source_type") != "Repository"]
@@ -280,6 +367,13 @@ def evidence(call: Call, repo: str, config: dict[str, Json], metadata: dict[str,
         else:
             observed = cell(security_state(call, root, metadata, feature))
         lines.append(f"| `{feature}` | {cell(value)} | {observed} |")
+    lines += ["", "## Environments and code scanning", "", "| Setting | Baseline | Observed |",
+              "| --- | --- | --- |"]
+    lines += [f"| `{name}` deployment branches | {', '.join(environment['deployment_branches'])} | "
+              f"{describe_environment(call, root, name)} |"
+              for name, environment in config["environments"].items()]
+    lines.append(f"| `code_scanning_default_setup` | {config['code_scanning_default_setup']} | "
+                 f"{default_setup(call, root)} |")
     lines += ["", "## Managed rulesets", "", "| Ruleset | ID | Status |", "| --- | --- | --- |"]
     for rule in config["rulesets"]:
         match = next((r for r in current if r["name"] == rule["name"]), None)

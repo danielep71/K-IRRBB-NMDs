@@ -16,6 +16,14 @@
     "secret_scanning": true,
     "secret_scanning_push_protection": true
   },
+  "environments": {
+    "analytics": {
+      "deployment_branches": [
+        "main"
+      ]
+    }
+  },
+  "code_scanning_default_setup": "not-configured",
   "rulesets": [
     {
       "name": "Protect main",

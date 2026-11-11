@@ -89,8 +89,9 @@ the code and tests.
 
 ## Repository settings
 
-The general settings, security features and rulesets are recorded in
-[`repository-settings.json`](repository-settings.json), the baseline; this
+The general settings, security features, the `analytics` environment's
+deployment branches, the CodeQL default setup state and the rulesets are
+recorded in [`repository-settings.json`](repository-settings.json), the baseline; this
 document does not restate them. `tools/setup_repository.py` compares the saved
 settings with it ([tools/README.md](../tools/README.md#repository-settings)).
 After any settings change I run it with `--check` and keep the evidence file;
