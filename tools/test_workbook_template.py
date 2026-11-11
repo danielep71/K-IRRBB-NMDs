@@ -2,8 +2,8 @@
 
 src/workbook/IRRBB_Template.xlsx must be exactly what tools/workbook/build_template.py
 produces, the generator must agree with the tables in docs/WORKBOOK_CONTRACT.md,
-the package must be sanitized and formula-free, and the Checks names must cover
-the areas TEST_Harness writes. Standard library only.
+the package must be sanitized and formula-free, and TEST_Harness must reach the
+workbook only through the Checks and Readme names. Standard library only.
 """
 from __future__ import annotations
 
@@ -184,23 +184,35 @@ class Template(unittest.TestCase):
         self.assertEqual((dates.findtext("m:formula1", namespaces=NS), dates.findtext("m:formula2", namespaces=NS)),
                          ("1", "2958465"))
 
-    def test_checks_names_cover_the_harness_areas(self) -> None:
+    def test_harness_reaches_the_workbook_only_through_defined_names(self) -> None:
+        # docs/WORKBOOK_CONTRACT.md: CodeNames and defined names, never tab names or literal addresses.
         source = HARNESS.read_text(encoding="cp1252")
-        case_row = int(cast("re.Match[str]", re.search(r"CASE_ROW As Long = (\d+)", source)).group(1))
-        assert_col = int(cast("re.Match[str]", re.search(r"ASSERT_COL As Long = (\d+)", source)).group(1))
-        case_rows = int(cast("re.Match[str]", re.search(r"\.Cells\(CASE_ROW \+ (\d+), 6\)\)\.ClearContents",
-                                                        source)).group(1))
-        assert_rows = int(cast("re.Match[str]", re.search(
-            r"\.Cells\(CASE_ROW \+ (\d+), ASSERT_COL \+ 6\)\)\.ClearContents", source)).group(1))
-        column = "ABCDEFGHIJKLMN"
-        self.assertEqual(build_template.NAMES["Checks_Cases"],
-                         ("Checks", f"$A${case_row}:$F${case_row + case_rows}"))
-        self.assertEqual(build_template.NAMES["Checks_Assertions"],
-                         ("Checks", f"${column[assert_col - 1]}${case_row}:"
-                                    f"${column[assert_col + 5]}${case_row + assert_rows}"))
-        self.assertEqual([self.value("Checks", f"A{row}") for row in range(3, 12)],
-                         ["Status", "Started", "Finished", "Source commit", "Host", "Cases", "Assertions",
-                          "Primary error", "Cleanup error"])
+        used = set(re.findall(r'^Private Const NM_\w+ As String = "(\w+)"', source, re.MULTILINE))
+        self.assertEqual(used, {"Checks_Status", "Checks_Info", "Checks_Cases", "Checks_Assertions",
+                                "Readme_SourceCommit"})
+        self.assertLessEqual(used, set(build_template.NAMES))
+        self.assertEqual(re.findall(r'(?:Worksheets|Sheets)\(|Range\("|"Checks"|"Readme"', source), [])
+        for line in source.splitlines():
+            if ".Cells(" in line or ".Resize(" in line:
+                self.assertIn("NamedRange(", line, "a harness cell must be addressed inside a named area")
+        self.assertEqual(build_template.NAMES["Checks_Info"], ("Checks", "$B$4:$B$11"))
+        labels = {"STARTED": "Started", "FINISHED": "Finished", "COMMIT": "Source commit", "HOST": "Host",
+                  "CASES": "Cases", "ASSERTIONS": "Assertions", "PRIMARY": "Primary error",
+                  "CLEANUP": "Cleanup error"}
+        rows = dict(re.findall(r"^Private Const INFO_(\w+) As Long = (\d+)", source, re.MULTILINE))
+        self.assertEqual(set(rows), set(labels))
+        for item, row in rows.items():
+            self.assertEqual(self.value("Checks", f"A{3 + int(row)}"), labels[item], item)
+        self.assertEqual(self.value("Checks", "A3"), "Status")
+
+    def test_examples_stay_outside_the_contract(self) -> None:
+        # WORKBOOK_CONTRACT.md: example code may use tab names and literal cells only on its own sheets.
+        examples = sorted((ROOT / "examples" / "modules").glob("*.bas"))
+        self.assertTrue(examples)
+        contract = {s.name for s in build_template.SHEETS} | set(build_template.NAMES)
+        for path in examples:
+            literals = set(re.findall(r'"(\w+)"', path.read_text(encoding="cp1252")))
+            self.assertEqual(literals & contract, set(), path.name)
 
     def test_development_stamp_does_not_leak_into_the_template(self) -> None:
         build_template.package(["sha", "time", "builder", "components", "references"], ["note"])

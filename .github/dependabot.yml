@@ -20,7 +20,8 @@ updates:
     labels:
       - "ci"
       - "P3"
-    # Issue triage requires an assignee on every item.
+    # Assigned to me for review, as the issue-triage rules assign every issue;
+    # tools/check_issues.py audits issues only, not these pull requests.
     assignees:
       - "danielep71"
     # CodeQL refuses to run when its init and analyze steps differ in version,
@@ -43,7 +44,8 @@ updates:
     labels:
       - "ci"
       - "P3"
-    # Issue triage requires an assignee on every item.
+    # Assigned to me for review, as the issue-triage rules assign every issue;
+    # tools/check_issues.py audits issues only, not these pull requests.
     assignees:
       - "danielep71"
     # Ruff, mypy and their dependencies move together in one pull request.

@@ -30,9 +30,12 @@ on:
 permissions:
   contents: read
 
+# A new commit on a pull request cancels the validation of the commit it
+# replaces. A reconcile is never cancelled midway: a newer run on main waits
+# for it, so the post-run match is always verified.
 concurrency:
   group: labels-sync-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   validate:

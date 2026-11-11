@@ -259,6 +259,15 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- The bug, feature and documentation forms require a start date
+  (`YYYY-MM-DD`, Europe/Rome), asked just before the target end date. Issue
+  triage reports an open issue whose start date is missing, unreadable or
+  after its target end date; it reads the date under a level-2 or level-3
+  "Start date" heading or on a `- Start date:` line, as it reads the target.
+  `tools/check_issues.py --check-config` fails when a form does not require
+  the start date. The traffic alert issue carries its filing date as start
+  date. GOVERNANCE.md, CONTRIBUTING.md, TRAFFIC.md and tools/README.md
+  describe the rule (#208).
 - No ruleset can be bypassed any more, by admins included. "Protect main" and
   "Protect release branches" lose their admin bypass; release branches now
   require pull requests that are up to date with their base, and accept a
@@ -396,6 +405,42 @@ Use only the categories needed by a release.
   balance overflow, `E10`, `E11`) under the account-panel heading; the v0.2.0
   milestone guide lists the Issue triage workflow (#136) instead of the
   replaced metadata workflow (#41) (#195).
+- The data-contract expected files record their provenance as the fields
+  TEST_CASES requires (tool, steps, date, person) instead of free text, and a
+  test fails when any expected file lacks them. TEST_CASES gives
+  OOS-SCORE-01's reference as the `make_expected.py` count its file records,
+  and states that its `z = -2.0` is an independent input of the scoring check,
+  not derived from `confidence` (#196).
+- The regression harness reaches `Checks` and `Readme` only through defined
+  names, as WORKBOOK_CONTRACT requires, instead of the tab names `Checks` and
+  `Readme`, literal cells and a scan for the "Source commit" label. A new name,
+  `Checks_Info` (`Checks!$B$4:$B$11`), holds the harness run information;
+  WB-LAYOUT-01 expects it and the template is regenerated. The contract states
+  its one exception: example modules address their own sheet, outside the
+  contract, by tab name and literal cells (`EX_DecayExample`, #36) (#194).
+- The automation and its documents agree: GOVERNANCE states that creating a
+  `release/**` branch is the one change the required check does not gate; a
+  label reconcile on `main` is never cancelled midway, only superseded
+  pull-request validations are; `tools/README.md` says that only the reconcile
+  job changes live labels, from `main`, while pull requests run their own label
+  scripts read-only, and no longer says CI skips the synchronizer tests;
+  Dependabot's comments no longer claim the issue audit covers its pull
+  requests; Ruff and mypy cover `.github/scripts/`; each script requests one recorded
+  REST API version (`2026-03-10` for the traffic export, which was written
+  against it, `2022-11-28` elsewhere). New tests check the
+  traffic schedule against `docs/TRAFFIC.md`, setup-python pins whatever their
+  layout, the Repository integrity job and its triggers, and that no automation
+  changes the labels or milestone of an existing issue (#199).
+- The settings baseline now records the `analytics` environment's deployment
+  branches (`main` only) and the CodeQL default setup state (`not-configured`).
+  `tools/setup_repository.py --check` verifies both and lists them in the
+  evidence file; `--apply` restricts the environment to the baseline branches,
+  keeping its wait timer and required reviewers and never touching its secrets
+  or variables, and turns the default setup off (#198).
+- `WB-LAYOUT-01` counts only workbook-level defined names. The template also
+  sets 13 sheet-level print titles and areas, which Excel lists in
+  `Workbook.Names` (LibreOffice does not), so the expected 24 would have failed
+  in Excel (#193).
 - INSTALLATION and the CONTRIBUTING review checklist no longer require Excel
   evidence for every VBA change before merge: as GOVERNANCE states, a VBA
   change records Excel results when run, or states them as not run, and a
