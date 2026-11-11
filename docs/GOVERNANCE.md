@@ -103,9 +103,14 @@ an unsaved edit or an authentication prompt does not establish enforcement.
 The script never changes or deletes a ruleset the baseline does not name.
 No ruleset has a bypass, for admins included: every change reaches `main` and
 `release/**` through a pull request whose required check passed on a head that
-is up to date with its base. "Protect release branches" accepts a squash (task
-pull requests) or a merge commit (levelling a release branch with `main` after
-an integration,
+is up to date with its base. The one exception is the creation of a
+`release/**` branch: "Protect release branches" sets `do_not_enforce_on_create`,
+so I can open the next release branch from the integration merge commit on
+`main`, which passed the check there
+([`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main));
+every later change to it is a pull request. The same ruleset accepts a squash
+(task pull requests) or a merge commit (levelling a release branch with `main`
+after an integration,
 [`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main)).
 "Prevent release branch deletion" forbids deleting `release/**`, so merging an
 integration pull request never deletes the release branch.

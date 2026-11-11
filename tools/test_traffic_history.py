@@ -452,9 +452,15 @@ class WorkflowTests(unittest.TestCase):
                                  "alert": ["Create alert issue on spike or new referrer"]})
 
     def test_it_runs_daily_off_the_hour_and_only_from_the_default_branch(self) -> None:
-        cron = re.search(r'^    - cron: "(\d+) (\d+) \* \* \*"$', self.text, re.M)
-        assert cron is not None
-        self.assertNotIn(int(cron.group(1)), (0, 30))
+        crons = re.findall(r'^    - cron: "(\d+) (\d+) \* \* \*"$', self.text, re.M)
+        self.assertEqual(len(crons), 1)
+        self.assertEqual(len(re.findall(r"cron:", self.text)), 1)
+        minute, hour = (int(field) for field in crons[0])
+        self.assertNotIn(minute, (0, 30))
+        documented = re.search(r"at (\d{2}):(\d{2}) UTC every day",
+                               " ".join((ROOT / "docs/TRAFFIC.md").read_text(encoding="utf-8").split()))
+        assert documented is not None, "docs/TRAFFIC.md states no daily UTC time"
+        self.assertEqual((hour, minute), (int(documented.group(1)), int(documented.group(2))))
         self.assertIn("\n  workflow_dispatch:\n", self.text)
         self.assertIn("github.ref == format('refs/heads/{0}', "
                       "github.event.repository.default_branch)", self.jobs["collect"])

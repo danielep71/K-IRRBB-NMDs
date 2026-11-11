@@ -12,7 +12,7 @@ The gate runner checks:
 - Python-tool regression self-tests;
 - committed / working-tree whitespace;
 - source placement, LF storage and VBA export headers; every VBA component lies in a directory the synchronizer's `$sourceRoots` list reads, and the document modules in `src/workbook/` match the template's sheets by CodeName (`test_sync_checks.py`);
-- the synchronizer's folder selection, document-module decoding, production/development answer and component sets, run in PowerShell 7 without Excel (`test_sync_script.py`; skipped where `pwsh` is not installed, as on the CI runner);
+- the synchronizer's folder selection, document-module decoding, production/development answer and component sets, run in PowerShell 7 without Excel (`test_sync_script.py`; skipped where `pwsh` is not installed);
 - the export comparison of the source round trip (`test_compare_vba_export.py`);
 - data-contract fixtures in `tests/` agree with their hand-computed expectations and with `docs/methodology/DATA_CONTRACT.md` (`test_data_contract.py`);
 - the VBA harness: every literal expectation in the `TEST_*Cases` modules agrees with the contract, the harness rules or the template generator, `TEST_Fixtures.bas` equals the output of `devbuild/fixture_module.py`, and the harness registry equals the register in `docs/methodology/TEST_CASES.md` (`test_vba_harness.py`; VBA is read, not run);
@@ -164,7 +164,12 @@ counted) and the attributes of document modules, which Excel writes. Everything
 else must match. The export needs the same Trust access as the synchronizer;
 the comparison never runs Excel.
 
-Label reconciliation scripts and workflows apply the label policy and run from the default branch `main`; see [`docs/LABELS.md`](../docs/LABELS.md).
+The label scripts in `.github/scripts/` apply the label policy; see
+[`docs/LABELS.md`](../docs/LABELS.md). Only the reconcile job of
+`labels-sync.yml` changes live labels, and it runs only from the default
+branch `main`. On a pull request, `labels-sync.yml` and `labels-drift.yml` run
+the pull request's own scripts with read-only permissions, against the
+manifest and offline fixtures; they change nothing.
 
 ## Code scanning, links and pull-request milestones
 
@@ -272,11 +277,11 @@ After the portable gates above, the **Repository integrity** job installs Ruff
 and mypy from the hash-locked `tools/requirements-quality-ci.txt` (CPython 3.13
 on Linux x86_64, wheels only) and runs:
 
-- `ruff check tools` with the settings in `pyproject.toml`, plus a probe that
-  proves the complexity ceiling of 15 is active;
+- `ruff check tools .github/scripts` with the settings in `pyproject.toml`,
+  plus a probe that proves the complexity ceiling of 15 is active;
 - `mypy --strict` with `warn_unreachable` on every module in `tools/`, tests
-  included, plus probes that prove strict mode and unreachable-code warnings
-  are active;
+  included, and in `.github/scripts/`, plus probes that prove strict mode and
+  unreachable-code warnings are active;
 - actionlint 1.7.12 on every workflow, downloaded and checked against its
   SHA-256.
 
@@ -287,6 +292,6 @@ changed by hand in one reviewed pull request. Locally, with Python 3.13:
 
 ```shell
 python -m pip install --only-binary=:all: --require-hashes -r tools/requirements-quality-ci.txt
-ruff check tools
+ruff check tools .github/scripts
 mypy
 ```

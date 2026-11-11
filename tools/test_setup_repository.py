@@ -515,6 +515,20 @@ class BaselineTests(unittest.TestCase):
                               if rule["type"] == "required_status_checks")
                 self.assertTrue(checks["parameters"]["strict_required_status_checks_policy"])
 
+    def test_only_release_branch_creation_skips_the_required_check(self) -> None:
+        # docs/GOVERNANCE.md: a release branch is opened from a commit that
+        # already passed the check on main; every other change needs it.
+        rulesets = {r["name"]: r for r in setup.load_config(setup.CONFIG)["rulesets"]}
+        skipped = {name: next(rule for rule in ruleset["rules"]
+                              if rule["type"] == "required_status_checks"
+                              )["parameters"]["do_not_enforce_on_create"]
+                   for name, ruleset in rulesets.items()
+                   if any(rule["type"] == "required_status_checks" for rule in ruleset["rules"])}
+        self.assertEqual(skipped, {"Protect main": False, "Protect release branches": True})
+        governance = (ROOT / "docs/GOVERNANCE.md").read_text(encoding="utf-8")
+        self.assertIn('"Protect release branches" sets `do_not_enforce_on_create`',
+                      " ".join(governance.split()))
+
     def test_release_branches_cannot_be_deleted_even_by_an_admin(self) -> None:
         # Admins may bypass "Protect release branches", and merging an
         # integration pull request as an admin would let "delete head
