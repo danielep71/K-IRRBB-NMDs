@@ -2,8 +2,9 @@
 """Compare, apply or check the repository settings baseline through the GitHub CLI.
 
 The baseline is docs/repository-settings.json. Without a mode the script previews
-the difference and never writes; --apply writes the difference and reads it back;
---check verifies read-only and exits 1 on drift. Every run writes a dated
+the difference with its plan digest and never writes; --apply, given that digest,
+writes the same plan and reads it back; --check verifies read-only and exits 1
+on drift. Every run writes a dated
 evidence file. It needs an authenticated gh; the preview and --check record what
 they cannot read as unknown, and --apply needs admin rights. It changes only the
 rulesets and environments the baseline names; it never touches environment
@@ -13,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import json
 import os
 import re
@@ -642,8 +644,36 @@ def print_manual(reading: Reading, config: dict[str, Json]) -> None:
               f"{cell(config['actions'][key])}. Change it in the repository's Actions settings.")
 
 
+def plan_digest(plan: Plan) -> str:
+    """SHA-256 of the ordered plan: each operation's method, endpoint and payload, as canonical
+    JSON (sorted keys, no spaces, UTF-8)."""
+    text = json.dumps([{"method": method, "endpoint": endpoint, "payload": payload}
+                       for method, endpoint, payload in plan],
+                      sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
 def unread(unknown: dict[str, Unknown]) -> str:
     return "; ".join(f"{label}: {value.reason}" for label, value in unknown.items())
+
+
+def authorize(args: argparse.Namespace, reading: Reading) -> None:
+    """Refuse --apply, before any write, without admin rights, on an incomplete reading, or
+    for a plan other than the one approved."""
+    if not is_admin(reading.metadata):
+        raise SetupError("Admin rights on the repository are required for --apply; nothing was "
+                         "changed. The preview and --check run without them.")
+    if reading.unknown:
+        # Never change or certify a setting on a reading that misses part of it.
+        raise SetupError(f"Nothing was changed: these managed values could not be read: "
+                         f"{unread(reading.unknown)}.")
+    if reading.plan and args.approve_plan is None:
+        raise SetupError("Nothing was changed: --apply needs --approve-plan with the plan digest "
+                         "that the preview printed after the plan you reviewed.")
+    if reading.plan and args.approve_plan != plan_digest(reading.plan):
+        # The live settings changed since the preview: never write a plan no one reviewed.
+        raise SetupError("Nothing was changed: the plan differs from the one approved. Run the "
+                         "preview again and review the new plan.")
 
 
 def run(args: argparse.Namespace, call: Call = api, now: datetime | None = None) -> int:
@@ -658,13 +688,8 @@ def run(args: argparse.Namespace, call: Call = api, now: datetime | None = None)
     mode = "apply" if args.apply else "check" if args.check else "preview"
     stamp = now or datetime.now(timezone.utc)
     path = evidence_path(args.report, mode, stamp)
-    if args.apply and not is_admin(metadata):
-        raise SetupError("Admin rights on the repository are required for --apply; nothing was "
-                         "changed. The preview and --check run without them.")
-    if args.apply and reading.unknown:
-        # Never change or certify a setting on a reading that misses part of it.
-        raise SetupError(f"Nothing was changed: these managed values could not be read: "
-                         f"{unread(reading.unknown)}.")
+    if args.apply:
+        authorize(args, reading)
     if not args.apply or reading.verified():
         reader.frozen = True
         write_evidence(path, evidence(reader, args.repo, config, reading, mode, stamp))
@@ -672,6 +697,8 @@ def run(args: argparse.Namespace, call: Call = api, now: datetime | None = None)
         print("VERIFIED: every setting in the baseline matches.")
         return 0
     print_plan(plan)
+    if plan:
+        print(f"Plan digest: {plan_digest(plan)}")
     for label, value in reading.unknown.items():
         print(f"UNKNOWN: {label}: {value.reason}")
     print_manual(reading, config)
@@ -679,7 +706,8 @@ def run(args: argparse.Namespace, call: Call = api, now: datetime | None = None)
         print("DRIFT: the saved settings differ from the baseline or could not be read.")
         return 1
     if not args.apply:
-        print("PREVIEW ONLY: nothing was changed. Use --apply to make these changes.")
+        print("PREVIEW ONLY: nothing was changed. To make these changes, review them and run "
+              "--apply --approve-plan <plan digest>.")
         return 0
     if any(method == "PUT" and "/rulesets/" in endpoint for method, endpoint, _ in plan) \
             and not args.update_existing:
@@ -712,6 +740,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--apply", action="store_true", help="make the changes, then read them back")
     mode.add_argument("--check", action="store_true", help="verify read-only; exit 1 on drift")
+    parser.add_argument("--approve-plan", metavar="DIGEST",
+                        help="with --apply, the plan digest the preview printed; a different plan "
+                             "is refused before any write")
     parser.add_argument("--update-existing", action="store_true",
                         help="with --apply, replace a named ruleset that differs")
     parser.add_argument("--report", type=Path,
@@ -719,6 +750,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     if args.update_existing and not args.apply:
         parser.error("--update-existing requires --apply")
+    if args.approve_plan is not None:
+        if not args.apply:
+            parser.error("--approve-plan requires --apply")
+        if not re.fullmatch(r"[0-9a-fA-F]{64}", args.approve_plan):
+            parser.error("--approve-plan takes the 64-character SHA-256 plan digest")
+        args.approve_plan = args.approve_plan.lower()
     return args
 
 
