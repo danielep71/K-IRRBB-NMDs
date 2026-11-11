@@ -175,7 +175,8 @@ python tools/devbuild/build_dev_workbook.py   # writes build/IRRBB_Dev.xlsm
 
 The workbook is the [template](docs/WORKBOOK_CONTRACT.md) with the VBA
 project added. The builder embeds every `.bas` under `src/core/`, `src/modules/`,
-`src/workbook/`, `tests/modules/` and `examples/modules/` unchanged and stamps
+`src/workbook/`, `tests/modules/` and `examples/modules/` unchanged, with the
+document modules `src/workbook/ThisWorkbook.cls` and `sh*.cls`, and stamps
 the commit on the `Readme` sheet; a dirty checkout is stamped as not
 evidence-grade. Open the file, enable macros, run **Debug → Compile
 VBAProject**, then **Run tests** on the `Checks` sheet. To import data, fill

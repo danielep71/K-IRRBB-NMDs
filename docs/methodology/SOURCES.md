@@ -82,4 +82,4 @@ record above rests on my research and was not re-checked here.
    correct the contracts where they differ.
 
 A source that cannot be obtained stays unverified, and anything resting on it
-stays a proposal.
+stays provisional.

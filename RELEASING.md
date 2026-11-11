@@ -118,7 +118,7 @@ their base; no one, admins included, can bypass them. See
    ([`docs/repository-settings.json`](docs/repository-settings.json)).
 4. **Bring the release branch level with `main`:** start a task branch
    `fix/level-<release>-after-<PR>` from the release branch, merge `main`
-   into it with a merge commit (resolving any conflict in favour of the later
+   into it with a merge commit (resolving any conflict in favor of the later
    branch's work), and open a PR from that task branch into the release
    branch. Merge it with a **merge commit**,
    never a squash, which would cut the shared history. The task branch starts
