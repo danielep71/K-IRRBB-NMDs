@@ -205,7 +205,7 @@ manifest and offline fixtures; they change nothing.
 ## Repository settings
 
 `docs/repository-settings.json` is the baseline of the general settings, the
-security features, the deployment branches of the `analytics` environment
+security features, the Actions settings, the deployment branches of the `analytics` environment
 (`main` only, [`docs/TRAFFIC.md`](../docs/TRAFFIC.md#credentials-and-access)),
 the CodeQL default setup (`not-configured`, see above) and the rulesets for
 `main`, `release/**` (one for pull requests and checks, one that forbids
@@ -234,7 +234,13 @@ baseline does not name is reported and never changed or deleted. For an
 environment, `--apply` sets the deployment branch policy, keeping its wait
 timer and required reviewers, then adds or deletes branch policies until only
 the baseline branches remain; it never reads or changes environment secrets or
-variables. Dependabot
+variables. The Actions settings (SHA pinning required, a read-only
+`GITHUB_TOKEN` that cannot approve pull requests, approval for every outside
+contributor's fork pull request, 90-day artifact and log retention) are read
+and never changed: `--check` reports a difference as drift, and `--apply`, after
+its own writes, names each setting that differs and exits 1 instead of
+reporting VERIFIED, leaving the change to me in the repository's Actions
+settings. Dependabot
 security updates stay off: their pull requests target `main`, which takes work
 only through the release branch, and the weekly version updates on the
 release branch cover the pinned actions and tools. `test_setup_repository.py`

@@ -273,6 +273,15 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- The settings baseline `docs/repository-settings.json` records the
+  repository's Actions settings: SHA pinning required, `read` default workflow
+  permissions, no pull-request approval by GitHub Actions, approval required
+  for all external contributors' fork pull requests, and 90-day artifact and
+  log retention; `tools/setup_repository.py` validates them when it loads the
+  baseline. `--check` reads them from the Actions permissions endpoints and
+  reports a difference, or a value it cannot read, as drift; the evidence file
+  lists expected and observed values. The script never changes them: `--apply`
+  names each one that differs and exits 1 instead of reporting VERIFIED (#221).
 - The bug, feature and documentation forms require a start date
   (`YYYY-MM-DD`, Europe/Rome), asked just before the target end date. Issue
   triage reports an open issue whose start date is missing, unreadable or
@@ -416,9 +425,10 @@ Use only the categories needed by a release.
   endpoint refuses with 403 or 404 as unknown, with the endpoint and HTTP
   status, in the output and the evidence file. An unknown value is drift,
   never VERIFIED; a 404 from an endpoint that answers only admins is no longer
-  read as "off" for anyone else. A value that the evidence file cannot read
-  again also makes the result drift. `--apply` still requires admin rights and
-  checks them before any write (#222).
+  read as "off" for anyone else. Each run reads every endpoint once, and the
+  evidence file records those same answers, so its result never disagrees with
+  its rows. `--apply` still requires admin rights and checks them before any
+  write (#222, #221).
 - `tools/setup_repository.py` records a ruleset field that GitHub's response
   omits, such as `bypass_actors`, which GitHub returns only to callers allowed
   to see it, as unknown instead of reading a missing `bypass_actors` as no

@@ -7,11 +7,12 @@ the difference and never writes; --apply writes the difference and reads it back
 evidence file. It needs an authenticated gh; the preview and --check record what
 they cannot read as unknown, and --apply needs admin rights. It changes only the
 rulesets and environments the baseline names; it never touches environment
-secrets or variables.
+secrets or variables, and it reads the Actions settings without changing them.
 """
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import re
@@ -39,8 +40,20 @@ SECURITY_PUBLIC_ONLY = {
     "secret_scanning_push_protection": True,
 }
 ANALYSIS_KEYS = ("secret_scanning", "secret_scanning_push_protection")
-CONFIG_KEYS = {"schema_version", "repository", "security", "environments",
+CONFIG_KEYS = {"schema_version", "repository", "security", "actions", "environments",
                "code_scanning_default_setup", "rulesets"}
+# Each Actions setting: the endpoint under the repository and the response field that hold it.
+# The script reads them and never changes them.
+ACTIONS = {
+    "sha_pinning_required": ("actions/permissions", "sha_pinning_required"),
+    "default_workflow_permissions": ("actions/permissions/workflow", "default_workflow_permissions"),
+    "can_approve_pull_request_reviews": ("actions/permissions/workflow",
+                                         "can_approve_pull_request_reviews"),
+    "fork_pr_approval_policy": ("actions/permissions/fork-pr-contributor-approval", "approval_policy"),
+    "retention_days": ("actions/permissions/artifact-and-log-retention", "days"),
+}
+FORK_APPROVAL_POLICIES = ("first_time_contributors_new_to_github", "first_time_contributors",
+                          "all_external_contributors")
 # Only main may deploy: custom branch policies, not "protected branches".
 CUSTOM_BRANCHES = {"protected_branches": False, "custom_branch_policies": True}
 
@@ -71,13 +84,15 @@ class Unknown:
 
 @dataclass
 class Reading:
-    """The writes that would reach the baseline, and the managed values that could not be read."""
+    """The writes that would reach the baseline, the managed values that could not be read, and
+    the observed Actions settings that differ from it, which the script never changes."""
     metadata: dict[str, Json]
     plan: Plan
     unknown: dict[str, Unknown] = field(default_factory=dict)
+    manual: dict[str, Json] = field(default_factory=dict)
 
     def verified(self) -> bool:
-        return not self.plan and not self.unknown
+        return not self.plan and not self.unknown and not self.manual
 
 
 def api(method: str, endpoint: str, payload: Json = None) -> Json:
@@ -100,6 +115,33 @@ def api(method: str, endpoint: str, payload: Json = None) -> Json:
                          "repository access and admin rights. Nothing is rolled back; run the "
                          "preview to inspect partial changes.")
     return json.loads(result.stdout) if result.stdout.strip() else None
+
+
+class OneReading:
+    """A call that makes each GET once and replays its answer, a failure included, so the
+    evidence records exactly the values the plan was computed from. Once frozen, a GET that was
+    not made before is an error: the evidence never reads anything new."""
+
+    def __init__(self, call: Call) -> None:
+        self.call = call
+        self.answers: dict[str, Json] = {}
+        self.frozen = False
+
+    def __call__(self, method: str, endpoint: str, payload: Json = None) -> Json:
+        if method != "GET":
+            raise SetupError(f"Internal error: {method} {endpoint} during a reading.")
+        if endpoint not in self.answers:
+            if self.frozen:
+                raise SetupError(f"Internal error: the evidence read {endpoint}, which the "
+                                 "inspection did not.")
+            try:
+                self.answers[endpoint] = self.call(method, endpoint)
+            except SetupError as error:
+                self.answers[endpoint] = error
+        answer = self.answers[endpoint]
+        if isinstance(answer, SetupError):
+            raise answer
+        return copy.deepcopy(answer)
 
 
 def attempt(read: Callable[[], Json]) -> Json:
@@ -170,6 +212,21 @@ def check_environments(environments: Json) -> None:
             raise SetupError(f"Baseline environment {name!r} must list unique deployment branches.")
 
 
+def check_actions(actions: Json) -> None:
+    if not isinstance(actions, dict) or set(actions) != set(ACTIONS):
+        raise SetupError("The configuration must hold exactly the five Actions settings.")
+    valid = {
+        "sha_pinning_required": type(actions["sha_pinning_required"]) is bool,
+        "default_workflow_permissions": actions["default_workflow_permissions"] in ("read", "write"),
+        "can_approve_pull_request_reviews": type(actions["can_approve_pull_request_reviews"]) is bool,
+        "fork_pr_approval_policy": actions["fork_pr_approval_policy"] in FORK_APPROVAL_POLICIES,
+        "retention_days": type(actions["retention_days"]) is int and 1 <= actions["retention_days"] <= 400,
+    }
+    for key, ok in valid.items():
+        if not ok:
+            raise SetupError(f"Invalid baseline Actions setting: {key}.")
+
+
 def load_config(path: Path) -> dict[str, Json]:
     value = json.loads(path.read_text(encoding="utf-8"))
     if set(value) != CONFIG_KEYS or value["schema_version"] != 1:
@@ -184,6 +241,7 @@ def load_config(path: Path) -> dict[str, Json]:
     general = value["repository"]
     if set(general) != GENERAL_KEYS or any(type(v) is not bool for v in general.values()):
         raise SetupError("The configuration must hold exactly the seven boolean repository settings.")
+    check_actions(value["actions"])
     check_environments(value["environments"])
     # .github/workflows/codeql.yml uploads its own results; the two cannot run together.
     if value["code_scanning_default_setup"] != "not-configured":
@@ -254,13 +312,37 @@ def inspect(call: Call, repo: str, config: dict[str, Json], report: bool = True)
                   "default setup cannot be on and is not checked.")
     elif observed_setup != desired_setup:
         plan.append(("PATCH", root + "/code-scanning/default-setup", {"state": desired_setup}))
+    manual: dict[str, Json] = {}
+    for key, observed in actions_state(call, root).items():
+        if isinstance(observed, Unknown):
+            unknown[f"`{key}`"] = observed
+        elif observed != config["actions"][key]:
+            manual[key] = observed
     unknown.update({f"`{k}`": Unknown(f"{k} not returned by GET {root}")
                     for k in config["repository"] if k not in metadata})
     changes = {k: v for k, v in config["repository"].items() if k in metadata and metadata[k] != v}
     # Protection first, then the general settings.
     if changes:
         plan.append(("PATCH", root, changes))
-    return Reading(metadata, plan, unknown)
+    return Reading(metadata, plan, unknown, manual)
+
+
+def actions_state(call: Call, root: str) -> dict[str, Json]:
+    """The Actions settings as GitHub reports them, each Unknown when unreadable; read only."""
+    responses: dict[str, Json] = {}
+    state: dict[str, Json] = {}
+    for key, (path, name) in ACTIONS.items():
+        endpoint = f"{root}/{path}"
+        if endpoint not in responses:
+            responses[endpoint] = attempt(lambda: call("GET", endpoint))
+        response = responses[endpoint]
+        if isinstance(response, Unknown):
+            state[key] = response
+        elif not isinstance(response, dict) or name not in response:
+            state[key] = Unknown(f"{name} not returned by GET {endpoint}")
+        else:
+            state[key] = response[name]
+    return state
 
 
 def missing(call: Call, endpoint: str, conclusive: bool = True) -> tuple[Json, bool]:
@@ -447,16 +529,9 @@ def cell(value: Json) -> str:
 
 def evidence(call: Call, repo: str, config: dict[str, Json], reading: Reading, mode: str,
              now: datetime) -> str:
-    """A dated Markdown record of the managed settings as GitHub reports them. A managed value
-    that inspection read but this second reading cannot is added to reading.unknown, so neither
-    the record nor the run certifies it."""
+    """A dated Markdown record of the managed settings as GitHub reports them. Given the
+    OneReading that inspection used, it records the answers the plan was computed from."""
     root = f"repos/{repo}"
-    late: dict[str, Unknown] = {}
-
-    def seen(label: str, value: Any) -> Any:
-        if isinstance(value, Unknown) and label not in reading.unknown:
-            late[label] = value
-        return value
 
     metadata, plan = reading.metadata, reading.plan
     public = metadata.get("visibility") == "public"
@@ -482,14 +557,19 @@ def evidence(call: Call, repo: str, config: dict[str, Json], reading: Reading, m
                 and security_fixes(call, root, is_admin(metadata)) == (True, True):
             observed = "on (paused)"
         else:
-            observed = cell(seen(f"`{feature}`", security_state(call, root, metadata, feature)))
+            observed = cell(security_state(call, root, metadata, feature))
         lines.append(f"| `{feature}` | {cell(value)} | {observed} |")
+    lines += ["", "## Actions settings", "", "Read only: this script never changes them.", "",
+              "| Setting | Baseline | Observed |", "| --- | --- | --- |"]
+    observed_actions = actions_state(call, root)
+    lines += [f"| `{key}` | {cell(value)} | {cell(observed_actions[key])} |"
+              for key, value in config["actions"].items()]
     lines += ["", "## Environments and code scanning", "", "| Setting | Baseline | Observed |",
               "| --- | --- | --- |"]
     lines += [f"| `{name}` deployment branches | {', '.join(environment['deployment_branches'])} | "
-              f"{cell(seen(f'`{name}` deployment branches', describe_environment(call, root, name)))} |"
+              f"{cell(describe_environment(call, root, name))} |"
               for name, environment in config["environments"].items()]
-    setup_state = seen("`code_scanning_default_setup`", default_setup(call, root, metadata))
+    setup_state = default_setup(call, root, metadata)
     lines.append(f"| `code_scanning_default_setup` | {config['code_scanning_default_setup']} | "
                  f"{'not available (code scanning unavailable)' if setup_state is None else cell(setup_state)} |")
     lines += ["", "## Managed rulesets", "", "| Ruleset | ID | Status |", "| --- | --- | --- |"]
@@ -497,8 +577,6 @@ def evidence(call: Call, repo: str, config: dict[str, Json], reading: Reading, m
         match = None if isinstance(current, Unknown) else \
             next((r for r in current if r["name"] == rule["name"]), None)
         unread = reading.unknown.get(f'ruleset "{rule["name"]}"')
-        if unread is None and isinstance(current, Unknown):
-            unread = seen(f'ruleset "{rule["name"]}"', current)
         if unread is not None:
             lines.append(f"| {rule['name']} | {match['id'] if match else '—'} | {unread} |")
         elif rule["name"] in created or match is None:
@@ -515,7 +593,6 @@ def evidence(call: Call, repo: str, config: dict[str, Json], reading: Reading, m
               f"- Unmanaged repository rulesets: {unmanaged}",
               f"- Inherited rulesets: {others}",
               "", "Settings outside the baseline are not recorded here."]
-    reading.unknown.update(late)
     head.append(f"- Result: **{'VERIFIED' if reading.verified() else 'DRIFT'}**")
     return "\n".join(head + lines) + "\n"
 
@@ -559,6 +636,12 @@ def print_plan(plan: Plan) -> None:
             print(json.dumps(payload, indent=2))
 
 
+def print_manual(reading: Reading, config: dict[str, Json]) -> None:
+    for key, observed in reading.manual.items():
+        print(f"MANUAL: Actions setting `{key}` is {cell(observed)}; the baseline wants "
+              f"{cell(config['actions'][key])}. Change it in the repository's Actions settings.")
+
+
 def unread(unknown: dict[str, Unknown]) -> str:
     return "; ".join(f"{label}: {value.reason}" for label, value in unknown.items())
 
@@ -568,7 +651,9 @@ def run(args: argparse.Namespace, call: Call = api, now: datetime | None = None)
             or args.repo.split("/")[1] in (".", ".."):
         raise SetupError("The repository must be an explicit owner/name on github.com.")
     config = load_config(args.config)
-    reading = inspect(call, args.repo, config)
+    # One reading feeds the plan, the result and the evidence; writes go through call itself.
+    reader = OneReading(call)
+    reading = inspect(reader, args.repo, config)
     metadata, plan = reading.metadata, reading.plan
     mode = "apply" if args.apply else "check" if args.check else "preview"
     stamp = now or datetime.now(timezone.utc)
@@ -580,17 +665,16 @@ def run(args: argparse.Namespace, call: Call = api, now: datetime | None = None)
         # Never change or certify a setting on a reading that misses part of it.
         raise SetupError(f"Nothing was changed: these managed values could not be read: "
                          f"{unread(reading.unknown)}.")
-    if not args.apply or not plan:
-        write_evidence(path, evidence(call, args.repo, config, reading, mode, stamp))
-        if args.apply and reading.unknown:
-            raise SetupError(f"Nothing was changed: these managed values could not be read on "
-                             f"the second reading: {unread(reading.unknown)}.")
+    if not args.apply or reading.verified():
+        reader.frozen = True
+        write_evidence(path, evidence(reader, args.repo, config, reading, mode, stamp))
     if reading.verified():
         print("VERIFIED: every setting in the baseline matches.")
         return 0
     print_plan(plan)
     for label, value in reading.unknown.items():
         print(f"UNKNOWN: {label}: {value.reason}")
+    print_manual(reading, config)
     if args.check:
         print("DRIFT: the saved settings differ from the baseline or could not be read.")
         return 1
@@ -601,14 +685,22 @@ def run(args: argparse.Namespace, call: Call = api, now: datetime | None = None)
             and not args.update_existing:
         raise SetupError("A named ruleset differs. Review the preview, then add --update-existing "
                          "to replace that whole ruleset; any rule not in the baseline is removed.")
-    check_prerequisites(call, args.repo, metadata, config)
+    if plan:
+        check_prerequisites(call, args.repo, metadata, config)
     for method, endpoint, payload in plan:
         call(method, endpoint, payload)
         print(f"Applied {method} {endpoint}")
-    remaining = inspect(call, args.repo, config, report=False)
-    write_evidence(path, evidence(call, args.repo, config, remaining, mode, stamp))
-    if not remaining.verified():
+    reader = OneReading(call)
+    remaining = inspect(reader, args.repo, config, report=False)
+    reader.frozen = True
+    write_evidence(path, evidence(reader, args.repo, config, remaining, mode, stamp))
+    if remaining.plan or remaining.unknown:
         raise SetupError("Read-back failed; run the preview to inspect the remaining differences.")
+    if remaining.manual:
+        print_manual(remaining, config)
+        print("DRIFT: the Actions settings above differ from the baseline; this script never "
+              "changes them.")
+        return 1
     print("VERIFIED: every setting in the baseline matches after apply.")
     return 0
 

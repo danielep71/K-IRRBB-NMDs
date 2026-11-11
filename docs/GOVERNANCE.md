@@ -93,14 +93,16 @@ the code and tests.
 
 ## Repository settings
 
-The general settings, security features, the `analytics` environment's
-deployment branches, the CodeQL default setup state and the rulesets are
+The general settings, security features, Actions settings, the `analytics`
+environment's deployment branches, the CodeQL default setup state and the rulesets are
 recorded in [`repository-settings.json`](repository-settings.json), the baseline; this
 document does not restate them. `tools/setup_repository.py` compares the saved
 settings with it ([tools/README.md](../tools/README.md#repository-settings)).
 After any settings change I run it with `--check` and keep the evidence file;
 an unsaved edit or an authentication prompt does not establish enforcement.
-The script never changes or deletes a ruleset the baseline does not name.
+The script never changes or deletes a ruleset the baseline does not name, and
+it only reads the Actions settings: when one differs, I change it in the
+repository's Actions settings and run `--check` again.
 No ruleset has a bypass, for admins included: every change reaches `main` and
 `release/**` through a pull request whose required check passed on a head that
 is up to date with its base. The one exception is the creation of a

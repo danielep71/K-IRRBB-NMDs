@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import collections
 import copy
 import io
 import json
@@ -40,6 +41,14 @@ class FakeAPI:
         self.default_setup = "configured"
         self.scanning_status: int | None = None
         self.unreadable: set[str] = set()
+        self.actions: dict[str, dict[str, Any]] = {
+            "actions/permissions": {"enabled": True, "allowed_actions": "all",
+                                    "sha_pinning_required": True},
+            "actions/permissions/workflow": {"default_workflow_permissions": "read",
+                                             "can_approve_pull_request_reviews": False},
+            "actions/permissions/fork-pr-contributor-approval": {
+                "approval_policy": "all_external_contributors"},
+            "actions/permissions/artifact-and-log-retention": {"days": 90, "maximum_allowed_days": 400}}
 
     def not_found(self, endpoint: str) -> Any:
         raise setup.SetupError(f"GET {endpoint} failed (HTTP 404). Check gh authentication.")
@@ -121,7 +130,7 @@ class FakeAPI:
         """What a caller with read access gets: the admin-only endpoints refuse, and the
         repository and its rulesets come without their admin-only fields."""
         if endpoint.endswith(("/private-vulnerability-reporting", "/vulnerability-alerts",
-                              "/automated-security-fixes")):
+                              "/automated-security-fixes")) or "/actions/" in endpoint:
             return self.not_found(endpoint)
         if endpoint.endswith("/code-scanning/default-setup"):
             raise setup.SetupError(f"GET {endpoint} failed (HTTP 403).")
@@ -139,6 +148,11 @@ class FakeAPI:
                 return self.switch(method, endpoint, attribute, payload)
         if "/environments/" in endpoint:
             return self.environment(method, endpoint, payload)
+        if "/actions/" in endpoint:
+            if method != "GET":
+                self.writes.append((method, endpoint, copy.deepcopy(payload)))
+                return {}
+            return copy.deepcopy(self.actions[endpoint.split("repos/owner/repo/", 1)[1]])
         if endpoint.endswith("/code-scanning/default-setup"):
             if method == "GET":
                 if self.scanning_status is not None:
@@ -298,6 +312,8 @@ class SetupTests(unittest.TestCase):
                 "repos/owner/repo/rulesets/1) |",
                 # What a reader can see is still read.
                 "| `allow_rebase_merge` | off | off |",
+                "| `retention_days` | 90 | unknown (GET "
+                "repos/owner/repo/actions/permissions/artifact-and-log-retention: HTTP 404) |",
                 "| `analytics` deployment branches | main | main |"):
             with self.subTest(row=row):
                 self.assertIn(row, text)
@@ -332,41 +348,37 @@ class SetupTests(unittest.TestCase):
             self.run_setup()
         self.assertEqual(self.api.writes, [])
 
-    def test_a_value_unreadable_on_the_evidence_reading_is_never_verified(self) -> None:
-        # The evidence reads some values again; one refused only then still voids the result.
+    def test_one_reading_feeds_the_plan_the_result_and_the_evidence(self) -> None:
+        # A value that changes after it was read, or is refused on a later read, cannot make the
+        # evidence disagree with the result: each GET is made once per reading.
         self.args.apply = True
         self.assertEqual(self.run_setup()[0], 0)
-        api = self.api
-        for target in ("code-scanning/default-setup", "environments/analytics",
-                       "rulesets?includes_parents=false", "vulnerability-alerts"):
-            for apply in (False, True):
-                with self.subTest(target=target, apply=apply):
-                    seen = {"reads": 0}
+        api, reads = self.api, collections.Counter[str]()
 
-                    def flaky(method: str, endpoint: str, payload: Any = None,
-                              target: str = "repos/owner/repo/" + target,
-                              seen: dict[str, int] = seen) -> Any:
-                        if method == "GET" and (endpoint == target or endpoint.startswith(target + "&")):
-                            seen["reads"] += 1
-                            if seen["reads"] > 1:
-                                raise setup.SetupError(f"GET {endpoint} failed (HTTP 403).")
-                        return api(method, endpoint, payload)
+        def changing(method: str, endpoint: str, payload: Any = None) -> Any:
+            if method == "GET":
+                reads[endpoint] += 1
+                if reads[endpoint] > 1 and endpoint.endswith("/code-scanning/default-setup"):
+                    raise setup.SetupError(f"GET {endpoint} failed (HTTP 403).")
+            answer = api(method, endpoint, payload)
+            if endpoint.endswith("/actions/permissions/workflow"):
+                api.actions["actions/permissions/workflow"]["default_workflow_permissions"] = "write"
+            return answer
 
-                    self.api.writes.clear()
-                    self.args.apply, self.args.check = apply, not apply
-                    output = io.StringIO()
-                    with redirect_stdout(output):
-                        if apply:
-                            with self.assertRaisesRegex(setup.SetupError, "second reading"):
-                                setup.run(self.args, flaky, NOW)
-                        else:
-                            self.assertEqual(setup.run(self.args, flaky, NOW), 1)
-                    text = self.report.read_text(encoding="utf-8")
-                    self.assertIn("- Result: **DRIFT**", text)
-                    self.assertIn("HTTP 403) |", text)
-                    if not apply:
-                        self.assertIn("UNKNOWN:", output.getvalue())
-                    self.assertEqual(self.api.writes, [])
+        self.args.apply, self.args.check = False, True
+        output = io.StringIO()
+        with redirect_stdout(output):
+            self.assertEqual(setup.run(self.args, changing, NOW), 0)
+        self.assertIn("VERIFIED", output.getvalue())
+        text = self.report.read_text(encoding="utf-8")
+        self.assertIn("- Result: **VERIFIED**", text)
+        self.assertIn("| `default_workflow_permissions` | read | read |", text)
+        self.assertNotIn("HTTP 403", text)
+        self.assertEqual({endpoint: n for endpoint, n in reads.items() if n != 1}, {})
+        # The next reading sees the change.
+        code, output_text = self.run_setup()
+        self.assertEqual(code, 1)
+        self.assertIn("MANUAL: Actions setting `default_workflow_permissions` is write", output_text)
 
     def test_a_failed_required_check_blocks_every_write(self) -> None:
         self.args.apply = True
@@ -417,6 +429,62 @@ class SetupTests(unittest.TestCase):
         self.args.check, self.args.apply, self.args.update_existing = False, True, True
         with self.assertRaisesRegex(setup.SetupError, 'Nothing was changed.*"Protect main": '
                                                       "bypass_actors not returned"):
+            self.run_setup()
+        self.assertEqual(self.api.writes, [])
+
+    def test_matching_actions_settings_are_verified_and_recorded(self) -> None:
+        self.args.apply = True
+        self.assertEqual(self.run_setup()[0], 0)
+        self.assertFalse(any("/actions/" in endpoint for _, endpoint, _ in self.api.writes))
+        self.args.apply, self.args.check = False, True
+        self.assertEqual(self.run_setup()[0], 0)
+        text = self.report.read_text(encoding="utf-8")
+        for row in ("| `sha_pinning_required` | on | on |",
+                    "| `default_workflow_permissions` | read | read |",
+                    "| `can_approve_pull_request_reviews` | off | off |",
+                    "| `fork_pr_approval_policy` | all_external_contributors | all_external_contributors |",
+                    "| `retention_days` | 90 | 90 |"):
+            with self.subTest(row=row):
+                self.assertIn(row, text)
+
+    def test_differing_actions_settings_are_drift_and_never_changed(self) -> None:
+        self.api.actions["actions/permissions/workflow"]["default_workflow_permissions"] = "write"
+        self.api.actions["actions/permissions/artifact-and-log-retention"]["days"] = 30
+        self.args.check = True
+        code, output = self.run_setup()
+        self.assertEqual(code, 1)
+        self.assertIn("MANUAL: Actions setting `default_workflow_permissions` is write; "
+                      "the baseline wants read.", output)
+        text = self.report.read_text(encoding="utf-8")
+        self.assertIn("| `default_workflow_permissions` | read | write |", text)
+        self.assertIn("| `retention_days` | 90 | 30 |", text)
+        # --apply makes its own writes, names each Actions setting and is not VERIFIED.
+        self.args.check, self.args.apply = False, True
+        code, output = self.run_setup()
+        self.assertEqual(code, 1)
+        self.assertIn("MANUAL: Actions setting `retention_days` is 30; the baseline wants 90.", output)
+        self.assertNotIn("VERIFIED", output)
+        self.assertIn("- Result: **DRIFT**", self.report.read_text(encoding="utf-8"))
+        self.assertTrue(self.api.writes)
+        self.assertFalse(any("/actions/" in endpoint for _, endpoint, _ in self.api.writes))
+        # A second apply has nothing else to write and still names them.
+        self.api.writes.clear()
+        code, output = self.run_setup()
+        self.assertEqual((code, self.api.writes), (1, []))
+        self.assertIn("MANUAL: Actions setting `default_workflow_permissions`", output)
+
+    def test_unreadable_actions_settings_are_unknown(self) -> None:
+        self.args.check = True
+        self.api.unreadable = {"/actions/permissions/workflow"}
+        del self.api.actions["actions/permissions"]["sha_pinning_required"]
+        self.assertEqual(self.run_setup()[0], 1)
+        text = self.report.read_text(encoding="utf-8")
+        self.assertIn("| `can_approve_pull_request_reviews` | off | unknown (GET "
+                      "repos/owner/repo/actions/permissions/workflow: HTTP 403) |", text)
+        self.assertIn("| `sha_pinning_required` | on | unknown (sha_pinning_required not returned "
+                      "by GET repos/owner/repo/actions/permissions) |", text)
+        self.args.check, self.args.apply = False, True
+        with self.assertRaisesRegex(setup.SetupError, "Nothing was changed.*default_workflow_permissions"):
             self.run_setup()
         self.assertEqual(self.api.writes, [])
 
@@ -497,6 +565,26 @@ class SetupTests(unittest.TestCase):
             {"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}]
         for broken, message in ((excluded, "exclude"), (bypassed, "bypass actors")):
             with self.subTest(message=message), \
+                    patch.object(Path, "read_text", return_value=json.dumps(broken)), \
+                    self.assertRaisesRegex(setup.SetupError, message):
+                setup.load_config(Path("settings.json"))
+
+    def test_the_baseline_rejects_invalid_actions_settings(self) -> None:
+        config = setup.load_config(setup.CONFIG)
+        cases: list[tuple[str, Any, str]] = [
+            ("sha_pinning_required", 1, "sha_pinning_required"),
+            ("default_workflow_permissions", "none", "default_workflow_permissions"),
+            ("can_approve_pull_request_reviews", "false", "can_approve_pull_request_reviews"),
+            ("fork_pr_approval_policy", "everyone", "fork_pr_approval_policy"),
+            ("retention_days", True, "retention_days"),
+            ("retention_days", 0, "retention_days"),
+            ("retention_days", 401, "retention_days"),
+            ("retention_days", 90.0, "retention_days"),
+            ("extra", True, "exactly the five Actions settings")]
+        for key, value, message in cases:
+            broken = copy.deepcopy(config)
+            broken["actions"][key] = value
+            with self.subTest(key=key, value=value), \
                     patch.object(Path, "read_text", return_value=json.dumps(broken)), \
                     self.assertRaisesRegex(setup.SetupError, message):
                 setup.load_config(Path("settings.json"))
@@ -710,6 +798,12 @@ class BaselineTests(unittest.TestCase):
         self.assertEqual(config["environments"], {"analytics": {"deployment_branches": ["main"]}})
         self.assertEqual(config["code_scanning_default_setup"], "not-configured")
 
+    def test_the_actions_baseline(self) -> None:
+        self.assertEqual(setup.load_config(setup.CONFIG)["actions"], {
+            "sha_pinning_required": True, "default_workflow_permissions": "read",
+            "can_approve_pull_request_reviews": False,
+            "fork_pr_approval_policy": "all_external_contributors", "retention_days": 90})
+
     def test_the_required_check_is_the_integrity_job(self) -> None:
         workflow = (ROOT / ".github/workflows/static-checks.yml").read_text(encoding="utf-8")
         self.assertIn("    name: Repository integrity\n", workflow)
@@ -717,6 +811,33 @@ class BaselineTests(unittest.TestCase):
                     for rule in ruleset["rules"] if rule["type"] == "required_status_checks"
                     for check in rule["parameters"]["required_status_checks"]}
         self.assertEqual(contexts, {"Repository integrity"})
+
+
+class OneReadingTests(unittest.TestCase):
+    def test_answers_and_failures_are_replayed_and_a_frozen_reading_reads_nothing_new(self) -> None:
+        calls = collections.Counter[str]()
+
+        def call(method: str, endpoint: str, payload: Any = None) -> Any:
+            calls[endpoint] += 1
+            if endpoint == "refused":
+                raise setup.SetupError("GET refused failed (HTTP 403).")
+            return {"value": [calls[endpoint]]}
+
+        reader = setup.OneReading(call)
+        first = reader("GET", "settings")
+        first["value"].append("changed by a caller")
+        self.assertEqual(reader("GET", "settings"), {"value": [1]})
+        for _ in range(2):
+            with self.assertRaisesRegex(setup.SetupError, "HTTP 403"):
+                reader("GET", "refused")
+        self.assertEqual(calls, {"settings": 1, "refused": 1})
+        with self.assertRaisesRegex(setup.SetupError, "PATCH settings during a reading"):
+            reader("PATCH", "settings", {})
+        reader.frozen = True
+        self.assertEqual(reader("GET", "settings"), {"value": [1]})
+        with self.assertRaisesRegex(setup.SetupError, "evidence read other"):
+            reader("GET", "other")
+        self.assertNotIn("other", calls)
 
 
 class CommandLineTests(unittest.TestCase):
