@@ -39,6 +39,7 @@ class FakeAPI:
         self.next_policy = 100
         self.default_setup = "configured"
         self.scanning_status: int | None = None
+        self.unreadable: set[str] = set()
 
     def not_found(self, endpoint: str) -> Any:
         raise setup.SetupError(f"GET {endpoint} failed (HTTP 404). Check gh authentication.")
@@ -110,6 +111,27 @@ class FakeAPI:
         return {}
 
     def __call__(self, method: str, endpoint: str, payload: Any = None) -> Any:
+        if method == "GET" and any(part in endpoint for part in self.unreadable):
+            raise setup.SetupError(f"GET {endpoint} failed (HTTP 403).")
+        if method == "GET" and not self.repo["permissions"]["admin"]:
+            return self.as_reader(endpoint)
+        return self.respond(method, endpoint, payload)
+
+    def as_reader(self, endpoint: str) -> Any:
+        """What a caller with read access gets: the admin-only endpoints refuse, and the
+        repository and its rulesets come without their admin-only fields."""
+        if endpoint.endswith(("/private-vulnerability-reporting", "/vulnerability-alerts",
+                              "/automated-security-fixes")):
+            return self.not_found(endpoint)
+        if endpoint.endswith("/code-scanning/default-setup"):
+            raise setup.SetupError(f"GET {endpoint} failed (HTTP 403).")
+        value = self.respond("GET", endpoint)
+        if isinstance(value, dict):
+            value.pop("security_and_analysis", None)
+            value.pop("bypass_actors", None)
+        return value
+
+    def respond(self, method: str, endpoint: str, payload: Any = None) -> Any:
         switches = {"/private-vulnerability-reporting": "reporting",
                     "/vulnerability-alerts": "alerts", "/automated-security-fixes": "fixes"}
         for suffix, attribute in switches.items():
@@ -234,10 +256,79 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(self.run_setup()[0], 0)
         self.assertIn(("DELETE", "repos/owner/repo/automated-security-fixes", None), self.api.writes)
 
-    def test_without_admin_rights_nothing_runs(self) -> None:
+    def test_apply_needs_admin_rights_before_any_write(self) -> None:
         self.args.apply = True
         self.api.repo["permissions"]["admin"] = False
-        with self.assertRaisesRegex(setup.SetupError, "Admin rights"):
+        with self.assertRaisesRegex(setup.SetupError, "Admin rights .* required for --apply"):
+            self.run_setup()
+        self.assertEqual(self.api.writes, [])
+
+    def test_without_admin_rights_preview_and_check_record_what_they_cannot_read(self) -> None:
+        self.args.apply = True
+        self.assertEqual(self.run_setup()[0], 0)
+        self.analytics({"protected_branches": False, "custom_branch_policies": True},
+                       [{"id": 1, "name": "main", "type": "branch"}])
+        self.api.writes.clear()
+        self.args.apply = False
+        self.api.repo["permissions"]["admin"] = False
+        code, output = self.run_setup()
+        self.assertEqual(code, 0)
+        self.assertIn("UNKNOWN: `vulnerability_alerts`: GET repos/owner/repo/vulnerability-alerts: "
+                      "HTTP 404", output)
+        self.assertIn("PREVIEW ONLY", output)
+        self.args.check = True
+        code, output = self.run_setup()
+        # Every baseline value matches, but what could not be read is never VERIFIED.
+        self.assertEqual(code, 1)
+        self.assertIn("DRIFT", output)
+        self.assertEqual(self.api.writes, [])
+        text = self.report.read_text(encoding="utf-8")
+        for row in (
+                "- Result: **DRIFT**",
+                "| `private_vulnerability_reporting` | on | unknown (GET "
+                "repos/owner/repo/private-vulnerability-reporting: HTTP 404) |",
+                # A 404 means "off" only to an admin.
+                "| `automated_security_fixes` | off | unknown (GET "
+                "repos/owner/repo/automated-security-fixes: HTTP 404) |",
+                "| `secret_scanning` | on | unknown (security_and_analysis.secret_scanning not "
+                "returned by GET repos/owner/repo) |",
+                "| `code_scanning_default_setup` | not-configured | unknown (GET "
+                "repos/owner/repo/code-scanning/default-setup: HTTP 403) |",
+                "| Protect main | 1 | unknown (bypass_actors not returned by GET "
+                "repos/owner/repo/rulesets/1) |",
+                # What a reader can see is still read.
+                "| `allow_rebase_merge` | off | off |",
+                "| `analytics` deployment branches | main | main |"):
+            with self.subTest(row=row):
+                self.assertIn(row, text)
+        # Without admin rights a 403 on a private repository is unreadable, not "unavailable".
+        self.api.repo["visibility"] = "private"
+        self.assertEqual(self.run_setup()[0], 1)
+        self.assertIn("| `code_scanning_default_setup` | not-configured | unknown (GET "
+                      "repos/owner/repo/code-scanning/default-setup: HTTP 403) |",
+                      self.report.read_text(encoding="utf-8"))
+
+    def test_unreadable_values_are_unknown_never_matching(self) -> None:
+        self.args.apply = True
+        self.assertEqual(self.run_setup()[0], 0)
+        self.args.apply, self.args.check = False, True
+        for part, row in (
+                ("/rulesets?", "| Protect main | — | unknown (GET repos/owner/repo/rulesets?"
+                               "includes_parents=false&per_page=100&page=1: HTTP 403) |"),
+                ("/environments/", "| `analytics` deployment branches | main | unknown (GET "
+                                   "repos/owner/repo/environments/analytics: HTTP 403) |")):
+            with self.subTest(part=part):
+                self.api.unreadable = {part}
+                self.assertEqual(self.run_setup()[0], 1)
+                self.assertIn(row, self.report.read_text(encoding="utf-8"))
+        self.api.unreadable = set()
+        del self.api.repo["allow_update_branch"]
+        self.assertEqual(self.run_setup()[0], 1)
+        self.assertIn("| `allow_update_branch` | on | unknown (allow_update_branch not returned by "
+                      "GET repos/owner/repo) |", self.report.read_text(encoding="utf-8"))
+        self.api.writes.clear()
+        self.args.check, self.args.apply = False, True
+        with self.assertRaisesRegex(setup.SetupError, "Nothing was changed.*allow_update_branch"):
             self.run_setup()
         self.assertEqual(self.api.writes, [])
 
@@ -334,13 +425,19 @@ class SetupTests(unittest.TestCase):
                 self.args.apply = False
                 self.assertFalse(any("code-scanning" in endpoint for _, endpoint, _ in self.api.writes))
 
-    def test_code_scanning_errors_fail_on_public_repositories_and_for_other_statuses(self) -> None:
-        for visibility, status in (("public", 403), ("public", 404), ("private", 401)):
-            with self.subTest(visibility=visibility, status=status):
-                self.api.repo["visibility"] = visibility
+    def test_code_scanning_is_unknown_on_public_repositories_and_fails_for_other_statuses(self) -> None:
+        self.args.check = True
+        for status in (403, 404):
+            with self.subTest(status=status):
                 self.api.scanning_status = status
-                with self.assertRaisesRegex(setup.SetupError, rf"HTTP {status}"):
-                    self.run_setup()
+                self.assertEqual(self.run_setup()[0], 1)
+                self.assertIn(f"| `code_scanning_default_setup` | not-configured | unknown (GET "
+                              f"repos/owner/repo/code-scanning/default-setup: HTTP {status}) |",
+                              self.report.read_text(encoding="utf-8"))
+        self.api.repo["visibility"] = "private"
+        self.api.scanning_status = 401
+        with self.assertRaisesRegex(setup.SetupError, "HTTP 401"):
+            self.run_setup()
 
     def test_dependent_security_features_are_rejected(self) -> None:
         config = setup.load_config(setup.CONFIG)
@@ -597,12 +694,20 @@ class CommandLineTests(unittest.TestCase):
         self.assertEqual(len(setup.pages(call, "repos/x/y/rulesets?includes_parents=false")), 101)
         self.assertEqual(len(calls), 2)
 
-    def test_missing_reraises_errors_other_than_404(self) -> None:
-        def forbidden(method: str, endpoint: str, payload: Any = None) -> Any:
-            raise setup.SetupError(f"{method} {endpoint} failed (HTTP 403).")
+    def test_missing_reads_404_as_off_only_when_conclusive(self) -> None:
+        def failing(status: int) -> Any:
+            def call(method: str, endpoint: str, payload: Any = None) -> Any:
+                raise setup.SetupError(f"{method} {endpoint} failed (HTTP {status}).")
+            return call
 
-        with self.assertRaisesRegex(setup.SetupError, "HTTP 403"):
-            setup.missing(forbidden, "repos/a/b/vulnerability-alerts")
+        endpoint = "repos/a/b/vulnerability-alerts"
+        self.assertEqual(setup.missing(failing(404), endpoint), (None, True))
+        for status, conclusive in ((404, False), (403, True)):
+            value, absent = setup.missing(failing(status), endpoint, conclusive)
+            self.assertFalse(absent)
+            self.assertEqual(str(value), f"unknown (GET {endpoint}: HTTP {status})")
+        with self.assertRaisesRegex(setup.SetupError, "HTTP 500"):
+            setup.missing(failing(500), endpoint)
 
     def test_the_cli_call_is_explicit_and_hides_server_detail(self) -> None:
         ok = argparse.Namespace(returncode=0, stdout="{}", stderr="")

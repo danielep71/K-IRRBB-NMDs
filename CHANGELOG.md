@@ -411,6 +411,13 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The preview and `--check` of `tools/setup_repository.py` run without admin
+  rights: they read what the caller can read and record every value an
+  endpoint refuses with 403 or 404 as unknown, with the endpoint and HTTP
+  status, in the output and the evidence file. An unknown value is drift,
+  never VERIFIED; a 404 from an endpoint that answers only admins is no longer
+  read as "off" for anyone else. `--apply` still requires admin rights and
+  checks them before any write (#222).
 - `tools/setup_repository.py` records a ruleset field that GitHub's response
   omits, such as `bypass_actors`, which GitHub returns only to callers allowed
   to see it, as unknown instead of reading a missing `bypass_actors` as no

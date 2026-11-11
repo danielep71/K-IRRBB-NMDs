@@ -4,9 +4,10 @@
 The baseline is docs/repository-settings.json. Without a mode the script previews
 the difference and never writes; --apply writes the difference and reads it back;
 --check verifies read-only and exits 1 on drift. Every run writes a dated
-evidence file. It needs an authenticated gh with admin rights on the repository,
-and it changes only the rulesets and environments the baseline names; it never
-touches environment secrets or variables.
+evidence file. It needs an authenticated gh; the preview and --check record what
+they cannot read as unknown, and --apply needs admin rights. It changes only the
+rulesets and environments the baseline names; it never touches environment
+secrets or variables.
 """
 from __future__ import annotations
 
@@ -101,6 +102,21 @@ def api(method: str, endpoint: str, payload: Json = None) -> Json:
     return json.loads(result.stdout) if result.stdout.strip() else None
 
 
+def attempt(read: Callable[[], Json]) -> Json:
+    """Run a read; a 403 or 404 makes its value unknown, naming the endpoint and status."""
+    try:
+        return read()
+    except SetupError as error:
+        found = re.match(r"(GET \S+) failed \(HTTP (403|404)\)", str(error))
+        if found:
+            return Unknown(f"{found.group(1)}: HTTP {found.group(2)}")
+        raise
+
+
+def is_admin(metadata: dict[str, Json]) -> bool:
+    return bool((metadata.get("permissions") or {}).get("admin"))
+
+
 def pages(call: Call, endpoint: str, key: str | None = None) -> list[Json]:
     result: list[Json] = []
     page = 1
@@ -180,24 +196,15 @@ def load_config(path: Path) -> dict[str, Json]:
     return dict(value)
 
 
-def inspect(call: Call, repo: str, config: dict[str, Json], report: bool = True) -> Reading:
-    root = f"repos/{repo}"
-    metadata = call("GET", root)
-    if metadata.get("archived") or metadata.get("disabled"):
-        raise SetupError("The repository is archived or disabled.")
-    if not metadata.get("permissions", {}).get("admin"):
-        raise SetupError("Admin rights on the repository are required.")
-    current = pages(call, root + "/rulesets?includes_parents=false")
-    inherited = pages(call, root + "/rulesets?includes_parents=true")
-    print(f"Repository: {metadata['full_name']}; visibility: {metadata['visibility']}; "
-          f"default branch: {metadata['default_branch']}")
-    if report and any(r.get("source_type") != "Repository" for r in inherited):
-        print("NOTE: inherited rulesets also apply; this script neither changes nor checks them.")
-    if report:
-        report_unmanaged(call, root, current, config)
+def ruleset_plan(call: Call, root: str, current: Json, config: dict[str, Json],
+                 unknown: dict[str, Unknown]) -> Plan:
+    """Create a missing named ruleset and replace one that differs; never touch another."""
     plan: Plan = []
-    unknown: dict[str, Unknown] = {}
     for desired in config["rulesets"]:
+        label = f'ruleset "{desired["name"]}"'
+        if isinstance(current, Unknown):
+            unknown[label] = current
+            continue
         matches = [r for r in current if r["name"] == desired["name"]]
         if len(matches) > 1:
             raise SetupError(f"Ambiguous duplicate ruleset name: {desired['name']}")
@@ -205,73 +212,110 @@ def inspect(call: Call, repo: str, config: dict[str, Json], report: bool = True)
             plan.append(("POST", root + "/rulesets", desired))
         else:
             endpoint = root + "/rulesets/" + str(matches[0]["id"])
-            live = rule_spec(call("GET", endpoint))
+            response = attempt(lambda: call("GET", endpoint))
+            if isinstance(response, Unknown):
+                unknown[label] = response
+                continue
+            live = rule_spec(response)
             omitted = [k for k in RULE_KEYS if isinstance(live[k], Unknown)]
             if omitted:
-                unknown[f'ruleset "{desired["name"]}"'] = Unknown(
-                    f"{', '.join(omitted)} not returned by GET {endpoint}")
+                unknown[label] = Unknown(f"{', '.join(omitted)} not returned by GET {endpoint}")
             elif live != rule_spec(desired):
                 plan.append(("PUT", endpoint, desired))
-    plan += security_plan(call, root, metadata, config, report)
+    return plan
+
+
+def inspect(call: Call, repo: str, config: dict[str, Json], report: bool = True) -> Reading:
+    root = f"repos/{repo}"
+    metadata = call("GET", root)
+    if metadata.get("archived") or metadata.get("disabled"):
+        raise SetupError("The repository is archived or disabled.")
+    current = attempt(lambda: pages(call, root + "/rulesets?includes_parents=false"))
+    inherited = attempt(lambda: pages(call, root + "/rulesets?includes_parents=true"))
+    print(f"Repository: {metadata['full_name']}; visibility: {metadata['visibility']}; "
+          f"default branch: {metadata['default_branch']}")
+    if report and not isinstance(inherited, Unknown) \
+            and any(r.get("source_type") != "Repository" for r in inherited):
+        print("NOTE: inherited rulesets also apply; this script neither changes nor checks them.")
+    if report and not isinstance(current, Unknown):
+        report_unmanaged(call, root, current, config)
+    unknown: dict[str, Unknown] = {}
+    plan = ruleset_plan(call, root, current, config, unknown)
+    plan += security_plan(call, root, metadata, config, report, unknown)
     for name, environment in config["environments"].items():
-        plan += environment_plan(call, root, name, environment["deployment_branches"])
+        plan += environment_plan(call, root, name, environment["deployment_branches"], unknown)
     desired_setup = config["code_scanning_default_setup"]
     observed_setup = default_setup(call, root, metadata)
-    if observed_setup is None:
+    if isinstance(observed_setup, Unknown):
+        unknown["`code_scanning_default_setup`"] = observed_setup
+    elif observed_setup is None:
         if report:
             print("NOTE: code scanning is not available on this private repository; the CodeQL "
                   "default setup cannot be on and is not checked.")
     elif observed_setup != desired_setup:
         plan.append(("PATCH", root + "/code-scanning/default-setup", {"state": desired_setup}))
-    changes = {k: v for k, v in config["repository"].items() if metadata.get(k) != v}
+    unknown.update({f"`{k}`": Unknown(f"{k} not returned by GET {root}")
+                    for k in config["repository"] if k not in metadata})
+    changes = {k: v for k, v in config["repository"].items() if k in metadata and metadata[k] != v}
     # Protection first, then the general settings.
     if changes:
         plan.append(("PATCH", root, changes))
     return Reading(metadata, plan, unknown)
 
 
-def missing(call: Call, endpoint: str) -> tuple[Json, bool]:
-    """GET an endpoint that answers 404 when its feature is off; True when it does."""
-    try:
-        return call("GET", endpoint), False
-    except SetupError as error:
-        if "(HTTP 404)" in str(error):
-            return None, True
-        raise
+def missing(call: Call, endpoint: str, conclusive: bool = True) -> tuple[Json, bool]:
+    """GET an endpoint that answers 404 when its feature is off; True when it does. A 404 means
+    off only when conclusive: endpoints that answer admins alone also send it to anyone else.
+    Otherwise a 403 or 404 leaves the value unknown."""
+    value = attempt(lambda: call("GET", endpoint))
+    if conclusive and isinstance(value, Unknown) and value.reason.endswith("HTTP 404"):
+        return None, True
+    return value, False
 
 
-def security_fixes(call: Call, root: str) -> tuple[bool, bool]:
+def security_fixes(call: Call, root: str, admin: bool) -> tuple[bool, bool] | Unknown:
     """Whether Dependabot security updates are enabled, and whether GitHub has paused them."""
-    value, absent = missing(call, root + "/automated-security-fixes")
+    value, absent = missing(call, root + "/automated-security-fixes", admin)
     if absent:
         return False, False
+    if isinstance(value, Unknown):
+        return value
     value = value or {}
     return bool(value.get("enabled")), bool(value.get("paused"))
 
 
-def security_state(call: Call, root: str, metadata: dict[str, Json], feature: str) -> bool:
+def security_state(call: Call, root: str, metadata: dict[str, Json], feature: str) -> bool | Unknown:
     """Whether a feature is in effect: paused security updates are enabled, not in effect."""
+    admin = is_admin(metadata)
     if feature == "private_vulnerability_reporting":
-        return bool((call("GET", root + "/private-vulnerability-reporting") or {}).get("enabled"))
+        value = attempt(lambda: call("GET", root + "/private-vulnerability-reporting"))
+        return value if isinstance(value, Unknown) else bool((value or {}).get("enabled"))
     if feature == "vulnerability_alerts":
-        return not missing(call, root + "/vulnerability-alerts")[1]
+        value, absent = missing(call, root + "/vulnerability-alerts", admin)
+        return value if isinstance(value, Unknown) else not absent
     if feature == "automated_security_fixes":
-        enabled, paused = security_fixes(call, root)
-        return enabled and not paused
+        fixes = security_fixes(call, root, admin)
+        return fixes if isinstance(fixes, Unknown) else fixes[0] and not fixes[1]
     analysis = metadata.get("security_and_analysis") or {}
+    # GitHub returns security_and_analysis to admins only.
+    if not admin and feature not in analysis:
+        return Unknown(f"security_and_analysis.{feature} not returned by GET {root}")
     return bool((analysis.get(feature) or {}).get("status") == "enabled")
 
 
-def matches(call: Call, root: str, metadata: dict[str, Json], feature: str, desired: bool) -> bool:
+def matches(call: Call, root: str, metadata: dict[str, Json], feature: str,
+            desired: bool) -> bool | Unknown:
     """Wanted on: the feature must be in effect. Wanted off: security updates must not even be
     enabled, since paused ones resume on their own."""
     if feature == "automated_security_fixes" and not desired:
-        return not security_fixes(call, root)[0]
-    return security_state(call, root, metadata, feature) == desired
+        fixes = security_fixes(call, root, is_admin(metadata))
+        return fixes if isinstance(fixes, Unknown) else not fixes[0]
+    state = security_state(call, root, metadata, feature)
+    return state if isinstance(state, Unknown) else state == desired
 
 
 def security_plan(call: Call, root: str, metadata: dict[str, Json], config: dict[str, Json],
-                  report: bool) -> Plan:
+                  report: bool, unknown: dict[str, Unknown]) -> Plan:
     """Plan the security features; public-only ones are skipped, with a note, elsewhere."""
     public = metadata.get("visibility") == "public"
     skipped = [name for name, only in SECURITY_PUBLIC_ONLY.items()
@@ -287,7 +331,11 @@ def security_plan(call: Call, root: str, metadata: dict[str, Json], config: dict
         desired = config["security"][feature]
         if SECURITY_PUBLIC_ONLY[feature] and not public:
             continue
-        if matches(call, root, metadata, feature, desired):
+        matched = matches(call, root, metadata, feature, desired)
+        if isinstance(matched, Unknown):
+            unknown[f"`{feature}`"] = matched
+            continue
+        if matched:
             continue
         if feature in ANALYSIS_KEYS:
             analysis[feature] = {"status": "enabled" if desired else "disabled"}
@@ -298,16 +346,19 @@ def security_plan(call: Call, root: str, metadata: dict[str, Json], config: dict
     return plan
 
 
-def environment_state(call: Call, root: str, name: str) -> tuple[Json, list[Json] | None]:
+def environment_state(call: Call, root: str, name: str) -> tuple[Json, Json]:
     """The environment (None when missing) and its custom branch policies (None when the
-    environment does not restrict deployments to custom branch policies)."""
+    environment does not restrict deployments to custom branch policies); either is Unknown
+    when unreadable. Anyone who can read the repository can read its environments."""
     endpoint = f"{root}/environments/{quote(name, safe='')}"
     environment, absent = missing(call, endpoint)
     if absent:
         return None, None
-    if (environment.get("deployment_branch_policy") or {}).get("custom_branch_policies") is not True:
+    if isinstance(environment, Unknown) or (environment.get("deployment_branch_policy") or {}
+                                            ).get("custom_branch_policies") is not True:
         return environment, None
-    return environment, pages(call, endpoint + "/deployment-branch-policies", "branch_policies")
+    return environment, attempt(lambda: pages(call, endpoint + "/deployment-branch-policies",
+                                              "branch_policies"))
 
 
 def carried_protection(environment: dict[str, Json]) -> dict[str, Json]:
@@ -323,10 +374,15 @@ def carried_protection(environment: dict[str, Json]) -> dict[str, Json]:
     return kept
 
 
-def environment_plan(call: Call, root: str, name: str, branches: list[str]) -> Plan:
+def environment_plan(call: Call, root: str, name: str, branches: list[str],
+                     unknown: dict[str, Unknown]) -> Plan:
     """Restrict an environment's deployments to exactly the baseline branches."""
     endpoint = f"{root}/environments/{quote(name, safe='')}"
     environment, policies = environment_state(call, root, name)
+    for value in (environment, policies):
+        if isinstance(value, Unknown):
+            unknown[f"`{name}` deployment branches"] = value
+            return []
     plan: Plan = []
     if environment is None or environment.get("deployment_branch_policy") != CUSTOM_BRANCHES:
         payload = {"deployment_branch_policy": dict(CUSTOM_BRANCHES)}
@@ -345,6 +401,9 @@ def environment_plan(call: Call, root: str, name: str, branches: list[str]) -> P
 
 def describe_environment(call: Call, root: str, name: str) -> str:
     environment, policies = environment_state(call, root, name)
+    for value in (environment, policies):
+        if isinstance(value, Unknown):
+            return str(value)
     if environment is None:
         return "missing"
     if policies is None:
@@ -353,17 +412,16 @@ def describe_environment(call: Call, root: str, name: str) -> str:
                             else f"{p['name']} ({p['type']})" for p in policies)) or "none"
 
 
-def default_setup(call: Call, root: str, metadata: dict[str, Json]) -> str | None:
+def default_setup(call: Call, root: str, metadata: dict[str, Json]) -> str | None | Unknown:
     """The CodeQL default-setup state; None when code scanning is unavailable, which GitHub
-    answers with 403 or 404 on a private repository without Code Security. On a public
-    repository those statuses are real failures."""
-    try:
-        return str((call("GET", root + "/code-scanning/default-setup") or {}).get("state"))
-    except SetupError as error:
-        if metadata.get("visibility") != "public" and \
-                any(f"(HTTP {status})" in str(error) for status in (403, 404)):
-            return None
-        raise
+    answers to an admin with 403 or 404 on a private repository without Code Security. On a
+    public repository, or to anyone else, those statuses leave the state unknown."""
+    value = attempt(lambda: call("GET", root + "/code-scanning/default-setup"))
+    if not isinstance(value, Unknown):
+        return str((value or {}).get("state"))
+    if metadata.get("visibility") != "public" and is_admin(metadata):
+        return None
+    return value
 
 
 def report_unmanaged(call: Call, root: str, current: list[Json], config: dict[str, Json]) -> None:
@@ -372,7 +430,9 @@ def report_unmanaged(call: Call, root: str, current: list[Json], config: dict[st
     for ruleset in current:
         if ruleset.get("source_type", "Repository") != "Repository" or ruleset["name"] in managed:
             continue
-        detail = call("GET", f"{root}/rulesets/{ruleset['id']}")
+        detail = attempt(lambda: call("GET", f"{root}/rulesets/{ruleset['id']}"))
+        if isinstance(detail, Unknown):
+            detail = {}
         refs = ", ".join(((detail.get("conditions") or {}).get("ref_name") or {}).get("include") or [])
         print(f'NOTE: unmanaged ruleset "{ruleset["name"]}" '
               f'({detail.get("target", "unknown target")}: {refs or "no ref conditions"}; '
@@ -394,9 +454,8 @@ def evidence(call: Call, repo: str, config: dict[str, Json], reading: Reading, m
     differs = {endpoint for method, endpoint, _ in plan if method == "PUT" and "/rulesets/" in endpoint}
     created = {payload["name"] for method, endpoint, payload in plan
                if method == "POST" and endpoint.endswith("/rulesets")}
-    current = pages(call, root + "/rulesets?includes_parents=false")
-    inherited = [r for r in pages(call, root + "/rulesets?includes_parents=true")
-                 if r.get("source_type") != "Repository"]
+    current = attempt(lambda: pages(call, root + "/rulesets?includes_parents=false"))
+    inherited = attempt(lambda: pages(call, root + "/rulesets?includes_parents=true"))
     managed = {rule["name"] for rule in config["rulesets"]}
     lines = ["# Repository settings evidence", "",
              f"- Checked: **{now.strftime('%Y-%m-%dT%H:%M:%SZ')}** with "
@@ -405,13 +464,14 @@ def evidence(call: Call, repo: str, config: dict[str, Json], reading: Reading, m
              f"default branch: `{metadata['default_branch']}`",
              f"- Result: **{'VERIFIED' if reading.verified() else 'DRIFT'}**", "",
              "## General settings", "", "| Setting | Baseline | Observed |", "| --- | --- | --- |"]
-    lines += [f"| `{key}` | {cell(value)} | {cell(metadata.get(key))} |"
+    lines += [f"| `{key}` | {cell(value)} | {cell(reading.unknown.get(f'`{key}`', metadata.get(key)))} |"
               for key, value in config["repository"].items()]
     lines += ["", "## Security features", "", "| Feature | Baseline | Observed |", "| --- | --- | --- |"]
     for feature, value in config["security"].items():
         if SECURITY_PUBLIC_ONLY[feature] and not public:
             observed = "not applied (public repositories only)"
-        elif feature == "automated_security_fixes" and security_fixes(call, root) == (True, True):
+        elif feature == "automated_security_fixes" \
+                and security_fixes(call, root, is_admin(metadata)) == (True, True):
             observed = "on (paused)"
         else:
             observed = cell(security_state(call, root, metadata, feature))
@@ -423,23 +483,27 @@ def evidence(call: Call, repo: str, config: dict[str, Json], reading: Reading, m
               for name, environment in config["environments"].items()]
     setup_state = default_setup(call, root, metadata)
     lines.append(f"| `code_scanning_default_setup` | {config['code_scanning_default_setup']} | "
-                 f"{'not available (code scanning unavailable)' if setup_state is None else setup_state} |")
+                 f"{'not available (code scanning unavailable)' if setup_state is None else cell(setup_state)} |")
     lines += ["", "## Managed rulesets", "", "| Ruleset | ID | Status |", "| --- | --- | --- |"]
     for rule in config["rulesets"]:
-        match = next((r for r in current if r["name"] == rule["name"]), None)
+        match = None if isinstance(current, Unknown) else \
+            next((r for r in current if r["name"] == rule["name"]), None)
         unread = reading.unknown.get(f'ruleset "{rule["name"]}"')
-        if unread is not None and match is not None:
-            lines.append(f"| {rule['name']} | {match['id']} | {unread} |")
+        if unread is not None:
+            lines.append(f"| {rule['name']} | {match['id'] if match else '—'} | {unread} |")
         elif rule["name"] in created or match is None:
             lines.append(f"| {rule['name']} | — | missing |")
         else:
             status = "differs" if f"{root}/rulesets/{match['id']}" in differs else "matches"
             lines.append(f"| {rule['name']} | {match['id']} | {status} |")
-    unmanaged = [r for r in current if r.get("source_type", "Repository") == "Repository"
-                 and r["name"] not in managed]
+    unmanaged = current if isinstance(current, Unknown) else \
+        ", ".join(r["name"] for r in current if r.get("source_type", "Repository") == "Repository"
+                  and r["name"] not in managed) or "none"
+    others = inherited if isinstance(inherited, Unknown) else \
+        ", ".join(r["name"] for r in inherited if r.get("source_type") != "Repository") or "none"
     lines += ["", "## Other rules", "",
-              f"- Unmanaged repository rulesets: {', '.join(r['name'] for r in unmanaged) or 'none'}",
-              f"- Inherited rulesets: {', '.join(r['name'] for r in inherited) or 'none'}",
+              f"- Unmanaged repository rulesets: {unmanaged}",
+              f"- Inherited rulesets: {others}",
               "", "Settings outside the baseline are not recorded here."]
     return "\n".join(lines) + "\n"
 
@@ -497,6 +561,9 @@ def run(args: argparse.Namespace, call: Call = api, now: datetime | None = None)
     mode = "apply" if args.apply else "check" if args.check else "preview"
     stamp = now or datetime.now(timezone.utc)
     path = evidence_path(args.report, mode, stamp)
+    if args.apply and not is_admin(metadata):
+        raise SetupError("Admin rights on the repository are required for --apply; nothing was "
+                         "changed. The preview and --check run without them.")
     if args.apply and reading.unknown:
         # Never change or certify a setting on a reading that misses part of it.
         raise SetupError(f"Nothing was changed: these managed values could not be read: "
