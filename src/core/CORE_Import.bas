@@ -87,6 +87,10 @@ Private Const CONTROL_TOLERANCE As Double = 0.005
 ' Balances carry at most four decimals: differences are compared in
 ' ten-thousandths of a currency unit, so exactly 0.005 stays within tolerance.
 Private Const BALANCE_SCALE As Double = 10000
+' A control balance must be below this many currency units: up to there a
+' Double resolves 0.0001 in the parsed balances and their compensated sum, so
+' the tolerance is enforced; a larger control balance is E04.
+Private Const CONTROL_BALANCE_LIMIT As Double = 1E+11
 Private Const BALANCE_DECIMALS As Long = 4
 Private Const OUTLIER_RATIO As Double = 10
 Private Const MAX_TOTAL As Double = 1E+307
@@ -918,6 +922,8 @@ Public Sub CORE_ControlAddLine(ByVal text As String)
         code = "E02"
     ElseIf Not IsPositiveInteger(fields(3)) _
             Or CORE_ParseDecimal(fields(4), BALANCE_DECIMALS, balance) <> CORE_PARSE_OK Then
+        code = "E04"
+    ElseIf balance >= CONTROL_BALANCE_LIMIT Then
         code = "E04"
     ElseIf Not CORE_IsSegmentCode(fields(1)) Then
         code = "E06"

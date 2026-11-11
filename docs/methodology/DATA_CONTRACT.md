@@ -183,9 +183,13 @@ Header: `as_of_date,segment,currency,accounts,balance`
 | `segment` | Code | — | ✅ | One of the [segment codes](#segmentation) |
 | `currency` | ISO 4217 code | — | ✅ | In the run allowlist, as for the account panel |
 | `accounts` | Positive integer, no sign or leading zero | Accounts | ✅ | At least 1: a key without accounts has no import total |
-| `balance` | Decimal, up to 4 places | Currency units | ✅ | ≥ 0 |
+| `balance` | Decimal, up to 4 places | Currency units | ✅ | ≥ 0 and below 1E+11 |
 
 The key is (`as_of_date`, `segment`, `currency`); a key appears at most once.
+A control balance must be below 1E+11 currency units: up to there a VBA Double
+still resolves 0.0001 in the parsed balances and their sum, so the tolerance
+below is enforced; a larger control balance is `E04`, and such a total cannot
+be reconciled.
 The file lists only the keys the user wants checked, and each balance is in
 its own currency: currencies are never added together.
 
@@ -230,7 +234,8 @@ same file always gives the same findings in the same order.
 
 The control-totals file follows the same rules where they apply: `E01` for its
 header, field count or a character outside ASCII, `E03` for an empty field,
-`E02` for the date, `E04` for `accounts` or `balance` out of format, `E06`,
+`E02` for the date, `E04` for `accounts` or `balance` out of format or a
+balance at or above 1E+11, `E06`,
 `E07`, `E09` for a negative balance and `E05` for a repeated key; then `E13`.
 Findings are listed per file in line order: account panel, missing extracts,
 market rates, control totals.
@@ -392,7 +397,7 @@ or reference may be used at runtime.
 | [`tests/expected/data_contract/accounts_summary.json`](../../tests/expected/data_contract/accounts_summary.json) | Hand-computed totals per date, segment and currency, and every expected warning |
 | [`tests/expected/data_contract/accounts_invalid_findings.json`](../../tests/expected/data_contract/accounts_invalid_findings.json) | Expected first error per invalid line |
 | [`tests/fixtures/data_contract/control_totals.csv`](../../tests/fixtures/data_contract/control_totals.csv) | The 23 totals of `accounts.csv`, unchanged |
-| `tests/fixtures/data_contract/control_totals_*.csv` | Balances 0.0049 from the total (`within`), 0.0051 from it (`balance`), a count difference and EUR plus USD added (`count`), keys with no import total (`unknown`), and one row per format rule (`invalid`) |
+| `tests/fixtures/data_contract/control_totals_*.csv` | Balances 0.0049 from the total (`within`), 0.0051 from it (`balance`), a count difference and EUR plus USD added (`count`), keys with no import total (`unknown`), and one row per format rule, a balance at the 1E+11 limit included (`invalid`) |
 | [`tests/expected/data_contract/control_totals_findings.json`](../../tests/expected/data_contract/control_totals_findings.json) | Expected findings per control-totals file against `accounts.csv`, with the steps of the hand assignment |
 
 The fixtures are hand-constructed; the expected values were computed by hand

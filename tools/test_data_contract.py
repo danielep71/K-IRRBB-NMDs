@@ -29,6 +29,9 @@ CONTROL_TOLERANCE = 0.005
 # Balances carry at most four decimals, so differences are compared in
 # ten-thousandths of a currency unit: exactly 0.005 stays within the tolerance.
 BALANCE_SCALE = 10_000
+# A control balance must be below 1E+11 currency units, where a VBA Double still
+# resolves 0.0001 in the parsed balances and their sum; a larger one is E04.
+CONTROL_BALANCE_LIMIT = 1e11
 SEGMENTS = {"RET_TX", "RET_NTX", "WHS_NFC"}
 ISO_DATE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
 ACCOUNT_ID = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
@@ -233,7 +236,8 @@ def read_control_totals(path: Path, totals: list[dict[str, Any]] | None,
         elif as_of is None or not is_month_end(as_of):
             code = "E02"
         elif (not re.fullmatch(r"[1-9]\d*", row["accounts"]) or not BALANCE.fullmatch(row["balance"])
-              or not math.isfinite(float(row["balance"]))):
+              or not math.isfinite(float(row["balance"]))
+              or decimal.Decimal(row["balance"]) >= decimal.Decimal(CONTROL_BALANCE_LIMIT)):
             code = "E04"
         elif row["segment"] not in SEGMENTS:
             code = "E06"
@@ -596,6 +600,25 @@ class ControlTotals(unittest.TestCase):
                  for d, s, c, _, b in (line.split(",") for line in within)]
         self.assertIn(decimal.Decimal("0.0050"), exact)
         self.assertIn(decimal.Decimal("-0.0050"), exact)
+
+    def test_control_balances_stay_below_the_limit_where_the_tolerance_holds(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "control.csv"
+            path.write_text("as_of_date,segment,currency,accounts,balance\n"
+                            "2025-01-31,RET_TX,EUR,5,99999999999.9999\n"
+                            "2025-02-28,RET_TX,EUR,5,100000000000.0000\n"
+                            "2025-03-31,RET_TX,EUR,5,10000000000000.0051\n", encoding="ascii")
+            self.assertEqual(read_control_totals(path, None),
+                             [{"line": 3, "code": "E04"}, {"line": 4, "code": "E04"}])
+            # Just below the limit, 0.0050 is still within the tolerance and 0.0051 beyond it.
+            for total, code in (("99999999999.9949", []), ("99999999999.9948", [{"line": 2, "code": "E13"}])):
+                with self.subTest(total=total):
+                    totals = [{"as_of_date": "2025-01-31", "segment": "RET_TX", "currency": "EUR",
+                               "accounts": 5, "balance": float(total)}]
+                    path.write_text("as_of_date,segment,currency,accounts,balance\n"
+                                    "2025-01-31,RET_TX,EUR,5,99999999999.9999\n", encoding="ascii")
+                    self.assertEqual(read_control_totals(path, totals), code)
 
     def test_a_rejected_panel_is_not_reconciled(self) -> None:
         for case in self.expected["cases"]:
