@@ -26,6 +26,8 @@ The gate runner checks:
 - the workbook template: `src/workbook/IRRBB_Template.xlsx` equals the output of `workbook/build_template.py`, agrees with `docs/WORKBOOK_CONTRACT.md` and the harness areas, and holds no formulas, VBA or document properties (`test_workbook_template.py`);
 - `src/core/` host independence: no Excel object-model or UI identifiers outside comments and strings;
 - VBA jump targets and conditional compilation across supported Windows bitness contexts;
+- no module declares a reserved word of VBA as a name, which Excel rejects and
+  LibreOffice accepts (`test_vba_reserved_words.py`);
 - explicit public API declarations compared with `docs/PUBLIC_API.txt`;
 - changelog/version consistency;
 - `docs/LABELS.md` names every label of the catalog, and milestone titles use

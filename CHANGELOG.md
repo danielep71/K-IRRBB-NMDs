@@ -443,6 +443,11 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- `CORE_Import` compiles in Excel: `IndexOfTotal` and `IndexOfPeriod` named a
+  parameter `currency`, a reserved word of VBA, so Excel rejected both
+  declarations and reported "Sub or Function not defined"; LibreOffice accepts
+  the name. The parameter is `currencyCode`, and `test_vba_reserved_words.py`
+  rejects a reserved word declared as a name in any module (#241).
 - `MODEL_CONTRACTS.md` no longer says structural breaks are declared in a run
   configuration, which does not exist: the caller of `IRRBB_DecayFit` passes
   the month ends at which declared breaks end, for the segment and currency of
