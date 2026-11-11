@@ -397,6 +397,12 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The data-contract expected files record their provenance as the fields
+  TEST_CASES requires (tool, steps, date, person) instead of free text, and a
+  test fails when any expected file lacks them. TEST_CASES gives
+  OOS-SCORE-01's reference as the `make_expected.py` count its file records,
+  and states that its `z = -2.0` is an independent input of the scoring check,
+  not derived from `confidence` (#196).
 - The regression harness reaches `Checks` and `Readme` only through defined
   names, as WORKBOOK_CONTRACT requires, instead of the tab names `Checks` and
   `Readme`, literal cells and a scan for the "Source commit" label. A new name,

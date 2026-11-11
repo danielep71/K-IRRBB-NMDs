@@ -1,6 +1,11 @@
 {
   "fixture": "tests/fixtures/data_contract/accounts.csv",
-  "provenance": "Hand-constructed synthetic panel; totals and warnings computed by hand from the fixture rows, independently of any toolkit code.",
+  "provenance": {
+    "tool": "Hand construction (no software tool, so no version)",
+    "steps": "Hand-constructed synthetic panel; totals and warnings computed by hand from the fixture rows, independently of any toolkit code.",
+    "date": "2026-10-08",
+    "produced_by": "Daniele Penza"
+  },
   "window": {"first": "2025-01-31", "last": "2025-06-30"},
   "rows": 51,
   "accounts": 10,
