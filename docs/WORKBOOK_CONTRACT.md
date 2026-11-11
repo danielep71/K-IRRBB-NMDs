@@ -120,6 +120,9 @@ beginning `COMPLETE` marks that sheet's results as current.**
 | `FAILED` | The run stopped; partial results, if any, are not current | Red |
 | `FAILED - IMPORT REJECTED` | The data files break the contract; findings are listed, no totals or outcomes | Red |
 
+A status may end with a note, such as ` (a table is cut at its last row)`; the
+colour follows the status before it, so a cut failure stays red.
+
 A run that writes a sheet:
 
 1. sets the status to `RUNNING - previous results withdrawn` and clears the

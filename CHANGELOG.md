@@ -461,7 +461,8 @@ Use only the categories needed by a release.
     before `Resume`;
   - the harness cuts the case and assertion tables at their named areas and
     says so in the status, as the workbook contract's status protocol states
-    (`TEST_RowsToWrite`, tested in `HARN-OUT-01`);
+    (`TEST_RowsToWrite`, tested in `HARN-OUT-01`); the template colours a status
+    by its prefix, so `COMPLETE - FAILURES` with that note stays red;
   - `CORE_ParseDecimal` limits the digits before the point to 300 instead of
     the digit total to 1E+300, so a balance such as 1E+296 written with four
     decimals is no longer refused. The data contract and the Python reference
