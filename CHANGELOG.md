@@ -411,6 +411,12 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- `tools/setup_repository.py` records a ruleset field that GitHub's response
+  omits, such as `bypass_actors`, which GitHub returns only to callers allowed
+  to see it, as unknown instead of reading a missing `bypass_actors` as no
+  bypass. An unknown ruleset is drift in `--check`, appears as unknown in the
+  evidence file, and makes `--apply` stop before any write, naming the ruleset
+  and the field (#220).
 - A label reconcile run with `--dry-run` no longer stops at the first planned
   deletion of a label still in use: it lists every planned change, marks each
   blocked deletion with the issues or pull requests that use the label, changes

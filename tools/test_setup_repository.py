@@ -271,6 +271,28 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(self.run_setup()[0], 0)
         self.assertEqual(self.api.rules[0]["enforcement"], "active")
 
+    def test_an_omitted_bypass_list_is_unknown_never_none(self) -> None:
+        # GitHub returns bypass_actors only to callers allowed to see it.
+        self.args.apply = True
+        self.assertEqual(self.run_setup()[0], 0)
+        del self.api.rules[0]["bypass_actors"]
+        self.api.writes.clear()
+        self.args.apply, self.args.check = False, True
+        code, output = self.run_setup()
+        self.assertEqual(code, 1)
+        self.assertIn('UNKNOWN: ruleset "Protect main": bypass_actors not returned by '
+                      "GET repos/owner/repo/rulesets/1", output)
+        self.assertNotIn("PUT repos/owner/repo/rulesets/1", output)
+        text = self.report.read_text(encoding="utf-8")
+        self.assertIn("- Result: **DRIFT**", text)
+        self.assertIn("| Protect main | 1 | unknown (bypass_actors not returned by "
+                      "GET repos/owner/repo/rulesets/1) |", text)
+        self.args.check, self.args.apply, self.args.update_existing = False, True, True
+        with self.assertRaisesRegex(setup.SetupError, 'Nothing was changed.*"Protect main": '
+                                                      "bypass_actors not returned"):
+            self.run_setup()
+        self.assertEqual(self.api.writes, [])
+
     def test_unmanaged_rulesets_are_named_and_never_touched(self) -> None:
         other = {"name": "Legacy branch rule", "id": 10, "source_type": "Repository",
                  "target": "branch", "enforcement": "active",
@@ -489,6 +511,14 @@ class BaselineTests(unittest.TestCase):
         self.assertEqual(setup.rule_spec(rule), setup.rule_spec(reordered))
         reordered["rules"].append({"type": "creation"})
         self.assertNotEqual(setup.rule_spec(rule), setup.rule_spec(reordered))
+
+    def test_an_omitted_field_is_unknown_and_never_matches(self) -> None:
+        rule = copy.deepcopy(setup.load_config(setup.CONFIG)["rulesets"][0])
+        del rule["bypass_actors"]
+        self.assertIsInstance(setup.rule_spec(rule)["bypass_actors"], setup.Unknown)
+        unknown = setup.Unknown("not read")
+        self.assertFalse(unknown == unknown)
+        self.assertNotEqual(unknown, [])
 
     def test_the_baseline_matches_the_branch_policy(self) -> None:
         rules = {r["name"]: r for r in setup.load_config(setup.CONFIG)["rulesets"]}
