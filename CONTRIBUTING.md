@@ -114,7 +114,9 @@ missing; it never changes an issue. See
    every review finding resolved. The release branch accepts changes only
    through pull requests that are up to date with it; task pull requests are
    merged with a **squash**, and the squash commit message must follow the
-   rules below.
+   rules below. The one exception is the pull request that levels a release
+   branch with `main` after an integration, which I merge with a merge commit
+   ([`RELEASING.md`](RELEASING.md#integrating-the-release-branch-into-main)).
 
 Nothing is committed directly to the release branch or to `main`; even
 levelling a release branch with `main` is a pull request. Integration of
