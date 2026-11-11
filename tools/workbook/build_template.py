@@ -115,6 +115,7 @@ NAMES = {
     "DataSummary_Outcomes": ("DataSummary", "$S$14:$AB$20013"),
     "Checks_Cases": ("Checks", "$A$14:$F$514"),
     "Checks_Assertions": ("Checks", "$H$14:$N$20014"),
+    "Checks_Info": ("Checks", "$B$4:$B$11"),
     **{f"{s.name}_Status": (s.name, "$B$3") for s in SHEETS if s.role == "Output"},
 }
 

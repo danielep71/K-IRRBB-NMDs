@@ -18,7 +18,7 @@ Attribute VB_Name = "TEST_Harness"
 ' STALE RESULTS AND ERRORS
 '   Previous results are withdrawn before the run (status RUNNING). If the run
 '   itself fails, the primary error and any cleanup error are both kept in the
-'   status block (B10, B11) with status FAILED. TEST_RunTestsWithWriteFault
+'   status block (Checks_Info) with status FAILED. TEST_RunTestsWithWriteFault
 '   exercises that path by making every results write fail.
 '
 ' SHOWING THAT A RUN CAN FAIL
@@ -28,8 +28,11 @@ Attribute VB_Name = "TEST_Harness"
 '   and ERROR, and a following RunTests must withdraw them. Nothing else changes.
 '
 ' OUTPUT
-'   Sheet "Checks": status block (rows 3-11), case table (A13:F), assertion
-'   table (H13:N). Tolerances follow TEST_CASES.md: abs |x - r| <= eps,
+'   Sheet Checks, reached only through the defined names of
+'   docs/WORKBOOK_CONTRACT.md: status (Checks_Status), run information
+'   (Checks_Info), case table (Checks_Cases), assertion table
+'   (Checks_Assertions); the build stamp is read from Readme_SourceCommit.
+'   Tolerances follow TEST_CASES.md: abs |x - r| <= eps,
 '   rel |x - r| <= eps * max(1, |r|), exact x = r.
 '==============================================================================
 Option Explicit
@@ -39,10 +42,20 @@ Option Explicit
 ' warning proxy, does not compile the constant expression.
 Public Const TEST_ERR_NO_CASE As Long = -2147220504
 
-Private Const SH_CHECKS As String = "Checks"
-Private Const SH_README As String = "Readme"
-Private Const CASE_ROW As Long = 14
-Private Const ASSERT_COL As Long = 8
+' Defined names of docs/WORKBOOK_CONTRACT.md; rows of Checks_Info in order.
+Private Const NM_STATUS As String = "Checks_Status"
+Private Const NM_INFO As String = "Checks_Info"
+Private Const NM_CASES As String = "Checks_Cases"
+Private Const NM_ASSERTIONS As String = "Checks_Assertions"
+Private Const NM_SOURCE_COMMIT As String = "Readme_SourceCommit"
+Private Const INFO_STARTED As Long = 1
+Private Const INFO_FINISHED As Long = 2
+Private Const INFO_COMMIT As Long = 3
+Private Const INFO_HOST As Long = 4
+Private Const INFO_CASES As Long = 5
+Private Const INFO_ASSERTIONS As Long = 6
+Private Const INFO_PRIMARY As Long = 7
+Private Const INFO_CLEANUP As Long = 8
 ' vbObjectError + 1001, a literal for the same reason as TEST_ERR_NO_CASE.
 Private Const ERR_INJECTED_WRITE As Long = -2147220503
 ' vbObjectError + 1002, a literal for the same reason.
@@ -97,11 +110,9 @@ CleanupFail:
     Resume ReportBoth
 ReportBoth:
     On Error Resume Next
-    With ThisWorkbook.Worksheets(SH_CHECKS)
-        .Cells(3, 2).Value = "FAILED"
-        .Cells(10, 2).Value = primary
-        .Cells(11, 2).Value = cleanup
-    End With
+    NamedRange(NM_STATUS).Value = "FAILED"
+    Info INFO_PRIMARY, primary
+    Info INFO_CLEANUP, cleanup
     Debug.Print primary
     Debug.Print cleanup
 End Sub
@@ -398,20 +409,17 @@ End Sub
 
 
 Private Sub MarkStale()
-    With ThisWorkbook.Worksheets(SH_CHECKS)
-        .Range(.Cells(CASE_ROW, 1), .Cells(CASE_ROW + 500, 6)).ClearContents
-        .Range(.Cells(CASE_ROW, ASSERT_COL), .Cells(CASE_ROW + 20000, ASSERT_COL + 6)).ClearContents
-        .Range("B3:B11").ClearContents
-        .Cells(3, 2).Value = "RUNNING - previous results withdrawn"
-        .Cells(4, 2).Value = mStarted
-    End With
+    NamedRange(NM_CASES).ClearContents
+    NamedRange(NM_ASSERTIONS).ClearContents
+    NamedRange(NM_INFO).ClearContents
+    NamedRange(NM_STATUS).Value = "RUNNING - previous results withdrawn"
+    Info INFO_STARTED, mStarted
 End Sub
 
 
 Private Sub WriteResults(ByVal primary As String)
-    Dim ws As Worksheet, i As Long, j As Long, block() As Variant
+    Dim i As Long, j As Long, block() As Variant
     Dim nPass As Long, nFail As Long, nErr As Long, nNot As Long, aPass As Long, aTotal As Long
-    Set ws = ThisWorkbook.Worksheets(SH_CHECKS)
     If mInjectWriteFault Then
         Err.Raise ERR_INJECTED_WRITE, "TEST_Harness.WriteResults", "Injected results write fault"
     End If
@@ -434,7 +442,7 @@ Private Sub WriteResults(ByVal primary As String)
             aPass = aPass + mCasePassed(i)
             aTotal = aTotal + mCaseAsserts(i)
         Next i
-        ws.Range(ws.Cells(CASE_ROW, 1), ws.Cells(CASE_ROW + mCaseCount - 1, 6)).Value = block
+        NamedRange(NM_CASES).Resize(mCaseCount, 6).Value = block
     End If
     If mRowCount > 0 Then
         ReDim block(1 To mRowCount, 1 To 7)
@@ -443,39 +451,41 @@ Private Sub WriteResults(ByVal primary As String)
                 block(i, j) = mRows(j, i)
             Next j
         Next i
-        ws.Range(ws.Cells(CASE_ROW, ASSERT_COL), ws.Cells(CASE_ROW + mRowCount - 1, ASSERT_COL + 6)).Value = block
+        NamedRange(NM_ASSERTIONS).Resize(mRowCount, 7).Value = block
     End If
 
     If Len(primary) > 0 Then
-        ws.Cells(3, 2).Value = "FAILED"
+        NamedRange(NM_STATUS).Value = "FAILED"
     ElseIf nFail + nErr > 0 Then
-        ws.Cells(3, 2).Value = "COMPLETE - FAILURES"
+        NamedRange(NM_STATUS).Value = "COMPLETE - FAILURES"
     Else
-        ws.Cells(3, 2).Value = "COMPLETE - ALL EXECUTED CASES PASSED"
+        NamedRange(NM_STATUS).Value = "COMPLETE - ALL EXECUTED CASES PASSED"
     End If
-    ws.Cells(4, 2).Value = mStarted
-    ws.Cells(5, 2).Value = Now
-    ws.Cells(6, 2).Value = SourceCommit()
-    ws.Cells(7, 2).Value = HostText()
-    ws.Cells(8, 2).Value = nPass & " PASS, " & nFail & " FAIL, " & nErr & " ERROR, " & nNot & " NOT RUN (of " & _
-                           mCaseCount & " registered)"
-    ws.Cells(9, 2).Value = aPass & " of " & aTotal & " assertions passed"
-    ws.Cells(10, 2).Value = primary
+    Info INFO_STARTED, mStarted
+    Info INFO_FINISHED, Now
+    Info INFO_COMMIT, SourceCommit()
+    Info INFO_HOST, HostText()
+    Info INFO_CASES, nPass & " PASS, " & nFail & " FAIL, " & nErr & " ERROR, " & nNot & " NOT RUN (of " & _
+                     mCaseCount & " registered)"
+    Info INFO_ASSERTIONS, aPass & " of " & aTotal & " assertions passed"
+    Info INFO_PRIMARY, primary
 End Sub
 
 
+Private Sub Info(ByVal item As Long, ByVal value As Variant)
+    NamedRange(NM_INFO).Cells(item, 1).Value = value
+End Sub
+
+
+Private Function NamedRange(ByVal definedName As String) As Range
+    Set NamedRange = ThisWorkbook.Names(definedName).RefersToRange
+End Function
+
+
 Private Function SourceCommit() As String
-    Dim r As Long
     SourceCommit = "unknown"
     On Error GoTo Done
-    With ThisWorkbook.Worksheets(SH_README)
-        For r = 1 To 40
-            If CStr(.Cells(r, 1).Value) = "Source commit" Then
-                SourceCommit = CStr(.Cells(r, 2).Value)
-                Exit For
-            End If
-        Next r
-    End With
+    SourceCommit = CStr(NamedRange(NM_SOURCE_COMMIT).Value)
 Done:
 End Function
 

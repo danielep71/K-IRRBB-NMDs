@@ -31,7 +31,10 @@ The traffic API requires **Administration: read**, which the workflow token
 cannot have. A GitHub App that I own, with that permission only, issues a
 short-lived installation token in each run:
 
-- Environment: `analytics`, with deployment access restricted to `main`.
+- Environment: `analytics`, with deployment access restricted to `main`. The
+  settings baseline records this branch policy and
+  `tools/setup_repository.py --check` verifies it
+  ([tools/README.md](../tools/README.md#repository-settings)).
 - Environment variable: `TRAFFIC_APP_CLIENT_ID`, the App's client ID.
 - Environment secret: `TRAFFIC_APP_PRIVATE_KEY`, a private key of the App.
 - `actions/create-github-app-token` turns them into an installation token for
@@ -112,9 +115,9 @@ CSV files, in the alert body and in the clones badge.
 The issue goes into the open milestone with the earliest due date after today
 (UTC). The milestone is chosen before anything else, so the alert job fails,
 with a message saying so, whenever no open milestone is due after today, even
-when no alert is due. The issue body carries a dependencies section and a
-target end date, a week ahead or the day before the milestone's due date if
-that is sooner, so it meets the [issue triage rules](GOVERNANCE.md#issue-triage).
+when no alert is due. The issue body carries a dependencies section, today as
+its start date and a target end date, a week ahead or the day before the
+milestone's due date if that is sooner, so it meets the [issue triage rules](GOVERNANCE.md#issue-triage).
 The job opens at most one alert per snapshot date.
 
 ## Verification

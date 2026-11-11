@@ -1,6 +1,11 @@
 {
   "fixture": "tests/fixtures/data_contract/accounts_invalid.csv",
-  "provenance": "Hand-constructed: one invalid row per error rule; expected first-failing rule per line written by hand.",
+  "provenance": {
+    "tool": "Hand construction (no software tool, so no version)",
+    "steps": "Hand-constructed: one invalid row per error rule; expected first-failing rule per line written by hand.",
+    "date": "2026-10-08",
+    "produced_by": "Daniele Penza"
+  },
   "errors": [
     {"line": 2,  "code": "E02"},
     {"line": 3,  "code": "E03"},

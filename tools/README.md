@@ -12,7 +12,7 @@ The gate runner checks:
 - Python-tool regression self-tests;
 - committed / working-tree whitespace;
 - source placement, role prefixes of standard modules, LF storage and VBA export headers; every VBA component lies in a directory the synchronizer's `$sourceRoots` list reads, and the document modules in `src/workbook/` match the template's sheets by CodeName (`test_sync_checks.py`);
-- the synchronizer's folder selection, document-module decoding, production/development answer and component sets, run in PowerShell 7 without Excel (`test_sync_script.py`; skipped where `pwsh` is not installed, as on the CI runner);
+- the synchronizer's folder selection, document-module decoding, production/development answer and component sets, run in PowerShell 7 without Excel (`test_sync_script.py`; skipped where `pwsh` is not installed);
 - the export comparison of the source round trip (`test_compare_vba_export.py`);
 - data-contract fixtures in `tests/` agree with their hand-computed expectations and with `docs/methodology/DATA_CONTRACT.md` (`test_data_contract.py`);
 - the VBA harness: every literal expectation in the `TEST_*Cases` modules agrees with the contract, the harness rules or the template generator, `TEST_Fixtures.bas` equals the output of `devbuild/fixture_module.py`, and the harness registry equals the register in `docs/methodology/TEST_CASES.md` (`test_vba_harness.py`; VBA is read, not run);
@@ -24,13 +24,16 @@ The gate runner checks:
 - changelog/version consistency;
 - `docs/LABELS.md` names every label of the catalog, and milestone titles use
   GitHub's form `vX.Y.Z - Title` (`test_conventions.py`);
+- the feature issue form requires the elements `CONTRIBUTING.md` names for a
+  feature, and the pull request template names the definition-of-done command
+  (`test_contribution_templates.py`);
 - Markdown links (`check_links.py`): every relative link names an existing
   file or directory in the repository, every fragment names a heading or
   anchor of its target, and every external link uses HTTPS, so a plain
   `http://` link is an error (`test_check_links.py`);
 - the issue forms and label catalog (`check_issues.py --check-config`): each
   form assigns `danielep71`, sets its provisional priority and requires a
-  target end date and the dependencies, and `blocked` is the only
+  start date, a target end date and the dependencies, and `blocked` is the only
   dependency-status label (`test_check_issues.py`).
 
 CI runs these checks on GitHub's hosted Linux runner. **VBA compile, Excel workbook execution, econometric calibration and numerical result validation are not performed by these gates.** Record Excel host evidence separately under `docs/EXCEL_EVIDENCE.md`.
@@ -166,7 +169,12 @@ counted) and the attributes of document modules, which Excel writes. Everything
 else must match. The export needs the same Trust access as the synchronizer;
 the comparison never runs Excel.
 
-Label reconciliation scripts and workflows apply the label policy and run from the default branch `main`; see [`docs/LABELS.md`](../docs/LABELS.md).
+The label scripts in `.github/scripts/` apply the label policy; see
+[`docs/LABELS.md`](../docs/LABELS.md). Only the reconcile job of
+`labels-sync.yml` changes live labels, and it runs only from the default
+branch `main`. On a pull request, `labels-sync.yml` and `labels-drift.yml` run
+the pull request's own scripts with read-only permissions, against the
+manifest and offline fixtures; they change nothing.
 
 ## Code scanning, links and pull-request milestones
 
@@ -197,9 +205,12 @@ Label reconciliation scripts and workflows apply the label policy and run from t
 ## Repository settings
 
 `docs/repository-settings.json` is the baseline of the general settings, the
-security features and the rulesets for `main`, `release/**` (one for pull
-requests and checks, one that forbids deletion), the release tags `v*` and
-`traffic-history`; none can be bypassed, by admins included.
+security features, the deployment branches of the `analytics` environment
+(`main` only, [`docs/TRAFFIC.md`](../docs/TRAFFIC.md#credentials-and-access)),
+the CodeQL default setup (`not-configured`, see above) and the rulesets for
+`main`, `release/**` (one for pull requests and checks, one that forbids
+deletion), the release tags `v*` and `traffic-history`; none can be bypassed,
+by admins included.
 `setup_repository.py` compares the saved settings with it through an authenticated GitHub CLI and refuses to run without admin
 rights on the repository:
 
@@ -213,7 +224,11 @@ Every run writes a dated evidence file,
 `test-results/repository-settings-<mode>-<time>.md` unless `--report` names
 another. `--apply` stops before writing when a named ruleset differs, until
 `--update-existing` allows it to replace that whole ruleset. A ruleset the
-baseline does not name is reported and never changed or deleted. Dependabot
+baseline does not name is reported and never changed or deleted. For an
+environment, `--apply` sets the deployment branch policy, keeping its wait
+timer and required reviewers, then adds or deletes branch policies until only
+the baseline branches remain; it never reads or changes environment secrets or
+variables. Dependabot
 security updates stay off: their pull requests target `main`, which takes work
 only through the release branch, and the weekly version updates on the
 release branch cover the pinned actions and tools. `test_setup_repository.py`
@@ -267,11 +282,11 @@ After the portable gates above, the **Repository integrity** job installs Ruff
 and mypy from the hash-locked `tools/requirements-quality-ci.txt` (CPython 3.13
 on Linux x86_64, wheels only) and runs:
 
-- `ruff check tools` with the settings in `pyproject.toml`, plus a probe that
-  proves the complexity ceiling of 15 is active;
+- `ruff check tools .github/scripts` with the settings in `pyproject.toml`,
+  plus a probe that proves the complexity ceiling of 15 is active;
 - `mypy --strict` with `warn_unreachable` on every module in `tools/`, tests
-  included, plus probes that prove strict mode and unreachable-code warnings
-  are active;
+  included, and in `.github/scripts/`, plus probes that prove strict mode and
+  unreachable-code warnings are active;
 - actionlint 1.7.12 on every workflow, downloaded and checked against its
   SHA-256.
 
@@ -282,6 +297,6 @@ changed by hand in one reviewed pull request. Locally, with Python 3.13:
 
 ```shell
 python -m pip install --only-binary=:all: --require-hashes -r tools/requirements-quality-ci.txt
-ruff check tools
+ruff check tools .github/scripts
 mypy
 ```
