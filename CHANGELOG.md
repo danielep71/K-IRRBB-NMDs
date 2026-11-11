@@ -115,7 +115,9 @@ Use only the categories needed by a release.
   and `tools/check_excel_evidence.py` validates a bundle offline: source and
   log digests, and every stage judged again against values read from the
   candidate commit. Only 64-bit Excel certifies: a run whose stages all pass
-  in another Office is `BEST_EFFORT`, never `PASS`. The session also checks
+  in another Office is `BEST_EFFORT`, never `PASS`, printed as such with exit
+  code 3. `docs/EXCEL_EVIDENCE.md` defines the 13 stages the validator judges
+  (#262). The session also checks
   the template's appearance in Excel against the template at the candidate:
   tab colours, the brand strip and title, the dropdowns (whose values Excel
   joins with the locale's list separator, such as `;`), the print titles and

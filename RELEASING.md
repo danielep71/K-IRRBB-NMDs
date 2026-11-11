@@ -40,7 +40,7 @@ that I follow as maintainer. Day-to-day contribution is owned by
 | Closed milestones | `v0.1.0 - Repository foundation` (2026-10-09, no release) |
 | Version file | Not present; created when the first release is prepared ([versioning](#versioning)) |
 | Release evidence tooling | Static checks (`tools/check.py`); development-workbook builder, synchronizer and source round trip ([`tools/README.md`](tools/README.md)) |
-| Excel certification procedure | Stages 1–6 of [`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md), with the harness `TEST_Harness.RunTests` |
+| Excel certification procedure | The 13 [required stages](docs/EXCEL_EVIDENCE.md#required-stages) of `docs/EXCEL_EVIDENCE.md`, run by `tools/Certify-IRRBB.cmd` on Windows Excel 64-bit |
 
 The step below marked *(to be defined)* is settled with the first distributed
 artifact. The v0.1.0 foundation milestone closed without producing a release.

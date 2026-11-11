@@ -133,13 +133,35 @@ A log changed after the record, a missing log, a stage that did not pass or a
 record that names another commit is `RESULT=FAIL`. Only 64-bit Excel certifies
 (see [Bitness](#bitness)): when every stage passes in a 32-bit or unidentified
 Office, the result is `RESULT=BEST_EFFORT`, never `PASS`, and the exit code is
-not 0. Keep a failing bundle as it
+3 (1 for `FAIL`). Keep a failing bundle as it
 is: a later passing run never replaces it. Attach the bundle's `host.json` and
 the validator's output to the issue or pull request.
 
 <a id="required-stages"></a>
 
 ## 🧪 Required stages
+
+The validator (`tools/excel_evidence.py`) judges 13 stages, in this order. A
+record is `PASS` only when every one passes; a stage it cannot read is `FAIL`.
+The [one-command session](#one-command-session) runs all of them. The numbered
+sections below are the core six, which the [manual procedure](#procedure)
+also covers; the other seven are scripted only.
+
+| Validator stage | Log | What passes | Section |
+| --- | --- | --- | --- |
+| `template` | `template.log` | The template opens without repair, with the contract's sheets, CodeNames, names, fonts, validation, appearance, print titles and areas, and page setup | [One-command session](#one-command-session) |
+| `build` | `build.log` | The development workbook is built from the candidate | [1](#1-clean-build) |
+| `references` | `session.json` | Only the four default references | [1](#1-clean-build) |
+| `compile` | `session.json` | Debug → Compile VBAProject with no error | [2](#2-compile) |
+| `smoke` | `harness.log` | One clean harness run with the registry's expected counts | [3](#3-smoke-run) |
+| `failure_path` | `failure.log` | The four runs of the failure path | [4](#4-failure-path) |
+| `import` | `import.log` | Every import scenario, each withdrawing the earlier result | [One-command session](#one-command-session) |
+| `buttons` | `buttons.log` | Every button wired to a macro of the workbook; Import data and Run tests pressed | [One-command session](#one-command-session) |
+| `timing` | `timing.log` | The large synthetic panel imported, with its time recorded | [One-command session](#one-command-session) |
+| `cleanup` | `session.json` | The test workbook closed without saving | [5](#5-cleanup) |
+| `synchronize` | `sync.log` | A workbook synchronized from the template compiles and passes the harness | [One-command session](#one-command-session) |
+| `synchronize_failure` | `sync-failure.log` | The synchronizer fails on a workbook another Excel holds, changing nothing | [One-command session](#one-command-session) |
+| `round_trip` | `roundtrip.log` | The source round trip | [6](#6-source-round-trip) |
 
 ### 1. Clean build
 
@@ -169,7 +191,8 @@ data, not that the models are correct. It consists of:
    for that Excel session only;
 2. running the harness entry point `TEST_Harness.RunTests` (the **Run tests**
    button on `Checks`) and copying its status block (`Checks!A3:B11`) and case
-   table (`Checks!A13:F48`) into the log; and
+   table (from `Checks!A13`, one row per registered case: `A13:F49` for the 36
+   cases at this commit) into the log; and
 3. checking that `Calculation`, `EnableEvents`, `ScreenUpdating` and
    `DisplayAlerts` are the same after the run as before it.
 
@@ -217,11 +240,13 @@ enabled, and if it was enabled for this stage, that it was turned off again.
 
 | Host | Stages required | When no host is available |
 | --- | --- | --- |
-| Windows, 64-bit | All six | The candidate cannot be released; record `UNAVAILABLE` and stop |
-| Windows, 32-bit (best effort) | Stages 1 and 2 | Record `NOT_RUN` with the reason; the change may proceed |
+| Windows, 64-bit | All 13 [required stages](#required-stages) | The candidate cannot be released; record `UNAVAILABLE` and stop |
+| Windows, 32-bit (best effort) | All 13 in the one-command session; stages 1 and 2 by hand | Record `NOT_RUN` with the reason; the change may proceed |
 
-A 32-bit `PASS` is reported as best-effort compile evidence, never as
-certification. `Declare` statements stay `PtrSafe` with `LongPtr` where
+A 32-bit run is never certification. The one-command session judges every
+stage on any host: when all 13 pass in an Office that is not 64-bit, the
+result is `RESULT=BEST_EFFORT`, never `PASS`. By hand, stages 1 and 2 on a
+32-bit host are recorded as best-effort compile evidence. `Declare` statements stay `PtrSafe` with `LongPtr` where
 required, so that both bitnesses keep compiling; `tools/check.py` checks the
 conditional-compilation branches statically.
 
