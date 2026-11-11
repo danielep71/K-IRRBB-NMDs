@@ -443,6 +443,12 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The source round trip compares numbers in code by value and type: the VBE
+  rewrites their spelling on import (`1E+11` as `100000000000#`,
+  `0.0000000000000000001` as `1E-19`, `&H1000000&` as `&H1000000`), which
+  `compare_vba_export.py` reported as three differences in the first Excel
+  run. `&H8000` and `&H8000&` still differ, as their values do; such lines
+  are counted (#238).
 - `CORE_Import` compiles in Excel: `IndexOfTotal` and `IndexOfPeriod` named a
   parameter `currency`, a reserved word of VBA, so Excel rejected both
   declarations and reported "Sub or Function not defined"; LibreOffice accepts

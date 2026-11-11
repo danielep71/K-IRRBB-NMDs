@@ -26,12 +26,15 @@ attest who made either.
 from __future__ import annotations
 
 import argparse
+import decimal
 import difflib
 import hashlib
 import json
 import re
+import struct
 import sys
 import zipfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -91,35 +94,106 @@ def parse(raw: bytes, label: str) -> Component:
     return Component(names[0], tuple(attributes), tuple(body))
 
 
-def fold_case(line: str) -> str:
-    """``line`` with its code lower-cased, string literals and the comment kept.
+def segments(line: str) -> list[tuple[str, str]]:
+    """``line`` split into ("code", text), ("string", text) and ("comment", text)
+    parts, a ``Rem`` comment as ("rem", text).
 
     A comment starts at an apostrophe outside a string, or at ``Rem`` where a
     statement starts: the start of the line, after a line number or after a
     colon."""
-    folded: list[str] = []
+    parts: list[tuple[str, str]] = []
+    code: list[str] = []
     in_string = False
     statement_start = True
     index = 0
     while index < len(line):
         char = line[index]
         if in_string:
+            parts[-1] = ("string", parts[-1][1] + char)
             in_string = char != '"'
         elif char == '"':
+            parts.append(("code", "".join(code)))
+            code = []
+            parts.append(("string", char))
             in_string, statement_start = True, False
         elif char == "'":
-            return "".join(folded) + line[index:]
-        elif char == ":":
-            statement_start = True
+            return parts + [("code", "".join(code)), ("comment", line[index:])]
         elif statement_start and REM.match(line, index):
-            return "".join(folded) + "rem" + line[index + 3:]
-        elif statement_start and char.isdigit() and not "".join(folded).strip(" \t0123456789"):
-            pass
-        elif not char.isspace():
-            statement_start = False
-        folded.append(char if in_string or char == '"' else char.lower())
+            return parts + [("code", "".join(code)), ("rem", line[index:])]
+        else:
+            if char == ":":
+                statement_start = True
+            elif statement_start and char.isdigit() and not "".join(code).strip(" \t0123456789"):
+                pass
+            elif not char.isspace():
+                statement_start = False
+            code.append(char)
         index += 1
-    return "".join(folded)
+    return parts + [("code", "".join(code))]
+
+
+def _join(line: str, code: Callable[[str], str]) -> str:
+    out = []
+    for kind, text in segments(line):
+        if kind == "code":
+            out.append(code(text.lower()))
+        elif kind == "rem":
+            out.append("rem" + text[3:])
+        else:
+            out.append(text)
+    return "".join(out)
+
+
+def fold_case(line: str) -> str:
+    """``line`` with its code lower-cased, string literals and the comment kept."""
+    return _join(line, lambda code: code)
+
+
+# A hexadecimal literal, or a decimal one with an optional exponent and type suffix.
+NUMBER = re.compile(r"&h([0-9a-f]+)([&%^]?)|(?<![\w.])((?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)([#!@%&^]?)(?![\w.])")
+SUFFIX_TYPE = {"%": "Integer", "&": "Long", "^": "LongLong", "@": "Currency", "!": "Single", "#": "Double"}
+WIDTH = {"Integer": 16, "Long": 32, "LongLong": 64}
+
+
+def _literal(match: re.Match[str]) -> str:
+    """A numeric literal as its VBA type and the value of that type: the VBE
+    rewrites the spelling, never the type or the value.
+
+    A hexadecimal literal without a suffix is an Integer up to &HFFFF and a
+    Long above it, so &H1000000& and &H1000000 are the same Long, while &H8000
+    (Integer -32768) and &H8000& (Long 32768) differ. A decimal literal takes
+    the type of its suffix; without one, it is a Double when it has a point or
+    an exponent, and otherwise the smallest of Integer, Long and Double that
+    holds it, so 1E+11, 100000000000# and 100000000000 are the same Double,
+    while 32767 (Integer) and 32767& (Long), or 0.1! (Single) and 0.1#
+    (Double), differ."""
+    if match.group(1) is not None:
+        value = int(match.group(1), 16)
+        kind = SUFFIX_TYPE.get(match.group(2)) or ("Integer" if value <= 0xFFFF else "Long")
+        bits = WIDTH[kind]
+        if value >> (bits - 1) & 1 and value < 1 << bits:
+            value -= 1 << bits
+        return f"<{kind} {value}>"
+    text, suffix = match.group(3), match.group(4)
+    if suffix:
+        kind = SUFFIX_TYPE[suffix]
+    elif "." in text or "e" in text:
+        kind = "Double"
+    else:
+        number = int(text)
+        kind = "Integer" if number <= 32767 else "Long" if number <= 2**31 - 1 else "Double"
+    if kind in WIDTH:
+        return f"<{kind} {int(float(text)) if ('.' in text or 'e' in text) else int(text)}>"
+    if kind == "Currency":
+        return f"<{kind} {decimal.Decimal(text).quantize(decimal.Decimal('0.0001'))}>"
+    if kind == "Single":
+        return f"<{kind} {struct.unpack('<f', struct.pack('<f', float(text)))[0]!r}>"
+    return f"<{kind} {float(text)!r}>"
+
+
+def canonical(line: str) -> str:
+    """``fold_case`` with every numeric literal of the code replaced by its value."""
+    return _join(line, lambda code: NUMBER.sub(_literal, code))
 
 
 def committed(root: Path, sha: str, path: str) -> bytes:
@@ -158,21 +232,22 @@ def exported_components(folder: Path) -> dict[str, tuple[str, Component]]:
 
 def first_difference(source: tuple[str, ...], export: tuple[str, ...]) -> str:
     for number, (left, right) in enumerate(zip(source, export), start=1):
-        if fold_case(left) != fold_case(right):
+        if canonical(left) != canonical(right):
             return f"line {number}: source {left!r}, export {right!r}"
     shorter = min(len(source), len(export))
     return f"line {shorter + 1}: source has {len(source)} lines, export {len(export)}"
 
 
 def compare(expected: dict[str, Expected],
-            exported: dict[str, tuple[str, Component]]) -> tuple[list[str], int]:
+            exported: dict[str, tuple[str, Component]]) -> tuple[list[str], int, int]:
     """The differences between the source and the export, empty when they
-    match, and the number of lines that differ only in letter case."""
+    match, the number of lines that differ only in letter case and the number
+    that differ in how the VBE spells a number."""
     findings = [f"missing from the export: {expected[key].component.name} ({expected[key].path})"
                 for key in sorted(set(expected) - set(exported))]
     findings += [f"not in the source for this mode: {exported[key][1].name} ({exported[key][0]})"
                  for key in sorted(set(exported) - set(expected))]
-    recased = 0
+    recased = respelled = 0
     for key in sorted(set(expected) & set(exported)):
         path, source = expected[key].path, expected[key].component
         _, export = exported[key]
@@ -183,11 +258,13 @@ def compare(expected: dict[str, Expected],
                 source.attributes, export.attributes, lineterm="", n=0)
                 if line[:1] in "+-" and line[:3] not in ("+++", "---")]
             findings.append(f"{path}: attributes differ: {'; '.join(changed)}")
-        if [fold_case(line) for line in source.body] != [fold_case(line) for line in export.body]:
+        if [canonical(line) for line in source.body] != [canonical(line) for line in export.body]:
             findings.append(f"{path}: code differs at {first_difference(source.body, export.body)}")
         else:
-            recased += sum(left != right for left, right in zip(source.body, export.body))
-    return findings, recased
+            pairs = list(zip(source.body, export.body))
+            respelled += sum(fold_case(left) != fold_case(right) for left, right in pairs)
+            recased += sum(left != right and fold_case(left) == fold_case(right) for left, right in pairs)
+    return findings, recased, respelled
 
 
 def sha256(data: bytes) -> str:
@@ -303,7 +380,7 @@ def main(arguments: list[str] | None = None) -> int:
             raise ValueError(f"export folder not found: {options.export}")
         expected = expected_components(options.root, sha, options.mode)
         exported = exported_components(options.export)
-        findings, recased = compare(expected, exported)
+        findings, recased, respelled = compare(expected, exported)
         if options.workbook is not None and not options.workbook.is_file():
             raise ValueError(f"workbook not found: {options.workbook}")
         binding, binding_findings, binding_notes = check_binding(options.export, options.workbook)
@@ -317,6 +394,7 @@ def main(arguments: list[str] | None = None) -> int:
     if options.workbook is not None:
         print(f"Workbook:  {options.workbook.name} sha256 {sha256(options.workbook.read_bytes())}")
     print(f"Re-cased:  {recased} line(s) differ only in the letter case of code (ignored)")
+    print(f"Numbers:   {respelled} line(s) differ only in how the VBE spells a number (ignored)")
     print(f"Binding:   {binding} - {binding_note(binding, options.export, options.workbook)}")
     for note in binding_notes:
         print(f"  NOTE {note}")
