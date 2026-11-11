@@ -411,6 +411,12 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- A label reconcile run with `--dry-run` no longer stops at the first planned
+  deletion of a label still in use: it lists every planned change, marks each
+  blocked deletion with the issues or pull requests that use the label, changes
+  nothing and exits 0. A real reconcile still refuses those deletions, with the
+  same message, before any change (#224).
+
 - The pull-request milestone guard (`.github/scripts/pr-milestones.py`) appends
   to the job summary a table of each pull request and the title of the
   milestone removed from it, or a line saying none was removed, instead of
