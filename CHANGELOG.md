@@ -397,6 +397,11 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The feature issue form asks for the methodological basis, compatibility and
+  validation, required, as `CONTRIBUTING.md` describes a feature issue, and the
+  pull request template asks for `python tools/check.py --ci`, the command of
+  the definition of done; `tools/test_contribution_templates.py` keeps them
+  aligned (#197).
 - Documentation describes the current files: the methodology roadmap states
   that the draft decay model is built in VBA and under review (#36) while the
   rate and stable-amount models are not built; `REPOSITORY_STRUCTURE.md` names
