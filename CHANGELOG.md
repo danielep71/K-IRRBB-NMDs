@@ -528,6 +528,11 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The release checklist no longer asks for a fast-forward of the release
+  branch, which the rulesets refuse: it asks for the levelling pull request of
+  step 4. RELEASING and CONTRIBUTING state that this pull request is the one
+  merged with a merge commit, and name its branch `fix/level-<release>-after-<PR>`
+  (#190).
 - The decay facade and the data contract name the same source for the decay
   balance series: in production the per-segment totals of the import
   (`IRRBB_ImportTotals`), never a series the user supplies; tests and examples
