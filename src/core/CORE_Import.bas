@@ -1360,9 +1360,9 @@ End Sub
 
 ' Index of the (date, segment, currency) total, created at zero when new.
 Private Function IndexOfTotal(ByVal totals As Collection, ByVal asOfText As String, ByVal segment As String, _
-                              ByVal currency As String) As Long
+                              ByVal currencyCode As String) As Long
     Dim key As String
-    key = asOfText & "|" & segment & "|" & currency
+    key = asOfText & "|" & segment & "|" & currencyCode
     If HasKey(totals, key) Then
         IndexOfTotal = totals.Item(key)
         Exit Function
@@ -1378,7 +1378,7 @@ Private Function IndexOfTotal(ByVal totals As Collection, ByVal asOfText As Stri
     End If
     mTotDate(mTotCount) = asOfText
     mTotSegment(mTotCount) = segment
-    mTotCurrency(mTotCount) = currency
+    mTotCurrency(mTotCount) = currencyCode
     totals.Add mTotCount, key
     IndexOfTotal = mTotCount
 End Function
@@ -1386,9 +1386,9 @@ End Function
 
 ' Index of the (month end, segment, currency) lineage cell, created at zero.
 Private Function IndexOfPeriod(ByVal periods As Collection, ByVal monthEndText As String, ByVal segment As String, _
-                               ByVal currency As String) As Long
+                               ByVal currencyCode As String) As Long
     Dim key As String
-    key = monthEndText & "|" & segment & "|" & currency
+    key = monthEndText & "|" & segment & "|" & currencyCode
     If HasKey(periods, key) Then
         IndexOfPeriod = periods.Item(key)
         Exit Function
@@ -1409,7 +1409,7 @@ Private Function IndexOfPeriod(ByVal periods As Collection, ByVal monthEndText A
     End If
     mPerDate(mPerCount) = monthEndText
     mPerSegment(mPerCount) = segment
-    mPerCurrency(mPerCount) = currency
+    mPerCurrency(mPerCount) = currencyCode
     periods.Add mPerCount, key
     IndexOfPeriod = mPerCount
 End Function

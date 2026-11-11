@@ -282,7 +282,9 @@ Skipped or unverified:
 
 A skipped, incomplete or cleanup-failed run is not a pass. Static checks cannot
 substitute for Excel execution. Commit-bound evidence follows
-[`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md).
+[`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md);
+`tools\Certify-IRRBB.cmd` records all of it in one run and validates the
+record ([one-command session](docs/EXCEL_EVIDENCE.md#one-command-session)).
 
 ## ⬆️ Upgrade
 
