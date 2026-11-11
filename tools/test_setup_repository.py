@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import collections
 import copy
 import io
 import json
@@ -347,42 +348,37 @@ class SetupTests(unittest.TestCase):
             self.run_setup()
         self.assertEqual(self.api.writes, [])
 
-    def test_a_value_unreadable_on_the_evidence_reading_is_never_verified(self) -> None:
-        # The evidence reads some values again; one refused only then still voids the result.
+    def test_one_reading_feeds_the_plan_the_result_and_the_evidence(self) -> None:
+        # A value that changes after it was read, or is refused on a later read, cannot make the
+        # evidence disagree with the result: each GET is made once per reading.
         self.args.apply = True
         self.assertEqual(self.run_setup()[0], 0)
-        api = self.api
-        for target in ("code-scanning/default-setup", "environments/analytics",
-                       "rulesets?includes_parents=false", "vulnerability-alerts",
-                       "actions/permissions/workflow"):
-            for apply in (False, True):
-                with self.subTest(target=target, apply=apply):
-                    seen = {"reads": 0}
+        api, reads = self.api, collections.Counter[str]()
 
-                    def flaky(method: str, endpoint: str, payload: Any = None,
-                              target: str = "repos/owner/repo/" + target,
-                              seen: dict[str, int] = seen) -> Any:
-                        if method == "GET" and (endpoint == target or endpoint.startswith(target + "&")):
-                            seen["reads"] += 1
-                            if seen["reads"] > 1:
-                                raise setup.SetupError(f"GET {endpoint} failed (HTTP 403).")
-                        return api(method, endpoint, payload)
+        def changing(method: str, endpoint: str, payload: Any = None) -> Any:
+            if method == "GET":
+                reads[endpoint] += 1
+                if reads[endpoint] > 1 and endpoint.endswith("/code-scanning/default-setup"):
+                    raise setup.SetupError(f"GET {endpoint} failed (HTTP 403).")
+            answer = api(method, endpoint, payload)
+            if endpoint.endswith("/actions/permissions/workflow"):
+                api.actions["actions/permissions/workflow"]["default_workflow_permissions"] = "write"
+            return answer
 
-                    self.api.writes.clear()
-                    self.args.apply, self.args.check = apply, not apply
-                    output = io.StringIO()
-                    with redirect_stdout(output):
-                        if apply:
-                            with self.assertRaisesRegex(setup.SetupError, "second reading"):
-                                setup.run(self.args, flaky, NOW)
-                        else:
-                            self.assertEqual(setup.run(self.args, flaky, NOW), 1)
-                    text = self.report.read_text(encoding="utf-8")
-                    self.assertIn("- Result: **DRIFT**", text)
-                    self.assertIn("HTTP 403) |", text)
-                    if not apply:
-                        self.assertIn("UNKNOWN:", output.getvalue())
-                    self.assertEqual(self.api.writes, [])
+        self.args.apply, self.args.check = False, True
+        output = io.StringIO()
+        with redirect_stdout(output):
+            self.assertEqual(setup.run(self.args, changing, NOW), 0)
+        self.assertIn("VERIFIED", output.getvalue())
+        text = self.report.read_text(encoding="utf-8")
+        self.assertIn("- Result: **VERIFIED**", text)
+        self.assertIn("| `default_workflow_permissions` | read | read |", text)
+        self.assertNotIn("HTTP 403", text)
+        self.assertEqual({endpoint: n for endpoint, n in reads.items() if n != 1}, {})
+        # The next reading sees the change.
+        code, output_text = self.run_setup()
+        self.assertEqual(code, 1)
+        self.assertIn("MANUAL: Actions setting `default_workflow_permissions` is write", output_text)
 
     def test_a_failed_required_check_blocks_every_write(self) -> None:
         self.args.apply = True
@@ -815,6 +811,33 @@ class BaselineTests(unittest.TestCase):
                     for rule in ruleset["rules"] if rule["type"] == "required_status_checks"
                     for check in rule["parameters"]["required_status_checks"]}
         self.assertEqual(contexts, {"Repository integrity"})
+
+
+class OneReadingTests(unittest.TestCase):
+    def test_answers_and_failures_are_replayed_and_a_frozen_reading_reads_nothing_new(self) -> None:
+        calls = collections.Counter[str]()
+
+        def call(method: str, endpoint: str, payload: Any = None) -> Any:
+            calls[endpoint] += 1
+            if endpoint == "refused":
+                raise setup.SetupError("GET refused failed (HTTP 403).")
+            return {"value": [calls[endpoint]]}
+
+        reader = setup.OneReading(call)
+        first = reader("GET", "settings")
+        first["value"].append("changed by a caller")
+        self.assertEqual(reader("GET", "settings"), {"value": [1]})
+        for _ in range(2):
+            with self.assertRaisesRegex(setup.SetupError, "HTTP 403"):
+                reader("GET", "refused")
+        self.assertEqual(calls, {"settings": 1, "refused": 1})
+        with self.assertRaisesRegex(setup.SetupError, "PATCH settings during a reading"):
+            reader("PATCH", "settings", {})
+        reader.frozen = True
+        self.assertEqual(reader("GET", "settings"), {"value": [1]})
+        with self.assertRaisesRegex(setup.SetupError, "evidence read other"):
+            reader("GET", "other")
+        self.assertNotIn("other", calls)
 
 
 class CommandLineTests(unittest.TestCase):

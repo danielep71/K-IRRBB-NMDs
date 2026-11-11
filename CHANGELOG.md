@@ -425,9 +425,10 @@ Use only the categories needed by a release.
   endpoint refuses with 403 or 404 as unknown, with the endpoint and HTTP
   status, in the output and the evidence file. An unknown value is drift,
   never VERIFIED; a 404 from an endpoint that answers only admins is no longer
-  read as "off" for anyone else. A value that the evidence file cannot read
-  again also makes the result drift. `--apply` still requires admin rights and
-  checks them before any write (#222).
+  read as "off" for anyone else. Each run reads every endpoint once, and the
+  evidence file records those same answers, so its result never disagrees with
+  its rows. `--apply` still requires admin rights and checks them before any
+  write (#222, #221).
 - `tools/setup_repository.py` records a ruleset field that GitHub's response
   omits, such as `bypass_actors`, which GitHub returns only to callers allowed
   to see it, as unknown instead of reading a missing `bypass_actors` as no

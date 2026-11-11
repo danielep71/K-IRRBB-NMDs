@@ -12,6 +12,7 @@ secrets or variables, and it reads the Actions settings without changing them.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import re
@@ -114,6 +115,33 @@ def api(method: str, endpoint: str, payload: Json = None) -> Json:
                          "repository access and admin rights. Nothing is rolled back; run the "
                          "preview to inspect partial changes.")
     return json.loads(result.stdout) if result.stdout.strip() else None
+
+
+class OneReading:
+    """A call that makes each GET once and replays its answer, a failure included, so the
+    evidence records exactly the values the plan was computed from. Once frozen, a GET that was
+    not made before is an error: the evidence never reads anything new."""
+
+    def __init__(self, call: Call) -> None:
+        self.call = call
+        self.answers: dict[str, Json] = {}
+        self.frozen = False
+
+    def __call__(self, method: str, endpoint: str, payload: Json = None) -> Json:
+        if method != "GET":
+            raise SetupError(f"Internal error: {method} {endpoint} during a reading.")
+        if endpoint not in self.answers:
+            if self.frozen:
+                raise SetupError(f"Internal error: the evidence read {endpoint}, which the "
+                                 "inspection did not.")
+            try:
+                self.answers[endpoint] = self.call(method, endpoint)
+            except SetupError as error:
+                self.answers[endpoint] = error
+        answer = self.answers[endpoint]
+        if isinstance(answer, SetupError):
+            raise answer
+        return copy.deepcopy(answer)
 
 
 def attempt(read: Callable[[], Json]) -> Json:
@@ -501,16 +529,9 @@ def cell(value: Json) -> str:
 
 def evidence(call: Call, repo: str, config: dict[str, Json], reading: Reading, mode: str,
              now: datetime) -> str:
-    """A dated Markdown record of the managed settings as GitHub reports them. A managed value
-    that inspection read but this second reading cannot is added to reading.unknown, so neither
-    the record nor the run certifies it."""
+    """A dated Markdown record of the managed settings as GitHub reports them. Given the
+    OneReading that inspection used, it records the answers the plan was computed from."""
     root = f"repos/{repo}"
-    late: dict[str, Unknown] = {}
-
-    def seen(label: str, value: Any) -> Any:
-        if isinstance(value, Unknown) and label not in reading.unknown:
-            late[label] = value
-        return value
 
     metadata, plan = reading.metadata, reading.plan
     public = metadata.get("visibility") == "public"
@@ -536,19 +557,19 @@ def evidence(call: Call, repo: str, config: dict[str, Json], reading: Reading, m
                 and security_fixes(call, root, is_admin(metadata)) == (True, True):
             observed = "on (paused)"
         else:
-            observed = cell(seen(f"`{feature}`", security_state(call, root, metadata, feature)))
+            observed = cell(security_state(call, root, metadata, feature))
         lines.append(f"| `{feature}` | {cell(value)} | {observed} |")
     lines += ["", "## Actions settings", "", "Read only: this script never changes them.", "",
               "| Setting | Baseline | Observed |", "| --- | --- | --- |"]
     observed_actions = actions_state(call, root)
-    lines += [f"| `{key}` | {cell(value)} | {cell(seen(f'`{key}`', observed_actions[key]))} |"
+    lines += [f"| `{key}` | {cell(value)} | {cell(observed_actions[key])} |"
               for key, value in config["actions"].items()]
     lines += ["", "## Environments and code scanning", "", "| Setting | Baseline | Observed |",
               "| --- | --- | --- |"]
     lines += [f"| `{name}` deployment branches | {', '.join(environment['deployment_branches'])} | "
-              f"{cell(seen(f'`{name}` deployment branches', describe_environment(call, root, name)))} |"
+              f"{cell(describe_environment(call, root, name))} |"
               for name, environment in config["environments"].items()]
-    setup_state = seen("`code_scanning_default_setup`", default_setup(call, root, metadata))
+    setup_state = default_setup(call, root, metadata)
     lines.append(f"| `code_scanning_default_setup` | {config['code_scanning_default_setup']} | "
                  f"{'not available (code scanning unavailable)' if setup_state is None else cell(setup_state)} |")
     lines += ["", "## Managed rulesets", "", "| Ruleset | ID | Status |", "| --- | --- | --- |"]
@@ -556,8 +577,6 @@ def evidence(call: Call, repo: str, config: dict[str, Json], reading: Reading, m
         match = None if isinstance(current, Unknown) else \
             next((r for r in current if r["name"] == rule["name"]), None)
         unread = reading.unknown.get(f'ruleset "{rule["name"]}"')
-        if unread is None and isinstance(current, Unknown):
-            unread = seen(f'ruleset "{rule["name"]}"', current)
         if unread is not None:
             lines.append(f"| {rule['name']} | {match['id'] if match else '—'} | {unread} |")
         elif rule["name"] in created or match is None:
@@ -574,7 +593,6 @@ def evidence(call: Call, repo: str, config: dict[str, Json], reading: Reading, m
               f"- Unmanaged repository rulesets: {unmanaged}",
               f"- Inherited rulesets: {others}",
               "", "Settings outside the baseline are not recorded here."]
-    reading.unknown.update(late)
     head.append(f"- Result: **{'VERIFIED' if reading.verified() else 'DRIFT'}**")
     return "\n".join(head + lines) + "\n"
 
@@ -633,7 +651,9 @@ def run(args: argparse.Namespace, call: Call = api, now: datetime | None = None)
             or args.repo.split("/")[1] in (".", ".."):
         raise SetupError("The repository must be an explicit owner/name on github.com.")
     config = load_config(args.config)
-    reading = inspect(call, args.repo, config)
+    # One reading feeds the plan, the result and the evidence; writes go through call itself.
+    reader = OneReading(call)
+    reading = inspect(reader, args.repo, config)
     metadata, plan = reading.metadata, reading.plan
     mode = "apply" if args.apply else "check" if args.check else "preview"
     stamp = now or datetime.now(timezone.utc)
@@ -646,10 +666,8 @@ def run(args: argparse.Namespace, call: Call = api, now: datetime | None = None)
         raise SetupError(f"Nothing was changed: these managed values could not be read: "
                          f"{unread(reading.unknown)}.")
     if not args.apply or reading.verified():
-        write_evidence(path, evidence(call, args.repo, config, reading, mode, stamp))
-        if args.apply and reading.unknown:
-            raise SetupError(f"Nothing was changed: these managed values could not be read on "
-                             f"the second reading: {unread(reading.unknown)}.")
+        reader.frozen = True
+        write_evidence(path, evidence(reader, args.repo, config, reading, mode, stamp))
     if reading.verified():
         print("VERIFIED: every setting in the baseline matches.")
         return 0
@@ -672,8 +690,10 @@ def run(args: argparse.Namespace, call: Call = api, now: datetime | None = None)
     for method, endpoint, payload in plan:
         call(method, endpoint, payload)
         print(f"Applied {method} {endpoint}")
-    remaining = inspect(call, args.repo, config, report=False)
-    write_evidence(path, evidence(call, args.repo, config, remaining, mode, stamp))
+    reader = OneReading(call)
+    remaining = inspect(reader, args.repo, config, report=False)
+    reader.frozen = True
+    write_evidence(path, evidence(reader, args.repo, config, remaining, mode, stamp))
     if remaining.plan or remaining.unknown:
         raise SetupError("Read-back failed; run the preview to inspect the remaining differences.")
     if remaining.manual:
