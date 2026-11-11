@@ -388,6 +388,10 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- `WB-LAYOUT-01` counts only workbook-level defined names. The template also
+  sets 13 sheet-level print titles and areas, which Excel lists in
+  `Workbook.Names` (LibreOffice does not), so the expected 24 would have failed
+  in Excel (#193).
 - INSTALLATION and the CONTRIBUTING review checklist no longer require Excel
   evidence for every VBA change before merge: as GOVERNANCE states, a VBA
   change records Excel results when run, or states them as not run, and a

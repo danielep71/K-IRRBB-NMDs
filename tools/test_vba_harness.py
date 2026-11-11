@@ -409,6 +409,12 @@ class WorkbookLayout(unittest.TestCase):
     def test_counts(self) -> None:
         self.assertEqual(self.args("ExpectCounts"), [[len(build_template.SHEETS), len(build_template.NAMES)]])
 
+    def test_count_excludes_sheet_level_names(self) -> None:
+        # The template also defines sheet-level print titles and areas, which
+        # Excel lists in Workbook.Names; the count must leave them out.
+        self.assertIn('If InStr(1, definedName.Name, "!") = 0 Then n = n + 1', read(WORKBOOK_CASES))
+        self.assertNotIn("ThisWorkbook.Names.Count", read(WORKBOOK_CASES))
+
 
 def json_rows(value: Any, prefix: str = "") -> list[tuple[str, float]]:
     """Flatten an expected-file value the way make_expected.py does (dict keys, [i] indices)."""
