@@ -195,9 +195,12 @@ Label reconciliation scripts and workflows apply the label policy and run from t
 ## Repository settings
 
 `docs/repository-settings.json` is the baseline of the general settings, the
-security features and the rulesets for `main`, `release/**` (one for pull
-requests and checks, one that forbids deletion), the release tags `v*` and
-`traffic-history`; none can be bypassed, by admins included.
+security features, the deployment branches of the `analytics` environment
+(`main` only, [`docs/TRAFFIC.md`](../docs/TRAFFIC.md#credentials-and-access)),
+the CodeQL default setup (`not-configured`, see above) and the rulesets for
+`main`, `release/**` (one for pull requests and checks, one that forbids
+deletion), the release tags `v*` and `traffic-history`; none can be bypassed,
+by admins included.
 `setup_repository.py` compares the saved settings with it through an authenticated GitHub CLI and refuses to run without admin
 rights on the repository:
 
@@ -211,7 +214,11 @@ Every run writes a dated evidence file,
 `test-results/repository-settings-<mode>-<time>.md` unless `--report` names
 another. `--apply` stops before writing when a named ruleset differs, until
 `--update-existing` allows it to replace that whole ruleset. A ruleset the
-baseline does not name is reported and never changed or deleted. Dependabot
+baseline does not name is reported and never changed or deleted. For an
+environment, `--apply` sets the deployment branch policy, keeping its wait
+timer and required reviewers, then adds or deletes branch policies until only
+the baseline branches remain; it never reads or changes environment secrets or
+variables. Dependabot
 security updates stay off: their pull requests target `main`, which takes work
 only through the release branch, and the weekly version updates on the
 release branch cover the pinned actions and tools. `test_setup_repository.py`
