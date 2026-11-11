@@ -39,6 +39,10 @@ DEV_BUILDER = "tools/devbuild/build_dev_workbook.py"
 # The buttons the session presses, in order, and the status each must leave. The
 # file-choice buttons open a dialog, so only their wiring is checked.
 PRESSES = ("Import data", "Run tests")
+# A button's macro must be in the workbook itself: its OnAction names no workbook, the
+# file format's "this workbook" ([0]) or the development workbook the session builds.
+DEV_WORKBOOK = "IRRBB_Dev.xlsm"
+OWN_QUALIFIERS = ("", "[0]", DEV_WORKBOOK)
 MAIN_NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 REL_ID = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
 # A page setup as orientation|paperSize|fitToWidth|fitToHeight|fitToPage, with the
@@ -381,7 +385,10 @@ def judge_buttons(lines: Lines, exp: Expected) -> list[str]:
         if len(parts) != 3:
             reasons.append(f"unreadable button {value!r}")
             continue
-        found.setdefault(parts[0], []).append((parts[1], parts[2].rsplit("!", 1)[-1].strip("'")))
+        qualifier, _, macro = parts[2].rpartition("!")
+        if qualifier.strip("'") not in OWN_QUALIFIERS:
+            reasons.append(f"{parts[1]} runs a macro of another workbook: {parts[2]}")
+        found.setdefault(parts[0], []).append((parts[1], macro))
     if {k: sorted(v) for k, v in found.items()} != exp.buttons:
         reasons.append(f"buttons {found}, expected {exp.buttons}")
     macros = pairs(values(lines, "MACRO"))

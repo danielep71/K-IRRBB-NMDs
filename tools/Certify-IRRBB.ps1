@@ -268,18 +268,19 @@ function Read-SavedPageLayout {
 
 function Write-Buttons {
     # Every button of the development workbook and the macro it runs; then
-    # Import data and Run tests pressed by running their macros in this
-    # workbook, as a click does.
+    # Import data and Run tests pressed by running their actions as recorded,
+    # as a click does. An action that names no workbook, or the file format's
+    # "this workbook" ([0]), runs in this workbook.
     param($App, $Book, [string]$Qualified, [string]$Log)
     $actions = @{}
     foreach ($sheet in $Book.Worksheets) {
         foreach ($shape in $sheet.Shapes) {
             $label = [string]$shape.TextFrame2.TextRange.Text
-            $actions[$label] = ([string]$shape.OnAction -split '!')[-1].Trim("'")
+            $actions[$label] = [string]$shape.OnAction
             Add-Evidence $Log "BUTTON" ("{0}|{1}|{2}" -f $sheet.Name, $label, $shape.OnAction)
         }
     }
-    $macros = @($actions.Values | Sort-Object -Unique)
+    $macros = @($actions.Values | ForEach-Object { ($_ -split '!')[-1] } | Sort-Object -Unique)
     foreach ($macro in $macros) {
         $where = ""
         foreach ($component in $Book.VBProject.VBComponents) {
@@ -296,7 +297,9 @@ function Write-Buttons {
         Add-Evidence $Log "PRESS" $press[0]
         Add-Evidence $Log "STATE_BEFORE" (Get-ExcelState $App)
         try {
-            [void]$App.Run($Qualified + $actions[$press[0]])
+            $action = [string]$actions[$press[0]]
+            if ($action -notmatch '!' -or $action.StartsWith("[0]!")) { $action = $Qualified + ($action -split '!')[-1] }
+            [void]$App.Run($action)
         }
         catch {
             Add-Evidence $Log "ERROR" $_.Exception.Message

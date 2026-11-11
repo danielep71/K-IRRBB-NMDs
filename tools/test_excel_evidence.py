@@ -315,6 +315,8 @@ class BundleTests(unittest.TestCase):
             (drop("BUTTON", "Checks|Run tests|'IRRBB_Dev.xlsm'!RunTests"), "buttons"),
             (lambda: self.replace("buttons.log", "BUTTON", "Config|Import data|'IRRBB_Dev.xlsm'!WB_ImportData",
                                   "Config|Import data|'IRRBB_Dev.xlsm'!WB_ImportDataOld"), "buttons"),
+            (lambda: self.replace("buttons.log", "BUTTON", "Config|Import data|'IRRBB_Dev.xlsm'!WB_ImportData",
+                                  "Config|Import data|'missing.xlsm'!WB_ImportData"), "another workbook"),
             (lambda: self.replace("buttons.log", "MACRO", "WB_ImportData|WB_Import|1", "WB_ImportData|"),
              "WB_ImportData is not a procedure"),
             (lambda: self.replace("buttons.log", "STATUS", ev.ACCEPTED, "FAILED"), "Import data: status"),
@@ -478,6 +480,7 @@ class ScriptShapeTests(unittest.TestCase):
         presses = re.search(r'foreach \(\$press in @\((.*?)\)\) \{', self.text)
         assert presses is not None
         self.assertEqual(tuple(re.findall(r'@\("([^"]+)", "\w+"\)', presses.group(1))), ev.PRESSES)
+        self.assertIn(f'"{ev.DEV_WORKBOOK}"', self.text)
 
     @unittest.skipUnless(PWSH, "PowerShell 7 (pwsh) is not installed")
     def test_the_script_parses(self) -> None:
