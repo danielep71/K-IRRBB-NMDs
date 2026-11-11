@@ -91,7 +91,9 @@ def passing_logs(exp: ev.Expected, sha: str) -> dict[str, Lines]:
         template += [("VALIDATION", f"{cell}|x|refused"), ("VALIDATION", f"{cell}|Yes|accepted")]
     template += [("TAB", f"{name}|{color}") for name, color in exp.tabs.items()]
     template += [("STRIP", f"{cell}|{value}") for cell, value in exp.strips.items()]
-    template += [("DROPDOWN", f"{cell}|{value}") for cell, value in exp.dropdowns.items()]
+    # As an Italian Windows shows them: values joined by its list separator.
+    template += [("LIST_SEPARATOR", ";")]
+    template += [("DROPDOWN", f"{cell}|{value.replace(',', ';')}") for cell, value in exp.dropdowns.items()]
     # As Excel writes them: Print_Titles names quoted, and an attribute left out at its default.
     template += [("PRINT", f"{name}|='{ref.replace('!', chr(39) + '!', 1)}") for name, ref in exp.prints.items()]
     template += [("COPY", "template-copy.xlsx")]
@@ -294,7 +296,9 @@ class BundleTests(unittest.TestCase):
             ("TAB", "Config|BF9000", "Config|FFFFFF", "tab colours differ"),
             ("STRIP", "Config!A1|K-IRRBB|000000|FFC000", "Config!A1|K-IRRBB|FFFFFF|FFC000", "brand strip"),
             ("STRIP", "Config!A2|Run settings|265A99|FFFFFF", "Config!A2|Settings|265A99|FFFFFF", "title"),
-            ("DROPDOWN", "Segments!C7|True|Yes,No", "Segments!C7|False|Yes,No", "dropdowns differ"),
+            ("DROPDOWN", "Segments!C7|True|Yes;No", "Segments!C7|False|Yes;No", "dropdowns differ"),
+            ("DROPDOWN", "Segments!C7|True|Yes;No", "Segments!C7|True|Yes;Maybe", "dropdowns differ"),
+            ("LIST_SEPARATOR", ";", ",", "dropdowns differ"),
             ("PRINT", "Config!Print_Area|='Config'!$A$1:$D$26", "Config!Print_Area|='Config'!$A$1:$D$20",
              "print titles and areas"),
             ("PAGE", "Config|landscape|9||0|1", "Config|portrait|9||0|1", "page setups differ"),
