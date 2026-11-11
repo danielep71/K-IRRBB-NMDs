@@ -12,25 +12,42 @@ the candidate, not what a person did.
 """
 from __future__ import annotations
 
+import ast
 import functools
 import hashlib
+import io
 import json
 import re
 import subprocess
 import sys
 import types
+import zipfile
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from xml.etree import ElementTree
 
 REPOSITORY = "danielep71/K-IRRBB-NMDs"
 SCHEMA_VERSION = 1
 SHA = re.compile(r"^[0-9a-f]{40}$")
-LOGS = ("template.log", "build.log", "harness.log", "failure.log", "import.log",
+LOGS = ("template.log", "build.log", "harness.log", "failure.log", "import.log", "buttons.log",
         "sync.log", "sync-failure.log", "roundtrip.log")
-STAGES = ("template", "build", "references", "compile", "smoke", "failure_path", "import",
+STAGES = ("template", "build", "references", "compile", "smoke", "failure_path", "import", "buttons",
           "cleanup", "synchronize", "synchronize_failure", "round_trip")
+DEV_BUILDER = "tools/devbuild/build_dev_workbook.py"
+# The buttons the session presses, in order, and the status each must leave. The
+# file-choice buttons open a dialog, so only their wiring is checked.
+PRESSES = ("Import data", "Run tests")
+# A button's macro must be in the workbook itself: its OnAction names no workbook, the
+# file format's "this workbook" ([0]) or the development workbook the session builds.
+DEV_WORKBOOK = "IRRBB_Dev.xlsm"
+OWN_QUALIFIERS = ("", "[0]", DEV_WORKBOOK)
+MAIN_NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+REL_ID = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
+# A page setup as orientation|paperSize|fitToWidth|fitToHeight|fitToPage, with the
+# values SpreadsheetML gives an attribute that is left out.
+PAGE_DEFAULTS = ("default", "1", "1", "1", "0")
 TEMPLATE = "src/workbook/IRRBB_Template.xlsx"
 FIXTURES = "tests/fixtures/data_contract"
 EXPECTED = "tests/expected/data_contract"
@@ -82,6 +99,12 @@ class Expected:
     differ_errors: list[tuple[int, str]]
     control_sha: str
     sources: dict[str, str] = field(default_factory=dict)
+    tabs: dict[str, str] = field(default_factory=dict)
+    strips: dict[str, str] = field(default_factory=dict)
+    dropdowns: dict[str, str] = field(default_factory=dict)
+    pages: dict[str, str] = field(default_factory=dict)
+    prints: dict[str, str] = field(default_factory=dict)
+    buttons: dict[str, list[tuple[str, str]]] = field(default_factory=dict)
 
     @property
     def counts_line(self) -> str:
@@ -105,6 +128,74 @@ def _template_module(root: Path, sha: str) -> types.ModuleType:
     return module
 
 
+def page_layout(raw: list[str]) -> str:
+    """orientation|paperSize|fitToWidth|fitToHeight|fitToPage, defaults filled in."""
+    filled = [value or default for value, default in zip(raw, PAGE_DEFAULTS, strict=True)]
+    filled[4] = {"true": "1", "false": "0"}.get(filled[4].lower(), filled[4])
+    return "|".join(filled)
+
+
+def reference(text: str) -> str:
+    """A defined name's reference without its = sign or quotes around sheet names."""
+    return text.lstrip("=").replace("'", "")
+
+
+def package_layout(xlsx: bytes) -> tuple[dict[str, str], dict[str, str]]:
+    """Each sheet's page setup and print titles and areas, as saved in a workbook package."""
+    with zipfile.ZipFile(io.BytesIO(xlsx)) as package:
+        book = ElementTree.fromstring(package.read("xl/workbook.xml"))
+        targets = {r.get("Id"): r.get("Target", "")
+                   for r in ElementTree.fromstring(package.read("xl/_rels/workbook.xml.rels"))}
+        sheets = [(s.get("name", ""), targets[s.get(REL_ID)]) for s in book.iter(f"{MAIN_NS}sheet")]
+        pages = {}
+        for name, target in sheets:
+            part = target[1:] if target.startswith("/") else "xl/" + target
+            xml = ElementTree.fromstring(package.read(part))
+            setup = xml.find(f"{MAIN_NS}pageSetup")
+            fit = xml.find(f"{MAIN_NS}sheetPr/{MAIN_NS}pageSetUpPr")
+            raw = [setup.get(key, "") if setup is not None else "" for key in
+                   ("orientation", "paperSize", "fitToWidth", "fitToHeight")]
+            pages[name] = page_layout(raw + [fit.get("fitToPage", "") if fit is not None else ""])
+    prints = {}
+    for defined in book.iter(f"{MAIN_NS}definedName"):
+        kind, local = defined.get("name", ""), defined.get("localSheetId")
+        if kind in ("_xlnm.Print_Titles", "_xlnm.Print_Area") and local is not None:
+            prints[f"{sheets[int(local)][0]}!{kind[6:]}"] = reference(defined.text or "")
+    return pages, prints
+
+
+def _style_colors(template: types.ModuleType, style: int) -> tuple[str, str]:
+    """The fill and font colours (RRGGBB) of one of the template's cell styles."""
+    xf = template._XFS[style]
+    font, fill = (int(re.search(rf'{key}="(\d+)"', xf).group(1))  # type: ignore[union-attr]
+                  for key in ("fontId", "fillId"))
+    color = re.search(r'<color rgb="FF([0-9A-Fa-f]{6})"/>', template._FONTS[font])
+    return (template._FILLS[fill - 2] if fill >= 2 else "FFFFFF").upper(), (color.group(1) if color else "000000").upper()
+
+
+def _cells(area: str) -> list[str]:
+    """The cells of a rectangular reference such as C6:C8."""
+    first, _, last = area.partition(":")
+    (c1, r1), (c2, r2) = (re.match(r"([A-Z]+)(\d+)", ref).groups() for ref in (first, last or first))  # type: ignore[union-attr]
+    columns = [chr(c) for c in range(ord(c1), ord(c2) + 1)] if len(c1) == len(c2) == 1 else [c1]
+    return [f"{c}{r}" for r in range(int(r1), int(r2) + 1) for c in columns]
+
+
+def _buttons(root: Path, sha: str) -> dict[str, list[tuple[str, str]]]:
+    """BUTTONS of the development-workbook builder at the candidate: sheet -> (label, macro)."""
+    tree = ast.parse(blob(root, sha, DEV_BUILDER))
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "BUTTONS" for t in node.targets) \
+                and isinstance(node.value, ast.Dict):
+            out = {}
+            for key, value in zip(node.value.keys, node.value.values, strict=True):
+                assert isinstance(key, ast.Constant) and isinstance(value, ast.List)
+                rows = [item.elts for item in value.elts if isinstance(item, ast.Tuple)]
+                out[str(key.value)] = sorted((str(ast.literal_eval(r[0])), str(ast.literal_eval(r[1]))) for r in rows)
+            return out
+    raise EvidenceError(f"BUTTONS could not be read from {DEV_BUILDER}")
+
+
 @functools.lru_cache(maxsize=8)
 def expected(root: Path, sha: str) -> Expected:
     harness = blob(root, sha, "tests/modules/TEST_Harness.bas").decode("cp1252")
@@ -122,11 +213,22 @@ def expected(root: Path, sha: str) -> Expected:
     projects = json.loads(blob(root, sha, "tools/vba-projects.json"))
     paths = list(projects["document_modules"]) + list(projects["configurations"]["development"]["modules"])
     sources = {path: sha256(blob(root, sha, path)) for path in sorted(paths + [TEMPLATE])}
+    strips = {}
+    for s in template.SHEETS:
+        for ref in ("A1", "A2"):
+            text, style = s.cells[ref]
+            fill, font = _style_colors(template, style)
+            strips[f"{s.name}!{ref}"] = f"{text}|{fill}|{font}"
+    dropdowns = {f"{sheet}!{cell}": f"True|{rule}" for sheet, area, kind, rule, *_ in template.VALIDATIONS
+                 if kind == "list" for cell in _cells(area)}
+    pages, prints = package_layout(blob(root, sha, TEMPLATE))
     return Expected(registry=registry, sheets=sheets, names=names, validated=validated,
                     totals=len(summary["totals"]),
                     differ_errors=[(e["line"], e["code"]) for e in differ["errors"]],
                     control_sha=sha256(blob(root, sha, f"{FIXTURES}/control_totals.csv")),
-                    sources=sources)
+                    sources=sources, tabs={s.name: s.tab_color.upper() for s in template.SHEETS},
+                    strips=strips, dropdowns=dropdowns, pages=pages, prints=prints,
+                    buttons=_buttons(root, sha))
 
 
 # ----------------------------------------------------------------------------
@@ -249,6 +351,59 @@ def judge_template(lines: Lines, exp: Expected) -> list[str]:
     fonts = {v.split("|", 1)[1] for v in values(lines, "FONT") if "|" in v}
     if fonts != {"Aptos"}:
         reasons.append(f"title fonts {sorted(fonts)}, expected Aptos")
+    return reasons + _appearance(lines, exp)
+
+
+def _differ(what: str, found: dict[str, str], want: dict[str, str]) -> list[str]:
+    keys = sorted(k for k in set(found) | set(want) if found.get(k) != want.get(k))
+    return [] if not keys else [f"{what} differ from the template: " + "; ".join(
+        f"{k} {found.get(k, 'missing')!r}, expected {want.get(k, 'none')!r}" for k in keys[:3])]
+
+
+def _appearance(lines: Lines, exp: Expected) -> list[str]:
+    """Tab colours, brand strip and title, dropdowns, print titles and areas and the page
+    setup, as Excel shows and saves them, against the template at the candidate."""
+    pages = {}
+    for value in values(lines, "PAGE"):
+        parts = value.split("|")
+        if len(parts) == 6:
+            pages[parts[0]] = page_layout(parts[1:])
+    return (_differ("tab colours", {k: v.upper() for k, v in pairs(values(lines, "TAB")).items()}, exp.tabs)
+            + _differ("brand strip and title", pairs(values(lines, "STRIP")), exp.strips)
+            + _differ("dropdowns", pairs(values(lines, "DROPDOWN")), exp.dropdowns)
+            + _differ("print titles and areas",
+                      {k: reference(v) for k, v in pairs(values(lines, "PRINT")).items()}, exp.prints)
+            + _differ("page setups", pages, exp.pages))
+
+
+def judge_buttons(lines: Lines, exp: Expected) -> list[str]:
+    """Every button of the development workbook, the macro it runs, and the two it presses."""
+    reasons: list[str] = []
+    found: dict[str, list[tuple[str, str]]] = {}
+    for value in values(lines, "BUTTON"):
+        parts = value.split("|")
+        if len(parts) != 3:
+            reasons.append(f"unreadable button {value!r}")
+            continue
+        qualifier, _, macro = parts[2].rpartition("!")
+        if qualifier.strip("'") not in OWN_QUALIFIERS:
+            reasons.append(f"{parts[1]} runs a macro of another workbook: {parts[2]}")
+        found.setdefault(parts[0], []).append((parts[1], macro))
+    if {k: sorted(v) for k, v in found.items()} != exp.buttons:
+        reasons.append(f"buttons {found}, expected {exp.buttons}")
+    macros = pairs(values(lines, "MACRO"))
+    for macro in sorted({m for rows in exp.buttons.values() for _, m in rows}):
+        if not re.fullmatch(r"\w+\|1", macros.get(macro, "")):
+            reasons.append(f"{macro} is not a procedure of a standard module")
+    presses = blocks(lines, "PRESS")
+    if [one(b, "PRESS") for b in presses] != list(PRESSES):
+        return reasons + ["the Import data and Run tests buttons were not pressed in that order"]
+    for block, want in zip(presses, (ACCEPTED, COMPLETE), strict=True):
+        label = one(block, "PRESS")
+        reasons += [f"{label}: {r}" for r in _state(block)]
+        if one(block, "STATUS") != want:
+            reasons.append(f"{label}: status {one(block, 'STATUS')!r}, expected {want!r}")
+        reasons += [f"{label}: run error: {e}" for e in values(block, "ERROR")]
     return reasons
 
 
@@ -404,6 +559,7 @@ def evaluate(root: Path, sha: str, bundle: Path, session: dict[str, Any]) -> dic
         "smoke": ("harness.log", smoke),
         "failure_path": ("failure.log", lambda ls: judge_failure_path(ls, exp, sha)),
         "import": ("import.log", lambda ls: judge_import(ls, exp)),
+        "buttons": ("buttons.log", lambda ls: judge_buttons(ls, exp)),
         "synchronize": ("sync.log", lambda ls: judge_synchronize(ls, exp, sha)),
         "synchronize_failure": ("sync-failure.log", judge_synchronize_failure),
         "round_trip": ("roundtrip.log", judge_round_trip),
