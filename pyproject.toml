@@ -1,4 +1,5 @@
-# Quality settings for the repository's Python tooling (tools/).
+# Quality settings for the repository's Python tooling: tools/ and the
+# workflow scripts in .github/scripts/.
 # The tooling itself needs only the standard library, except the optional
 # tools/devbuild/lo_smoke.py, which needs LibreOffice's python3-uno. CI installs
 # Ruff and mypy from the hash-locked tools/requirements-quality-ci.txt and
@@ -17,7 +18,7 @@ max-complexity = 15
 
 [tool.mypy]
 python_version = "3.11"
-files = ["tools"]
+files = ["tools", ".github/scripts"]
 pretty = true
 show_error_codes = true
 warn_unused_configs = true
