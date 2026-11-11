@@ -26,12 +26,14 @@ End Sub
 
 
 '------------------------------------------------------------------------------
-' WB-LAYOUT-01: sheet order, names and CodeNames; every defined name refers to
-' its contract address; nothing more is defined.
+' WB-LAYOUT-01: sheet order, names and CodeNames; every workbook-level defined
+' name refers to its contract address; no other workbook-level name exists.
+' Sheet-level names (the print titles and areas the builder sets) are not
+' counted: Excel lists them in Workbook.Names, LibreOffice does not.
 '------------------------------------------------------------------------------
 Private Sub CaseLayout()
     Const C As String = "WB-LAYOUT-01"
-    ExpectCounts C, 10, 25
+    ExpectCounts C, 10, 26
 
     ExpectSheet C, 1, "Readme", "shReadme"
     ExpectSheet C, 2, "Config", "shConfig"
@@ -48,6 +50,7 @@ Private Sub CaseLayout()
     ExpectName C, "Calibration_Status", "Calibration", "$B$3"
     ExpectName C, "Checks_Assertions", "Checks", "$H$14:$N$20014"
     ExpectName C, "Checks_Cases", "Checks", "$A$14:$F$514"
+    ExpectName C, "Checks_Info", "Checks", "$B$4:$B$11"
     ExpectName C, "Checks_Status", "Checks", "$B$3"
     ExpectName C, "Config_AccountsFile", "Config", "$B$6"
     ExpectName C, "Config_ClosureAttested", "Config", "$B$11"
@@ -77,8 +80,19 @@ End Sub
 '==============================================================================
 Private Sub ExpectCounts(ByVal caseId As String, ByVal sheets As Long, ByVal names As Long)
     TEST_AssertText caseId, "worksheet count", CStr(ThisWorkbook.Worksheets.Count), CStr(sheets)
-    TEST_AssertText caseId, "defined name count", CStr(ThisWorkbook.Names.Count), CStr(names)
+    TEST_AssertText caseId, "workbook-level defined name count", CStr(WorkbookNameCount()), CStr(names)
 End Sub
+
+
+' Names whose Name carries a sheet qualifier ("Readme!Print_Titles") are
+' sheet-level; every other name is workbook-level.
+Private Function WorkbookNameCount() As Long
+    Dim definedName As Name, n As Long
+    For Each definedName In ThisWorkbook.Names
+        If InStr(1, definedName.Name, "!") = 0 Then n = n + 1
+    Next definedName
+    WorkbookNameCount = n
+End Function
 
 
 Private Sub ExpectSheet(ByVal caseId As String, ByVal index As Long, ByVal sheetName As String, _

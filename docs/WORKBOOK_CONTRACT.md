@@ -48,6 +48,12 @@ no function.
 
 - **Order** is part of the contract; VBA refers to a sheet by its CodeName,
   never by its tab name or position.
+- **Examples are the one exception.** An example module in
+  `examples/modules/` demonstrates the public API on a sheet of its own that
+  is not part of this contract (`EX_DecayExample` reads a `DecayExample` sheet
+  the template does not have, #36), so it addresses that sheet by tab name and
+  literal cells. It never reads or writes a contract sheet or name. Production
+  and test code, the regression harness included, have no exception.
 - **Owner** is the only writer. *User* cells are typed by the user (or set by a
   picker VBA opens); *VBA* areas are written only by VBA; *Builder* is the
   build stamp written when the workbook is built from source.
@@ -84,6 +90,7 @@ addresses, so a layout change is one change here and in the generator.
 | `DataSummary_Outcomes` | `DataSummary!$S$14:$AB$20013` | VBA | Per-period lineage: transition outcomes, the last balance of censored disappearances and the masked close dates per month end, segment and currency; only for an accepted import |
 | `Checks_Cases` | `Checks!$A$14:$F$514` | VBA | Harness case table |
 | `Checks_Assertions` | `Checks!$H$14:$N$20014` | VBA | Harness assertion table |
+| `Checks_Info` | `Checks!$B$4:$B$11` | VBA | Harness run information: start, finish, source commit, host, case and assertion counts, primary and cleanup error |
 | `<Sheet>_Status` | `<Sheet>!$B$3` | VBA | Run status of each output sheet: `DataSummary`, `ModelParams`, `Calibration`, `Backtesting`, `Scenarios`, `Results`, `Checks` |
 
 The settings follow [`DATA_CONTRACT.md`](methodology/DATA_CONTRACT.md): the

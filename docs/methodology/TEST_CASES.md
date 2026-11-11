@@ -74,7 +74,7 @@ statistical check, not a tolerance test.
 
 | ID | Checks | Reference | Tolerance | Status |
 | --- | --- | --- | --- | --- |
-| `WB-LAYOUT-01` | Sheet order, names and CodeNames; every defined name refers to its address; no other names | [`WORKBOOK_CONTRACT.md`](../WORKBOOK_CONTRACT.md); literals checked against [`build_template.py`](../../tools/workbook/build_template.py) by [`test_vba_harness.py`](../../tools/test_vba_harness.py) | `exact` | Built (VBA) |
+| `WB-LAYOUT-01` | Sheet order, names and CodeNames; every workbook-level defined name refers to its address; no other workbook-level names (the sheet-level print titles and areas are not counted) | [`WORKBOOK_CONTRACT.md`](../WORKBOOK_CONTRACT.md); literals checked against [`build_template.py`](../../tools/workbook/build_template.py) by [`test_vba_harness.py`](../../tools/test_vba_harness.py) | `exact` | Built (VBA) |
 
 ### Data contract
 
