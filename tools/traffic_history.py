@@ -422,7 +422,7 @@ def listed(rows: Sequence[Row], label: str, empty: str) -> str:
 
 
 def alert_body(previous: Mapping[str, str], current: Mapping[str, str], reasons: Sequence[str],
-               lists: Sequence[str], target: date) -> str:
+               lists: Sequence[str], start: date, target: date) -> str:
     since = f"on {previous['snapshot_date']}"
     new_referrers, referrers, paths = lists
 
@@ -465,6 +465,7 @@ def alert_body(previous: Mapping[str, str], current: Mapping[str, str], reasons:
         "",
         "None.",
         "",
+        f"- Start date: {start} (Europe/Rome)",
         f"- Target end date: {target} (Europe/Rome)",
     ])
 
@@ -497,7 +498,7 @@ def alert(data: Path, milestone: Mapping[str, Any], today: str) -> dict[str, str
              listed(current_paths, "path", "- No popular paths available"))
     target = target_end_date(today, str(milestone["due_on"])[:10])
     return {"title": f"Traffic alert: {day}",
-            "body": alert_body(previous, current, reasons, lists, target),
+            "body": alert_body(previous, current, reasons, lists, date.fromisoformat(today), target),
             "milestone": str(milestone["title"])}
 
 
