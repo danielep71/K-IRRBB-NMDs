@@ -528,6 +528,10 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The decay facade and the data contract name the same source for the decay
+  balance series: in production the per-segment totals of the import
+  (`IRRBB_ImportTotals`), never a series the user supplies; tests and examples
+  pass synthetic series (#189).
 - The data contract no longer requires a reconciliation the import does not
   run: it states that the import reports per date, segment and currency
   totals, each account row counted once, and takes no control totals. The
