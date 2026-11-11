@@ -97,8 +97,9 @@ first line `CANDIDATE=` and the SHA:
 | `build.log` | Builds `IRRBB_Dev.xlsm` in the bundle with the [development builder](../INSTALLATION.md#development-workbook) (stage 1) |
 | `harness.log` | Opens it in a visible Excel with its macros enabled for that Excel session only, compiles it (stage 2) and runs the harness (stage 3) |
 | `failure.log` | The four runs of [stage 4](#4-failure-path) |
-| `import.log` | **Import data** with the synthetic fixtures: accepted; control totals that match and that differ; a window date and an attestation pasted past the validation; a rerun. Each later result must withdraw the earlier one |
+| `import.log` | **Import data** with the synthetic fixtures: accepted; control totals that match and that differ; a window date and an attestation pasted past the validation; an account file that another process holds open for writing, which must be refused with error 70; a rerun. Each later result must withdraw the earlier one |
 | `buttons.log` | Every button of the development workbook, by sheet, label and the macro it runs, compared with the builder at the candidate, and each macro found as a procedure of a standard module. It then presses **Import data** and **Run tests** by running their macros as a click does: the import must be accepted and the tests must pass. The file-choice buttons open a dialog, so only their wiring is checked |
+| `timing.log` | Writes the large synthetic panel (about 47 MB) with [`make_large_panel.py`](../tools/devbuild/README.md) into the bundle and times its import through **Import data**: the import must be accepted and the lineage must record the file's size. The time is recorded, not judged against a target |
 | `sync.log` | The template saved as `IRRBB_Sync.xlsm`, synchronized with `Sync-IRRBB-VBA.ps1 -Mode Development`, compiled and run through the harness |
 | `roundtrip.log` | [Stage 6](#6-source-round-trip) on `IRRBB_Sync.xlsm` |
 | `sync-failure.log` | The synchronizer run again while another Excel holds the workbook open: it must fail, and the workbook and the security settings must be unchanged |
