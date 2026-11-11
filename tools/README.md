@@ -11,7 +11,7 @@ python tools/check.py --ci --base <base-sha>
 The gate runner checks:
 - Python-tool regression self-tests;
 - committed / working-tree whitespace;
-- source placement, LF storage and VBA export headers; every VBA component lies in a directory the synchronizer's `$sourceRoots` list reads, and the document modules in `src/workbook/` match the template's sheets by CodeName (`test_sync_checks.py`);
+- source placement, role prefixes of standard modules, LF storage and VBA export headers; every VBA component lies in a directory the synchronizer's `$sourceRoots` list reads, and the document modules in `src/workbook/` match the template's sheets by CodeName (`test_sync_checks.py`);
 - the synchronizer's folder selection, document-module decoding, production/development answer and component sets, run in PowerShell 7 without Excel (`test_sync_script.py`; skipped where `pwsh` is not installed, as on the CI runner);
 - the export comparison of the source round trip (`test_compare_vba_export.py`);
 - data-contract fixtures in `tests/` agree with their hand-computed expectations and with `docs/methodology/DATA_CONTRACT.md` (`test_data_contract.py`);
@@ -22,6 +22,8 @@ The gate runner checks:
 - VBA jump targets and conditional compilation across supported Windows bitness contexts;
 - explicit public API declarations compared with `docs/PUBLIC_API.txt`;
 - changelog/version consistency;
+- `docs/LABELS.md` names every label of the catalog, and milestone titles use
+  GitHub's form `vX.Y.Z - Title` (`test_conventions.py`);
 - Markdown links (`check_links.py`): every relative link names an existing
   file or directory in the repository, every fragment names a heading or
   anchor of its target, and every external link uses HTTPS, so a plain

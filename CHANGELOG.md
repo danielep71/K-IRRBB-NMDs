@@ -388,6 +388,16 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- Documentation follows its own conventions: label descriptions and the Code
+  of Conduct speak in the first person; the branch model, `GOVERNANCE.md` and
+  `TRAFFIC.md` hold no history (the one-time step leaves the App setup: if the
+  replaced `TRAFFIC_TOKEN` secret still exists, delete it and revoke its
+  token); the `WB_` and `EX_` module prefixes are
+  documented and enforced by `check_source.py` with the others; the public
+  API rule names what `check_vba_public_api.py` checks instead of a versioned
+  manifest; `CORE_Max` and `CORE_Min` have contract headers; `LABELS.md`
+  documents every catalog label and no longer mentions version labels; and
+  milestone titles use GitHub's form `vX.Y.Z - Title` (#200).
 - INSTALLATION and the CONTRIBUTING review checklist no longer require Excel
   evidence for every VBA change before merge: as GOVERNANCE states, a VBA
   change records Excel results when run, or states them as not run, and a

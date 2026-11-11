@@ -9,7 +9,7 @@
   commit, used only to level a release branch with `main`.
   The release branch goes into `main` with a merge commit; see
   [`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main).
-- No direct commits to `release/**` or `main` after the initial repository bootstrap; even levelling a release branch with `main` is a pull request ([`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main)).
+- No direct commits to `release/**` or `main`; even levelling a release branch with `main` is a pull request ([`RELEASING.md`](../RELEASING.md#integrating-the-release-branch-into-main)).
 - A release-to-main PR needs my explicit approval. No version tags or releases are implied.
 - Merge only with review sign-off and green repository checks, as recorded in the PR's final-head review ([pull requests](#pull-requests)). VBA may be merged before Excel evidence exists; a release needs Excel evidence on its candidate ([`EXCEL_EVIDENCE.md`](EXCEL_EVIDENCE.md)).
 

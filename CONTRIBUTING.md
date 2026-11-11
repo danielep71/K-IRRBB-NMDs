@@ -27,8 +27,8 @@ Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
 Suspected vulnerabilities must never be disclosed in an issue or pull request.
 
 > [!NOTE]
-> Milestone **v0.2.0 – Workbook, data and Excel tests** is in progress;
-> **v0.1.0 – Repository foundation** closed on 2026-10-09. The VBA data import,
+> Milestone **v0.2.0 - Workbook, data and Excel tests** is in progress;
+> **v0.1.0 - Repository foundation** closed on 2026-10-09. The VBA data import,
 > the macro-free workbook template and the regression harness exist, with no
 > Excel evidence recorded yet. A draft Decay engine is present but remains
 > unvalidated, with contract decisions and acceptance tracked in issue #36;

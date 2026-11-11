@@ -250,7 +250,8 @@ The toolkit deliberately does **not**:
    `src/core/`, `src/modules/`, `src/classes/`, `src/workbook/`, `src/forms/`,
    `tests/` or `examples/`. *(enforced)*
 2. Standard modules carry their role prefix: `CORE_` in `src/core/`, `IRRBB_` in
-   `src/modules/`, `TEST_` in `tests/`. *(enforced)*
+   `src/modules/`, `WB_` (workbook adapters) in `src/workbook/`, `TEST_` in
+   `tests/` and `EX_` in `examples/`. *(enforced)*
 3. Every standard module in `src/core/` declares `Option Private Module`.
    *(enforced)*
 4. A Public name is declared in one standard module only, within each
