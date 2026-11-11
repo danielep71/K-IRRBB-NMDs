@@ -528,6 +528,11 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The release checklist no longer asks for a fast-forward of the release
+  branch, which the rulesets refuse: it asks for the levelling pull request of
+  step 4. RELEASING and CONTRIBUTING state that this pull request is the one
+  merged with a merge commit, and name its branch `fix/level-<release>-after-<PR>`
+  (#190).
 - Dependabot updates every `github/codeql-action` step in one grouped pull
   request, since CodeQL fails when `init` and `analyze` differ in version; both
   steps are pinned to v4.39.3, in place of the separate #180 and #181 (#183).
