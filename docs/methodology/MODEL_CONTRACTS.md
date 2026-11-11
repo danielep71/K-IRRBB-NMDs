@@ -286,8 +286,11 @@ confidence level?
 
    $$g_t = \ln B_t - \ln B_{t-1}$$
 
-3. **Structural breaks** declared in the run configuration enter as impulse
-   dummies $D_{k,t}$, estimated by OLS:
+3. **Structural breaks** are declared by the caller of `IRRBB_DecayFit`, which
+   takes the month ends at which declared breaks end; every break applies to
+   the segment and currency of the call, and the caller records its reason
+   with the run ([data contract](DATA_CONTRACT.md#structural-breaks-and-outliers)).
+   Each break enters as an impulse dummy $D_{k,t}$, estimated by OLS:
 
    $$g_t = \mu + \sum_k \kappa_k D_{k,t} + e_t$$
 
