@@ -108,8 +108,9 @@ Use only the categories needed by a release.
   needs an import total for its date, segment and currency with the same
   number of accounts and a balance within 0.005 currency units, never adding
   currencies. A difference or a key with no total is the new error `E13` and
-  rejects the whole import; malformed rows use `E01`–`E07` and `E09`. The
-  lineage records the file's name, size, rows read and SHA-256, or `none`.
+  rejects the whole import; malformed rows use `E01`–`E07` and `E09`, and a
+  control balance at or above 1E+11, beyond which a Double no longer resolves
+  the tolerance, is `E04`. The lineage records the file's name, size, rows read and SHA-256, or `none`.
   `DATA-RECON-01` checks matching totals, a count difference, balances just
   within and just beyond the tolerance and unknown keys against hand-assigned
   expected files, in Python and VBA. Existing calls without the argument run no

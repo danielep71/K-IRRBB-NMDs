@@ -271,7 +271,7 @@ End Function
 
 
 Private Function Data_ControlTotalsInvalidCsv() As Variant
-    Dim a(1 To 13) As String
+    Dim a(1 To 14) As String
     a(1) = "as_of_date,segment,currency,accounts,balance"
     a(2) = "2025-01-31,RET_TX,EUR,5"
     a(3) = "2025-01-31,RET_TX,EUR,,6600.00"
@@ -285,6 +285,7 @@ Private Function Data_ControlTotalsInvalidCsv() As Variant
     a(11) = "2025-02-28,RET_TX,EUR,5,6760.00"
     a(12) = "2025-02-28,RET_TX,EUR,5,6760.00"
     a(13) = "2025-03-31,RET_TX,EUR,6,56300.00"
+    a(14) = "2025-01-31,RET_TX,EUR,5,100000000000.0000"
     Data_ControlTotalsInvalidCsv = a
 End Function
 
@@ -502,7 +503,7 @@ Private Function Data_ControlTotalsFindingsFixtures() As Variant
     a(3) = "control_totals_balance.csv|3"
     a(4) = "control_totals_count.csv|3"
     a(5) = "control_totals_unknown.csv|4"
-    a(6) = "control_totals_invalid.csv|12"
+    a(6) = "control_totals_invalid.csv|13"
     Data_ControlTotalsFindingsFixtures = a
 End Function
 
@@ -543,7 +544,7 @@ End Function
 
 
 Private Function Data_ControlTotalsFindingsControlTotalsInvalidCsv() As Variant
-    Dim a(1 To 10) As String
+    Dim a(1 To 11) As String
     a(1) = "2|E01"
     a(2) = "3|E03"
     a(3) = "4|E02"
@@ -554,6 +555,7 @@ Private Function Data_ControlTotalsFindingsControlTotalsInvalidCsv() As Variant
     a(8) = "9|E07"
     a(9) = "10|E09"
     a(10) = "12|E05"
+    a(11) = "14|E04"
     Data_ControlTotalsFindingsControlTotalsInvalidCsv = a
 End Function
 
