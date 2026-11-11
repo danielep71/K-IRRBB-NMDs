@@ -27,8 +27,11 @@ and [`RELEASING.md`](../RELEASING.md#release-invariants).
 > [!IMPORTANT]
 > `python tools/check.py` and CI never compile VBA or run Excel. Only a record
 > made by a person running Excel, bound to an exact commit, is Excel evidence.
-> No record exists yet for the VBA source of v0.2.0. Until a validator
-> is added, records are checked by review against this document.
+> No record exists yet for the VBA source of v0.2.0.
+> [`tools/Certify-IRRBB.ps1`](../tools/Certify-IRRBB.ps1) runs every stage
+> below in one command and writes the record;
+> [`tools/check_excel_evidence.py`](../tools/check_excel_evidence.py) validates
+> it offline. A record made by hand is checked by review against this document.
 
 <a id="outcomes"></a>
 
@@ -62,6 +65,69 @@ run never replaces an earlier failing one in the record; both are kept.
 
 Any change to the source after the record invalidates it for the affected
 components. Evidence is never carried from one commit to another.
+
+<a id="one-command-session"></a>
+
+## ⚡ One-command session
+
+`tools/Certify-IRRBB.ps1` runs the [required stages](#required-stages) for the
+checked-out commit in one run, on Windows desktop Excel. It needs Python 3.11
+or later and *Trust access to the VBA project object model* already on: the
+compile through the VBE, the synchronizer and the export need it for the whole
+session, and the script never turns it on or off. Turn it on before the
+session and off after it, if that is your practice; the record shows it as
+found. Check out the candidate in a clean tree and double-click
+`tools\Certify-IRRBB.cmd`, or run:
+
+```powershell
+git fetch origin
+git switch --detach FULL_SHA
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\Certify-IRRBB.ps1
+```
+
+The script refuses a working tree with changes. It creates the bundle folder
+`irrbb-evidence-SHORTSHA` next to the checkout (`-BundleDir` names another; a
+folder that is not empty is refused), starts `session.log` and records the host
+and its security settings without changing them. Each stage writes its own log,
+first line `CANDIDATE=` and the SHA:
+
+| Log | What the script does and records |
+| --- | --- |
+| `template.log` | Opens the macro-free template read-only: no repair, its sheets, CodeNames, defined names and title font, and every validated cell refusing an invalid value and accepting a valid one; exports the print view to `template.pdf` |
+| `build.log` | Builds `IRRBB_Dev.xlsm` in the bundle with the [development builder](../INSTALLATION.md#development-workbook) (stage 1) |
+| `harness.log` | Opens it in a visible Excel that follows the macro setting, compiles it (stage 2) and runs the harness (stage 3) |
+| `failure.log` | The four runs of [stage 4](#4-failure-path) |
+| `import.log` | **Import data** with the synthetic fixtures: accepted; control totals that match and that differ; a window date and an attestation pasted past the validation; a rerun. Each later result must withdraw the earlier one |
+| `sync.log` | The template saved as `IRRBB_Sync.xlsm`, synchronized with `Sync-IRRBB-VBA.ps1 -Mode Development`, compiled and run through the harness |
+| `roundtrip.log` | [Stage 6](#6-source-round-trip) on `IRRBB_Sync.xlsm` |
+| `sync-failure.log` | The synchronizer run again while another Excel holds the workbook open: it must fail, and the workbook and the security settings must be unchanged |
+
+Excel's calculation, events, screen updating and alerts are recorded before
+and after every run. The development workbook is closed without saving
+(stage 5). The script then writes `session.json` and runs
+`tools/write_excel_evidence.py`, which judges every stage from the logs,
+writes `host.json` and validates the bundle; the exit code is 0 only for
+`PASS`. The operator clicks **Enable Content** when Excel asks, once for each
+workbook, and otherwise leaves Excel alone until the run ends: a click in a
+sheet during a run can change the state it records.
+
+`host.json` binds the record: the candidate, the environment with
+`trust_changes: false`, the SHA-256 of every source the workbook is built from
+(the bytes stored in Git), of every log and of `session.json`, and each
+stage's outcome with its reasons. The validator never runs Excel. It judges
+the stages again from the logs and the repository at the candidate, with the
+expected values read from that commit: the harness registry, the template
+generator and the data-contract fixtures. It then compares everything with
+`host.json`:
+
+```sh
+python tools/check_excel_evidence.py --bundle ../irrbb-evidence-SHORTSHA --candidate-sha FULL_SHA
+```
+
+A log changed after the record, a missing log, a stage that did not pass or a
+record that names another commit is `RESULT=FAIL`. Keep a failing bundle as it
+is: a later passing run never replaces it. Attach the bundle's `host.json` and
+the validator's output to the issue or pull request.
 
 <a id="required-stages"></a>
 
@@ -153,6 +219,8 @@ conditional-compilation branches statically.
 <a id="procedure"></a>
 
 ## 🧑‍💻 Procedure
+
+When the script cannot be used, follow these steps by hand.
 
 Execution is **manual**: a person runs Excel interactively. The procedure never
 changes macro security or Trust Center settings, with one exception: stage 6
