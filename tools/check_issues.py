@@ -25,12 +25,19 @@ PRIORITIES = ("P1", "P2", "P3")
 BLOCKED = "blocked"
 # The provisional priority each issue form sets; triage confirms or changes it.
 FORM_PRIORITIES = {"bug.yml": "P2", "feature.yml": "P2", "documentation.yml": "P3"}
-# A planning line, or a "Target end date" heading (the issue form renders one)
-# with the date on the next non-blank line. Each captures its whole value, so an
-# invalid planning line never falls back to a heading.
-PLANNED_TARGET = re.compile(r"^[ \t]*[-*][ \t]*Target end date:[ \t]*(.*?)[ \t]*$", re.I | re.M)
-FORM_TARGET = re.compile(
-    r"^#{2,3}\s+Target end date(?:\s*\(Europe/Rome\))?\s*$\n\s*(.*?)[ \t]*$", re.I | re.M)
+
+
+def planning_patterns(name: str) -> tuple[re.Pattern[str], re.Pattern[str]]:
+    """A planning line, or a heading (the issue form renders one) with the date on
+    the next non-blank line. Each captures its whole value, so an invalid planning
+    line never falls back to a heading."""
+    return (re.compile(rf"^[ \t]*[-*][ \t]*{name}:[ \t]*(.*?)[ \t]*$", re.I | re.M),
+            re.compile(rf"^#{{2,3}}\s+{name}(?:\s*\(Europe/Rome\))?\s*$\n\s*(.*?)[ \t]*$",
+                       re.I | re.M))
+
+
+START = planning_patterns("Start date")
+TARGET = planning_patterns("Target end date")
 ROME_SUFFIX = re.compile(r"\s*\(Europe/Rome\)$", re.I)
 DEPENDENCY_STATUS_WORDS = re.compile(r"block|ready|waiting|depend|on[ -]hold|prerequisite", re.I)
 HEADING = re.compile(r"^#{2,3}\s+(.*)$")
@@ -106,11 +113,20 @@ def references(lines: Iterable[str], repository: str, own: int) -> set[int]:
     return found
 
 
-def target_end_date(body: str) -> str | None:
+def planned_date(body: str, patterns: tuple[re.Pattern[str], re.Pattern[str]]) -> str | None:
     """Read the planning line or the issue-form field without guessing a date."""
     body = normalized(body)
-    match = PLANNED_TARGET.search(body) or FORM_TARGET.search(body)
+    line, heading = patterns
+    match = line.search(body) or heading.search(body)
     return ROME_SUFFIX.sub("", match.group(1)) if match else None
+
+
+def target_end_date(body: str) -> str | None:
+    return planned_date(body, TARGET)
+
+
+def start_date(body: str) -> str | None:
+    return planned_date(body, START)
 
 
 def iso_date(text: str | None) -> dt.date | None:
@@ -147,17 +163,27 @@ def metadata_findings(issue: Issue, assignee: str) -> list[Finding]:
     return findings
 
 
-def target_date_findings(issue: Issue) -> list[Finding]:
-    """The target end date must be a real ISO date before the milestone's due date."""
+def date_findings(issue: Issue) -> list[Finding]:
+    """The start date and the target end date must be real ISO dates, the start on
+    or before the target and the target before the milestone's due date."""
+    findings = []
+    start = iso_date(start_date(issue.body))
     target = iso_date(target_end_date(issue.body))
+    if start is None:
+        findings.append(Finding(issue.number, "start-date",
+                                "needs a valid ISO YYYY-MM-DD start date (Europe/Rome)"))
+    elif target is not None and start > target:
+        findings.append(Finding(issue.number, "start-date",
+                                f"start date {start} must not be after the target end date {target}"))
     if target is None:
-        return [Finding(issue.number, "target-date",
-                        "needs a valid ISO YYYY-MM-DD target end date (Europe/Rome)")]
+        findings.append(Finding(issue.number, "target-date",
+                                "needs a valid ISO YYYY-MM-DD target end date (Europe/Rome)"))
+        return findings
     due = iso_date(issue.milestone_due)
     if due is not None and target >= due:
-        return [Finding(issue.number, "target-date",
-                        f"target end date {target} must be before the milestone due date {due}")]
-    return []
+        findings.append(Finding(issue.number, "target-date",
+                                f"target end date {target} must be before the milestone due date {due}"))
+    return findings
 
 
 def dependency_findings(issue: Issue, states: Mapping[int, str], repository: str,
@@ -202,7 +228,7 @@ def audit(issues: Sequence[Issue], states: Mapping[int, str], repository: str,
         if issue.state != "open":
             continue
         findings += metadata_findings(issue, assignee)
-        findings += target_date_findings(issue)
+        findings += date_findings(issue)
         findings += dependency_findings(issue, states, repository, pulls)
         findings += [Finding(issue.number, "catalog", f"has label {label!r}, "
                              "which is not in .github/labels.json")
@@ -255,7 +281,7 @@ def form_findings(name: str, text: str, labels: Collection[str], assignee: str) 
                  for label in form_labels if label not in labels]
     if flow_list(text, "assignees") != [assignee]:
         problems.append(f"{name} must assign {assignee}")
-    for field in ("target_end_date", "dependencies"):
+    for field in ("start_date", "target_end_date", "dependencies"):
         item = form_field(text, field)
         if item is None:
             problems.append(f"{name} has no {field} field")

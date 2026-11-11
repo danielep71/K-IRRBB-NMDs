@@ -153,6 +153,8 @@ jobs:
           RAW="$RUNNER_TEMP/traffic-raw"
           echo "RAW=$RAW" >> "$GITHUB_ENV"
           mkdir -p "$RAW"
+          # The REST API version this export was written and verified against;
+          # the other scripts request 2022-11-28 (tools/test_workflow_pins.py).
           API_VERSION="2026-03-10"
 
           # curl retries timeouts and HTTP 408, 429, 500, 502, 503 and 504;

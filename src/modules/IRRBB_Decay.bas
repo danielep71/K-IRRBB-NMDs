@@ -94,7 +94,10 @@ End Function
 '   segment, currency    data-contract segment code; ISO 4217 code from the
 '                        versioned run allowlist (CORE_Codes)              [in]
 '   dates(), balances()  aggregate month-end balance of that segment and
-'                        currency, derived by the caller from the panel     [in]
+'                        currency: in production the Balance column of     [in]
+'                        IRRBB_ImportTotals, which the toolkit derives from
+'                        the panel (DATA_CONTRACT.md, datasets); tests and
+'                        examples pass synthetic series
 '   estStart, estEnd     estimation window [T_s, T_e]                        [in]
 '   breakDates           Empty, or a 1-D array of Date values, each the month
 '                        end at which a declared break log change ends       [in]

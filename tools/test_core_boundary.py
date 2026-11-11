@@ -65,9 +65,9 @@ class CoreHostIndependence(unittest.TestCase):
     def test_host_adapter_may_use_com_automation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            path = "src/workbook/Adapter.bas"
+            path = "src/workbook/WB_Adapter.bas"
             (root / path).parent.mkdir(parents=True)
-            (root / path).write_text('Attribute VB_Name = "Adapter"\nOption Explicit\n'
+            (root / path).write_text('Attribute VB_Name = "WB_Adapter"\nOption Explicit\n'
                                      'Sub S()\nSet obj = CreateObject("Excel.Application")\nEnd Sub\n',
                                      encoding="cp1252")
             self.assertEqual(check_component(root, path, {path}, {}), [])
