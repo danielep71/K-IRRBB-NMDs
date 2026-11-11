@@ -27,8 +27,8 @@ Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
 Suspected vulnerabilities must never be disclosed in an issue or pull request.
 
 > [!NOTE]
-> Milestone **v0.2.0 – Workbook, data and Excel tests** is in progress;
-> **v0.1.0 – Repository foundation** closed on 2026-10-09. The VBA data import,
+> Milestone **v0.2.0 - Workbook, data and Excel tests** is in progress;
+> **v0.1.0 - Repository foundation** closed on 2026-10-09. The VBA data import,
 > the macro-free workbook template and the regression harness exist, with no
 > Excel evidence recorded yet. A draft Decay engine is present but remains
 > unvalidated, with contract decisions and acceptance tracked in issue #36;
@@ -81,12 +81,14 @@ Git history to apply an editorial correction.
 | 🔐 Security concern | Follow [`SECURITY.md`](SECURITY.md) privately. |
 
 Open issues with the forms (bug, feature, documentation). The forms assign
-`danielep71`, set a provisional priority and require the dependencies and a
-target end date: propose a date (`YYYY-MM-DD`, Europe/Rome) before the due date
-of the milestone. During triage I confirm **exactly one** priority (`P1` only
-for a confirmed calculation bug, wrong results for valid inputs), set a
-milestone with a due date and check that the target end date falls before it,
-changing the date if needed. The Issue triage workflow reports anything
+`danielep71`, set a provisional priority and require the dependencies, a start
+date and a target end date: propose dates (`YYYY-MM-DD`, Europe/Rome) with the
+start on or before the target and the target before the due date of the
+milestone. During triage I confirm **exactly one** priority (`P1` only for a
+confirmed calculation bug, wrong results for valid inputs), set a milestone
+with a due date and check that the start date is not after the target end date
+and the target end date falls before the due date, changing the dates if
+needed. The Issue triage workflow reports anything
 missing; it never changes an issue. See
 [`docs/GOVERNANCE.md`](docs/GOVERNANCE.md#issue-triage). Pull requests follow
 [the PR template](.github/PULL_REQUEST_TEMPLATE.md).

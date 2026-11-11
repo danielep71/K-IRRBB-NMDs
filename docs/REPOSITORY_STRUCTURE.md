@@ -180,7 +180,8 @@ A VBA `Public` declaration is not automatically supported API.
 - **Never supported:** test and example modules. They are not part of the
   production workbook.
 
-The manifest lists the data-import facade `IRRBB_Import`, each declaration with its normalized signature.
+The manifest lists the data-import facade `IRRBB_Import` and the decay facade
+`IRRBB_Decay`, each declaration with its normalized signature.
 
 <a id="parameter-and-units-boundary"></a>
 
@@ -250,7 +251,8 @@ The toolkit deliberately does **not**:
    `src/core/`, `src/modules/`, `src/classes/`, `src/workbook/`, `src/forms/`,
    `tests/` or `examples/`. *(enforced)*
 2. Standard modules carry their role prefix: `CORE_` in `src/core/`, `IRRBB_` in
-   `src/modules/`, `TEST_` in `tests/`. *(enforced)*
+   `src/modules/`, `WB_` (workbook adapters) in `src/workbook/`, `TEST_` in
+   `tests/` and `EX_` in `examples/`. *(enforced)*
 3. Every standard module in `src/core/` declares `Option Private Module`.
    *(enforced)*
 4. A Public name is declared in one standard module only, within each

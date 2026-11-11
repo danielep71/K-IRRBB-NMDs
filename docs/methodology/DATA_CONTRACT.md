@@ -94,6 +94,13 @@ The key is (`as_of_date`, `account_id`). A missing `customer_rate` excludes
 that account-month from rate-model inputs only. Missing `open_date` means
 opened before the data window or unknown.
 
+Balances must convert to finite VBA Double values; overflow is `E04`. A total
+balance above 1E+307 fails the import rather than produce an infinite result.
+Known non-empty opening/closure dates must be consistent throughout an account's
+history (`E11`); an omitted repeat does not erase a known date. A row dated on or
+after any known closure is `E10`, regardless of file ordering. These consistency checks do
+not make future closure information eligible as a predictor.
+
 <a id="market-rates"></a>
 
 ## 📈 Market rates
@@ -102,12 +109,6 @@ Currency validation requires a versioned, explicit run allowlist of ISO 4217
 codes; matching three uppercase letters alone is insufficient. The synthetic
 reference checker uses `EUR` and `USD`. Extending that allowlist requires reviewed
 configuration and provenance; it does not claim to maintain the full ISO register.
-Balances must convert to finite VBA Double values; overflow is `E04`. Aggregate
-overflow must also fail the future importer rather than produce an infinite result.
-Known non-empty opening/closure dates must be consistent throughout an account's
-history (`E11`); an omitted repeat does not erase a known date. A row dated on or
-after any known closure is `E10`, regardless of file ordering. These consistency checks do
-not make future closure information eligible as a predictor.
 
 Header: `as_of_date,rate_id,currency,tenor_months,rate`
 

@@ -565,5 +565,25 @@ class DataContractFixtures(unittest.TestCase):
             data.decode("ascii")
 
 
+
+class ExpectedFileProvenance(unittest.TestCase):
+    """TEST_CASES.md provenance rule: every expected file records the producing tool and its
+    version, the script or steps used, the date and the person who produced it."""
+
+    def test_every_expected_file_records_its_provenance(self) -> None:
+        paths = sorted((ROOT / "tests" / "expected").rglob("*.json"))
+        self.assertTrue(paths)
+        for path in paths:
+            with self.subTest(file=str(path.relative_to(ROOT))):
+                provenance = json.loads(path.read_text(encoding="utf-8")).get("provenance")
+                self.assertIsInstance(provenance, dict)
+                for field in ("tool", "date", "produced_by"):
+                    self.assertIsInstance(provenance.get(field), str)
+                    self.assertTrue(provenance[field].strip(), field)
+                self.assertRegex(provenance["date"], r"^\d{4}-\d{2}-\d{2}\b")
+                self.assertTrue(provenance.get("script") or provenance.get("steps"), "script or steps")
+                if provenance.get("script"):
+                    self.assertTrue((ROOT / provenance["script"]).is_file(), provenance["script"])
+
 if __name__ == "__main__":
     unittest.main()
