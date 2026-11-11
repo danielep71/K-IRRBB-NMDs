@@ -26,10 +26,12 @@ attest who made either.
 from __future__ import annotations
 
 import argparse
+import decimal
 import difflib
 import hashlib
 import json
 import re
+import struct
 import sys
 import zipfile
 from collections.abc import Callable
@@ -149,28 +151,44 @@ def fold_case(line: str) -> str:
 
 # A hexadecimal literal, or a decimal one with an optional exponent and type suffix.
 NUMBER = re.compile(r"&h([0-9a-f]+)([&%^]?)|(?<![\w.])((?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)([#!@%&^]?)(?![\w.])")
-LONG_MAX = 2**31 - 1
+SUFFIX_TYPE = {"%": "Integer", "&": "Long", "^": "LongLong", "@": "Currency", "!": "Single", "#": "Double"}
+WIDTH = {"Integer": 16, "Long": 32, "LongLong": 64}
 
 
 def _literal(match: re.Match[str]) -> str:
-    """A numeric literal as its value: the VBE rewrites the spelling, never the value.
+    """A numeric literal as its VBA type and the value of that type: the VBE
+    rewrites the spelling, never the type or the value.
 
-    A hexadecimal literal is an Integer up to &HFFFF unless it ends in &, and a
-    Long above it, so &H1000000& and &H1000000 are the same Long while &H8000
-    (-32768) and &H8000& (32768) differ. A decimal literal with a point, an
-    exponent or the Double or Single suffix, or an integer beyond the Long
-    range, is a floating-point value, so 1E+11, 100000000000# and 100000000000
-    are the same Double."""
+    A hexadecimal literal without a suffix is an Integer up to &HFFFF and a
+    Long above it, so &H1000000& and &H1000000 are the same Long, while &H8000
+    (Integer -32768) and &H8000& (Long 32768) differ. A decimal literal takes
+    the type of its suffix; without one, it is a Double when it has a point or
+    an exponent, and otherwise the smallest of Integer, Long and Double that
+    holds it, so 1E+11, 100000000000# and 100000000000 are the same Double,
+    while 32767 (Integer) and 32767& (Long), or 0.1! (Single) and 0.1#
+    (Double), differ."""
     if match.group(1) is not None:
         value = int(match.group(1), 16)
-        bits = 16 if value <= 0xFFFF and match.group(2) != "&" else 32
-        if value >= 1 << (bits - 1) and value < 1 << bits:
+        kind = SUFFIX_TYPE.get(match.group(2)) or ("Integer" if value <= 0xFFFF else "Long")
+        bits = WIDTH[kind]
+        if value >> (bits - 1) & 1 and value < 1 << bits:
             value -= 1 << bits
-        return f"<int {value}>"
+        return f"<{kind} {value}>"
     text, suffix = match.group(3), match.group(4)
-    if "." in text or "e" in text or suffix in ("#", "!") or int(float(text)) > LONG_MAX:
-        return f"<float {float(text)!r}>"
-    return f"<int {int(text)}>"
+    if suffix:
+        kind = SUFFIX_TYPE[suffix]
+    elif "." in text or "e" in text:
+        kind = "Double"
+    else:
+        number = int(text)
+        kind = "Integer" if number <= 32767 else "Long" if number <= 2**31 - 1 else "Double"
+    if kind in WIDTH:
+        return f"<{kind} {int(float(text)) if ('.' in text or 'e' in text) else int(text)}>"
+    if kind == "Currency":
+        return f"<{kind} {decimal.Decimal(text).quantize(decimal.Decimal('0.0001'))}>"
+    if kind == "Single":
+        return f"<{kind} {struct.unpack('<f', struct.pack('<f', float(text)))[0]!r}>"
+    return f"<{kind} {float(text)!r}>"
 
 
 def canonical(line: str) -> str:

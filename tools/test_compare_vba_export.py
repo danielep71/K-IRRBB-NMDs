@@ -149,6 +149,9 @@ class CompareExportTests(unittest.TestCase):
              "    s0 = ((x And &H1000000) Or (x * &H2000000)) And &H80&"),
             ("    y = 1.0", "    y = 1#"),
             ("    y = 3000000000", "    y = 3000000000#"),
+            ("    y = 40000", "    y = 40000&"),
+            ("    y = 0.5!", "    y = .5!"),
+            ("    y = &H7FFF", "    y = &H7FFF%"),
         ]
         for left, right in same:
             with self.subTest(left=left):
@@ -160,6 +163,11 @@ class CompareExportTests(unittest.TestCase):
             ('    s = "1E+11"', '    s = "100000000000#"'),
             ("    x = 1E+11 ' 1E+11", "    x = 1E+11 ' 100000000000#"),
             ("    x1 = 2", "    x2 = 2"),
+            ("    x = 0.1!", "    x = 0.1#"),
+            ("    x = 32767 + 1", "    x = 32767& + 1"),
+            ("    x = 40000", "    x = 40000#"),
+            ("    x = &HFFFF", "    x = &HFFFF&"),
+            ("    x = 1.5@", "    x = 1.5"),
         ]
         for left, right in different:
             with self.subTest(left=left):
