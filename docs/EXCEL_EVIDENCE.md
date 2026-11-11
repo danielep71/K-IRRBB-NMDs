@@ -93,11 +93,12 @@ first line `CANDIDATE=` and the SHA:
 
 | Log | What the script does and records |
 | --- | --- |
-| `template.log` | Opens the macro-free template read-only: no repair, its sheets, CodeNames, defined names and title font, and every validated cell refusing an invalid value and accepting a valid one. Nothing is printed or exported, so Excel never waits on a printer; the print view stays a manual check |
+| `template.log` | Opens the macro-free template read-only and checks:<br>• no repair;<br>• its sheets, CodeNames, defined names and title font;<br>• every validated cell refuses an invalid value and accepts a valid one;<br>• the appearance as Excel shows it: tab colours, the brand strip in `A1`, the title in `A2` (text, fill and font colour) and the `Yes`/`No` dropdowns (in-cell list and its values, which Excel joins with the list separator of the Windows locale, recorded with them);<br>• the print titles and print areas;<br>• the page setup (orientation, paper, fit to page) that Excel writes when it saves a copy of the template into the bundle (`template-copy.xlsx`).<br>Each is compared with the template at the candidate. Nothing is printed, exported or previewed, and no print object is read, so Excel never waits on a printer. How a printed page looks stays a judgement no log records |
 | `build.log` | Builds `IRRBB_Dev.xlsm` in the bundle with the [development builder](../INSTALLATION.md#development-workbook) (stage 1) |
 | `harness.log` | Opens it in a visible Excel with its macros enabled for that Excel session only, compiles it (stage 2) and runs the harness (stage 3) |
 | `failure.log` | The four runs of [stage 4](#4-failure-path) |
 | `import.log` | **Import data** with the synthetic fixtures: accepted; control totals that match and that differ; a window date and an attestation pasted past the validation; a rerun. Each later result must withdraw the earlier one |
+| `buttons.log` | Every button of the development workbook, by sheet, label and the macro it runs, compared with the builder at the candidate, and each macro found as a procedure of a standard module. It then presses **Import data** and **Run tests** by running their macros as a click does: the import must be accepted and the tests must pass. The file-choice buttons open a dialog, so only their wiring is checked |
 | `sync.log` | The template saved as `IRRBB_Sync.xlsm`, synchronized with `Sync-IRRBB-VBA.ps1 -Mode Development`, compiled and run through the harness |
 | `roundtrip.log` | [Stage 6](#6-source-round-trip) on `IRRBB_Sync.xlsm` |
 | `sync-failure.log` | The synchronizer run again while another Excel holds the workbook open: it must fail, and the workbook and the security settings must be unchanged |
