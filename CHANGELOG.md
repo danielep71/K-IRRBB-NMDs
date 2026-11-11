@@ -528,6 +528,10 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- INSTALLATION and the CONTRIBUTING review checklist no longer require Excel
+  evidence for every VBA change before merge: as GOVERNANCE states, a VBA
+  change records Excel results when run, or states them as not run, and a
+  release candidate needs them (#191).
 - Dependabot updates every `github/codeql-action` step in one grouped pull
   request, since CodeQL fails when `init` and `analyze` differ in version; both
   steps are pinned to v4.39.3, in place of the separate #180 and #181 (#183).
