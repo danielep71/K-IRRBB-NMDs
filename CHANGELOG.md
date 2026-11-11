@@ -397,6 +397,12 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- A label reconcile run with `--dry-run` no longer stops at the first planned
+  deletion of a label still in use: it lists every planned change, marks each
+  blocked deletion with the issues or pull requests that use the label, changes
+  nothing and exits 0. A real reconcile still refuses those deletions, with the
+  same message, before any change (#224).
+
 - The regression harness reaches `Checks` and `Readme` only through defined
   names, as WORKBOOK_CONTRACT requires, instead of the tab names `Checks` and
   `Readme`, literal cells and a scan for the "Source commit" label. A new name,

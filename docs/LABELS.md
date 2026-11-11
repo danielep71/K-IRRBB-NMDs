@@ -17,6 +17,12 @@ The canonical label catalog is `.github/labels.json`; `.github/label-policy.json
   issues and pull requests, open and closed, and refuses, changing nothing,
   if any is still in use; the message lists every such label. Remove the
   label from those items or add it to `.github/labels.json`, then run again.
+- To preview a reconcile, set `GITHUB_TOKEN` and run
+  `node .github/scripts/labels-sync.mjs --policy .github/label-policy.json --mode reconcile --repository <owner>/<name> --dry-run`.
+  The dry run reads the live labels and the use of each label it would delete,
+  lists every planned change in its summary, marks each deletion blocked by a
+  label in use with the issues or pull requests that use it (up to ten
+  numbers, then "and others"), changes nothing and exits 0.
 - Scheduled drift checks report differences; they must not silently change the repository.
 
 Do not equate version labels with GitHub milestone assignment.
