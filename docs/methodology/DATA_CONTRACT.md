@@ -31,7 +31,9 @@ model definitions are in [`README.md`](README.md); validation obligations in
 > on 2026-10-09 in [#32](https://github.com/danielep71/K-IRRBB-NMDs/issues/32)
 > ([decisions 6–8](#decisions)); the import time zone on 2026-10-13 in
 > [#71](https://github.com/danielep71/K-IRRBB-NMDs/issues/71)
-> ([decision 9](#decisions)). Other audit amendments remain tracked in
+> ([decision 9](#decisions)); the control totals on 2026-11-11 in
+> [#202](https://github.com/danielep71/K-IRRBB-NMDs/issues/202)
+> ([decision 10](#decisions)). Other audit amendments remain tracked in
 > [#26](https://github.com/danielep71/K-IRRBB-NMDs/issues/26). Only synthetic data is ever
 > committed or attached. Real data is loaded locally
 > and never enters Git, issues or pull requests.
@@ -44,15 +46,21 @@ model definitions are in [`README.md`](README.md); validation obligations in
 | --- | --- | --- |
 | **Account panel** | One row per account per month end at which the account exists | Stable-amount, decay and rate models; segmentation; reconciliation |
 | **Market rates** | One row per rate series per month end | Rate pass-through model and scenarios |
+| **Control totals** (optional) | One row per date, segment and currency the user wants checked | [Reconciliation](#reconciliation) of the import |
 
 Customer-rate averages, segment balances, cash-outs and log balance changes
 are **derived** by the toolkit from these inputs, never supplied as inputs.
+The decay model's balance series is the per-segment total of the import
+(`IRRBB_ImportTotals`, [reconciliation](#reconciliation)). The decay facade
+takes that series as an argument so that tests and examples can pass
+synthetic series; production runs pass the import totals, never a series the
+user supplies.
 
 <a id="file-format"></a>
 
 ## 📄 File format
 
-Both datasets use the same plain, locale-independent CSV subset:
+All three files use the same plain, locale-independent CSV subset:
 
 - ASCII text; LF or CRLF line endings; no byte-order mark;
 - comma separator, no quoting, no embedded commas or line breaks;
@@ -89,6 +97,13 @@ The key is (`as_of_date`, `account_id`). A missing `customer_rate` excludes
 that account-month from rate-model inputs only. Missing `open_date` means
 opened before the data window or unknown.
 
+Balances must convert to finite VBA Double values; overflow is `E04`. A total
+balance above 1E+307 fails the import rather than produce an infinite result.
+Known non-empty opening/closure dates must be consistent throughout an account's
+history (`E11`); an omitted repeat does not erase a known date. A row dated on or
+after any known closure is `E10`, regardless of file ordering. These consistency checks do
+not make future closure information eligible as a predictor.
+
 <a id="market-rates"></a>
 
 ## 📈 Market rates
@@ -97,12 +112,6 @@ Currency validation requires a versioned, explicit run allowlist of ISO 4217
 codes; matching three uppercase letters alone is insufficient. The synthetic
 reference checker uses `EUR` and `USD`. Extending that allowlist requires reviewed
 configuration and provenance; it does not claim to maintain the full ISO register.
-Balances must convert to finite VBA Double values; overflow is `E04`. Aggregate
-overflow must also fail the future importer rather than produce an infinite result.
-Known non-empty opening/closure dates must be consistent throughout an account's
-history (`E11`); an omitted repeat does not erase a known date. A row dated on or
-after any known closure is `E10`, regardless of file ordering. These consistency checks do
-not make future closure information eligible as a predictor.
 
 Header: `as_of_date,rate_id,currency,tenor_months,rate`
 
@@ -138,7 +147,7 @@ counts in the segment stated for that month, and the model specification
 (issue #9) decides how a transition across segments enters estimation.
 
 **Segment selection.** A run selects the segments it models (the segment
-list of the [lineage](#lineage)). The import still validates and reconciles
+list of the [lineage](#lineage)). The import still validates and totals
 every segment, so leaving a segment out never turns a migration into a gap or
 a disappearance. The selection applies when a model builds its sample: a
 transition enters only when the segment stated at its origin month is
@@ -148,17 +157,53 @@ selected.
 
 ## ⚖️ Reconciliation
 
-After import, the toolkit reports for every (`as_of_date`, `segment`,
-`currency`) the number of accounts and the total balance, and checks that:
+After an accepted import, the toolkit reports for every (`as_of_date`,
+`segment`, `currency`) the number of accounts and the total balance
+(`IRRBB_ImportTotals`, shown on `DataSummary`):
 
-- totals retain input precision; round only for presentation, after reconciliation;
-- the segment totals for each date and currency add up to the panel total for
-  that date and currency; and
-- if the user supplies control totals, the counts match exactly and balances
-  within 0.005 currency units.
+- totals retain input precision; round only for presentation;
+- every account row in the data window is counted in exactly one total, the
+  one of its own date, segment and currency, so the segment totals for each
+  date and currency add up to the panel total for that date and currency; and
+- balances in different currencies are never added together.
 
-Balances in different currencies are never added together. A reconciliation
-difference fails the import.
+<a id="control-totals"></a>
+
+### Control totals
+
+The user may supply control totals from the source system in a third CSV file
+(`Config_ControlTotalsFile`). Without one, nothing is checked; the lineage says
+`none`.
+
+Header: `as_of_date,segment,currency,accounts,balance`
+
+| Field | Type and format | Unit | Required | Rules |
+| --- | --- | --- | :---: | --- |
+| `as_of_date` | ISO date | — | ✅ | Calendar month end |
+| `segment` | Code | — | ✅ | One of the [segment codes](#segmentation) |
+| `currency` | ISO 4217 code | — | ✅ | In the run allowlist, as for the account panel |
+| `accounts` | Positive integer, no sign or leading zero | Accounts | ✅ | At least 1: a key without accounts has no import total |
+| `balance` | Decimal, up to 4 places | Currency units | ✅ | ≥ 0 and below 1E+11 |
+
+The key is (`as_of_date`, `segment`, `currency`); a key appears at most once.
+A control balance must be below 1E+11 currency units: up to there a VBA Double
+still resolves 0.0001 in the parsed balances and their sum, so the tolerance
+below is enforced; a larger control balance is `E04`, and such a total cannot
+be reconciled.
+The file lists only the keys the user wants checked, and each balance is in
+its own currency: currencies are never added together.
+
+**Rule.** For every row, the import must have a total for its key, with
+exactly the same number of accounts and a balance that differs from the
+control balance by at most **0.005 currency units** in absolute value. Both are
+compared in ten-thousandths of a currency unit, the input precision, so a
+difference of exactly 0.005 is within the tolerance. A row with no import
+total (for example a date outside the data window), a different count or a
+larger balance difference is `E13` and **rejects the whole import**, like every
+error. Totals the file does not list are not checked. The check runs only
+when the account panel has no error and no missing extract (`E12`): otherwise
+the import is already rejected and has no totals, so the control-totals file
+is only validated.
 
 <a id="validation"></a>
 
@@ -182,9 +227,18 @@ same file always gives the same findings in the same order.
 | `E09` | Negative balance | Each row |
 | `E11` | Inconsistent known history dates, `open_date` after `as_of_date`, or `close_date` before `open_date` | Each affected row |
 | `E10` | Row dated on or after the account's `close_date` | Each row |
-| `E05` | Duplicate (`as_of_date`, `account_id`) | Second and later occurrences |
+| `E05` | Duplicate (`as_of_date`, `account_id`); in the control totals, duplicate (`as_of_date`, `segment`, `currency`) | Second and later occurrences |
 | `E08` | Account currency or market-series currency/tenor differs from its earlier rows | Each later row |
 | `E12` | **Missing extract**: a month end inside the data window has no account rows | Once per missing month end |
+| `E13` | **Control total differs**: the import has no total for a control row's (`as_of_date`, `segment`, `currency`), or its accounts differ, or its balance differs by more than 0.005 ([control totals](#control-totals)) | Each control-totals row that passes the rules above, once the panel has no other error |
+
+The control-totals file follows the same rules where they apply: `E01` for its
+header, field count or a character outside ASCII, `E03` for an empty field,
+`E02` for the date, `E04` for `accounts` or `balance` out of format or a
+balance at or above 1E+11, `E06`,
+`E07`, `E09` for a negative balance and `E05` for a repeated key; then `E13`.
+Findings are listed per file in line order: account panel, missing extracts,
+market rates, control totals.
 
 | Code | Warning | Reported at |
 | --- | --- | --- |
@@ -239,10 +293,12 @@ month end $t+1$. Its **outcome** is the first of these that applies:
 ### Structural breaks and outliers
 
 The import never alters, removes or winsorizes a value. Outlier candidates are
-flagged (`W04`); structural breaks are declared in the run configuration with a
-date, segment and reason. How flagged values and breaks enter estimation is a
-model setting (issue #9), recorded in the parameter set, never an import side
-effect.
+flagged (`W04`); structural breaks are declared by the caller of a model fit:
+`IRRBB_DecayFit` takes the month ends at which declared breaks end, every break
+applies to the segment and currency of the call, and the caller records the
+reason of each break with the run. How flagged values and breaks enter
+estimation is a model setting (issue #9), recorded in the parameter set, never
+an import side effect.
 
 <a id="look-ahead"></a>
 
@@ -314,7 +370,7 @@ built from it:
 
 | Item | Content |
 | --- | --- |
-| Source | File name (no directory path), size in bytes, SHA-256 of the file bytes |
+| Source | File name (no directory path), size in bytes, SHA-256 of the file bytes; for the control totals also the rows read, or `none` for every item when no file is given |
 | Counts | Rows read, accepted, excluded by window; accounts; warnings by code |
 | Outcomes | Per month end, segment and currency: transitions by outcome, censored last balances and masked closure dates ([above](#outcomes)) |
 | Settings | Data window, segment list, rate series selected |
@@ -340,6 +396,9 @@ or reference may be used at runtime.
 | [`tests/expected/data_contract/availability_outcomes.json`](../../tests/expected/data_contract/availability_outcomes.json) | Hand-assigned outcome for every transition, warnings, the `close_date` values visible at each origin, and the per-period lineage |
 | [`tests/expected/data_contract/accounts_summary.json`](../../tests/expected/data_contract/accounts_summary.json) | Hand-computed totals per date, segment and currency, and every expected warning |
 | [`tests/expected/data_contract/accounts_invalid_findings.json`](../../tests/expected/data_contract/accounts_invalid_findings.json) | Expected first error per invalid line |
+| [`tests/fixtures/data_contract/control_totals.csv`](../../tests/fixtures/data_contract/control_totals.csv) | The 23 totals of `accounts.csv`, unchanged |
+| `tests/fixtures/data_contract/control_totals_*.csv` | Balances 0.0049 from the total (`within`), 0.0051 from it (`balance`), a count difference and EUR plus USD added (`count`), keys with no import total (`unknown`), and one row per format rule, a balance at the 1E+11 limit included (`invalid`) |
+| [`tests/expected/data_contract/control_totals_findings.json`](../../tests/expected/data_contract/control_totals_findings.json) | Expected findings per control-totals file against `accounts.csv`, with the steps of the hand assignment |
 
 The fixtures are hand-constructed; the expected values were computed by hand
 from the rows. `tools/test_data_contract.py`, run by `python tools/check.py`,
@@ -351,7 +410,9 @@ end from the window gives `E12`. The VBA import core (`CORE_Import`, #71)
 reproduces the same expected files in `DATA-VALID-01`, `DATA-INVALID-01` and
 `DATA-PIT-01`, and runs the leakage test in `DATA-PIT-02` on its own
 point-in-time view. `IRRBB_ImportData` reads the files and `DataSummary`
-shows the result (`DATA-IMPORT-01`), including the per-period lineage, with the SHA-256 of each file computed by
+shows the result (`DATA-IMPORT-01`), including the per-period lineage and the
+reconciliation against control totals (`DATA-RECON-01`, also in the Python
+reference), with the SHA-256 of each file computed by
 `CORE_Sha256` (`DATA-SHA-01`) and the toolkit commit in the lineage. The import
 time is recorded in local time ([decision 9](#decisions)): VBA has no time-zone
 function, and reading the UTC offset from the host would need a reviewed system
@@ -363,7 +424,7 @@ call (`SECURITY.md`).
 
 I accepted decisions 1–5 on 2026-10-08 in issue #4;
 decisions 6–8 on 2026-10-09 in issue #32; decision 9 on 2026-10-13 in
-issue #71.
+issue #71; decision 10 on 2026-11-11 in issue #202.
 
 | # | Decision | Outcome |
 | ---: | --- | --- |
@@ -376,6 +437,7 @@ issue #71.
 | 7 | Disappearance without a verified closure (#32, 2026-10-09) | Right-censored (`W05`), never cash-out |
 | 8 | Month end with no rows inside the window (#32, 2026-10-09) | Import rejected (`E12`) |
 | 9 | Import timestamp time zone (#71, 2026-10-13) | Host local time, without UTC offset; no system call is added to read it |
+| 10 | Control totals (#202, 2026-11-11) | Optional third CSV file chosen on `Config`; accounts exact, balances within 0.005 per date, segment and currency; any difference is `E13` and rejects the import; recorded in the lineage, `none` when not given |
 
 ---
 

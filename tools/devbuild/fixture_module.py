@@ -22,13 +22,17 @@ ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "tests" / "fixtures" / "data_contract"
 EXPECTED = ROOT / "tests" / "expected" / "data_contract"
 MODULE = ROOT / "tests" / "modules" / "TEST_Fixtures.bas"
-CSV_FILES = ["accounts.csv", "accounts_invalid.csv", "market_rates.csv", "availability.csv"]
+CSV_FILES = ["accounts.csv", "accounts_invalid.csv", "market_rates.csv", "availability.csv", "control_totals.csv",
+             "control_totals_within.csv", "control_totals_balance.csv", "control_totals_count.csv",
+             "control_totals_unknown.csv", "control_totals_invalid.csv"]
 
 
 def expected_lists() -> dict[str, list[str]]:
     summary = json.loads((EXPECTED / "accounts_summary.json").read_text(encoding="utf-8"))
     invalid = json.loads((EXPECTED / "accounts_invalid_findings.json").read_text(encoding="utf-8"))
     availability = json.loads((EXPECTED / "availability_outcomes.json").read_text(encoding="utf-8"))
+    control = json.loads((EXPECTED / "control_totals_findings.json").read_text(encoding="utf-8"))
+    control_cases = {Path(c["fixture"]).name: c for c in control["cases"]}
     visible = [f"{origin}|{account}|{closed}" for origin, accounts in sorted(availability["visible_close_dates"].items())
                for account, closed in sorted(accounts.items())]
     warnings = sorted(summary["warnings"], key=lambda w: (w["code"], w["account_id"], w["as_of_date"]))
@@ -56,9 +60,15 @@ def expected_lists() -> dict[str, list[str]]:
                      + [str(p[k]) for k in ("observed", "closures", "gaps", "censored")]
                      + [f'{p["censored_balance"]:.4f}', str(p["end_of_sample"]), str(p["close_dates_masked"])])
             for p in sorted(availability["lineage"], key=lambda p: (p["month_end"], p["segment"], p["currency"]))],
+        "control_totals_findings.window": [control["window"]["first"], control["window"]["last"]],
+        # Each control-totals fixture with its data lines, in the expected file's order.
+        "control_totals_findings.fixtures": [f'{name}|{c["rows"]}' for name, c in control_cases.items()],
+        **{f"control_totals_findings.{name}": [f'{e["line"]}|{e["code"]}' for e in c["errors"]]
+           for name, c in control_cases.items()},
         # Independent fingerprints (Python hashlib) of the fixture files as committed.
         "sha256.accounts.csv": [hashlib.sha256((FIXTURES / "accounts.csv").read_bytes()).hexdigest()],
         "sha256.market_rates.csv": [hashlib.sha256((FIXTURES / "market_rates.csv").read_bytes()).hexdigest()],
+        "sha256.control_totals.csv": [hashlib.sha256((FIXTURES / "control_totals.csv").read_bytes()).hexdigest()],
     }
 
 

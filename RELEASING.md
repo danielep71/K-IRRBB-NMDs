@@ -49,10 +49,10 @@ artifact. The v0.1.0 foundation milestone closed without producing a release.
 
 | Branch | Role |
 | --- | --- |
-| `release/<version>` | Active integration branch. Task PRs are squash-merged into it after review and green checks. |
-| `release/v0.3.0` | Opened early for the decay prototype (#36, #94). That work was integrated into `main` (#97) and reached `release/v0.2.0` when it was levelled with `main`. Takes no other work until v0.2.0 is released; it is levelled after each integration (step 4 below). |
+| `release/<version>` | Active integration branch. Task PRs are squash-merged into it after review and green checks; the PR that levels it with `main` after an integration is merged with a merge commit. |
+| `release/v0.3.0` | Next release branch. Takes no task PRs until v0.2.0 is released; it is levelled after each integration (step 4 below). |
 | `main` | Default branch. Receives the release branch only through a PR I request, merged with a merge commit. |
-| Task branches | One per change, from the release branch: `fix/<issue>-<slug>`, `docs/<slug>`, `test/<slug>`. |
+| Task branches | One per change, from the release branch: `fix/<issue>-<slug>`, `docs/<slug>`, `test/<slug>`; a levelling branch is `fix/level-<release>-after-<PR>`, named after the integration PR. |
 
 <a id="versioning"></a>
 
@@ -116,10 +116,11 @@ their base; no one, admins included, can bypass them. See
    fails on the release branch, which is kept: a deletion rule that no one,
    not even an admin, can bypass protects `release/**`
    ([`docs/repository-settings.json`](docs/repository-settings.json)).
-4. **Bring the release branch level with `main`:** start a task branch from
-   the release branch, merge `main` into it with a merge commit (resolving
-   any conflict in favour of the later branch's work), and open a PR from
-   that task branch into the release branch. Merge it with a **merge commit**,
+4. **Bring the release branch level with `main`:** start a task branch
+   `fix/level-<release>-after-<PR>` from the release branch, merge `main`
+   into it with a merge commit (resolving any conflict in favour of the later
+   branch's work), and open a PR from that task branch into the release
+   branch. Merge it with a **merge commit**,
    never a squash, which would cut the shared history. The task branch starts
    from the release branch's tip, so the PR is up to date with its base even
    when the release branch holds commits `main` lacks, which a PR straight
@@ -250,7 +251,7 @@ it does not replace it.
 | 3 | Licensing and distribution review recorded and closed | ☐ |
 | 4 | Changelog finalized and `VERSION` created or updated | ☐ |
 | 5 | Release branch merged into `main` with a merge commit; candidate SHA recorded | ☐ |
-| 6 | Release branch fast-forwarded to the merge commit | ☐ |
+| 6 | Release branch levelled with `main` through a merge-commit PR from a task branch (step 4 of [Integrating](#integrating-the-release-branch-into-main)) | ☐ |
 | 7 | Static checks pass on the candidate locally and in CI | ☐ |
 | 8 | Excel certification and reference cases pass on the candidate | ☐ |
 | 9 | Artifacts built, tested and hashed (if any) | ☐ |

@@ -57,7 +57,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for change and evidence requirements and
 | Release heading | `## [X.Y.Z] - YYYY-MM-DD` |
 | Date | Gregorian calendar date in ISO `YYYY-MM-DD` format |
 | Ordering | Unreleased first; released versions newest to oldest |
-| Comparison | Unreleased → latest tag; each release → preceding tag |
+| Comparison | Unreleased → `main` against the active release branch; each release → preceding tag |
 | Patch | Backward-compatible correction or hardening |
 | Minor | Backward-compatible capability |
 | Major | Incompatible public-contract change |
@@ -100,6 +100,21 @@ Use only the categories needed by a release.
 
 ### Added
 
+- The import can reconcile its totals against control totals from the source
+  system. An optional third CSV file (`as_of_date,segment,currency,accounts,balance`),
+  chosen on `Config` (`Config_ControlTotalsFile`, **Choose control totals file**
+  in the development workbook) and passed to `IRRBB_ImportData` as the new
+  optional last argument `controlTotalsPath`, lists the totals to check: each
+  needs an import total for its date, segment and currency with the same
+  number of accounts and a balance within 0.005 currency units, never adding
+  currencies. A difference or a key with no total is the new error `E13` and
+  rejects the whole import; malformed rows use `E01`–`E07` and `E09`, and a
+  control balance at or above 1E+11, beyond which a Double no longer resolves
+  the tolerance, is `E04`. The lineage records the file's name, size, rows read and SHA-256, or `none`.
+  `DATA-RECON-01` checks matching totals, a count difference, balances just
+  within and just beyond the tolerance and unknown keys against hand-assigned
+  expected files, in Python and VBA. Existing calls without the argument run no
+  check. Not yet run in Excel (#202).
 - Workbook synchronization and source round trip (#6), following
   VBA-SACCR-Toolkit: `tools/Sync-IRRBB-VBA.ps1` with the launchers
   `Sync-IRRBB-VBA.cmd` (drag a workbook onto it to import the checkout's source)
@@ -247,11 +262,8 @@ Use only the categories needed by a release.
   modeling application.
 - Documentation of model scope, validation requirements, source boundaries and
   synthetic-data policy.
-- Portable static-checking tools and CI configuration adapted from the
-  maintainer's SA-CCR repository.
-- Automatic issue owner/milestone/priority reconciliation, including closed issues;
-  traffic alerts select an explicit configurable milestone. Ruff/mypy settings
-  are documented as optional development targets, not claimed CI gates.
+- Portable static-checking tools and CI configuration adapted from my SA-CCR
+  repository.
 
 - CodeQL scanning of the workflows, the label scripts and the Python tooling
   on pushes, pull requests (analysed without uploading), weekly and on demand;
@@ -262,6 +274,30 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- `tools/setup_repository.py --apply` writes only the plan I reviewed: the
+  preview prints `Plan digest: <sha256>` over the ordered plan (method,
+  endpoint and payload of each operation), and `--apply` requires
+  `--approve-plan <digest>`, recomputes the plan and stops before any write
+  when the digest is missing or differs. A plan with nothing to write needs no
+  digest. `tools/README.md` shows the two-step preview and apply (#223).
+- The settings baseline `docs/repository-settings.json` records the
+  repository's Actions settings: SHA pinning required, `read` default workflow
+  permissions, no pull-request approval by GitHub Actions, approval required
+  for all external contributors' fork pull requests, and 90-day artifact and
+  log retention; `tools/setup_repository.py` validates them when it loads the
+  baseline. `--check` reads them from the Actions permissions endpoints and
+  reports a difference, or a value it cannot read, as drift; the evidence file
+  lists expected and observed values. The script never changes them: `--apply`
+  names each one that differs and exits 1 instead of reporting VERIFIED (#221).
+- The bug, feature and documentation forms require a start date
+  (`YYYY-MM-DD`, Europe/Rome), asked just before the target end date. Issue
+  triage reports an open issue whose start date is missing, unreadable or
+  after its target end date; it reads the date under a level-2 or level-3
+  "Start date" heading or on a `- Start date:` line, as it reads the target.
+  `tools/check_issues.py --check-config` fails when a form does not require
+  the start date. The traffic alert issue carries its filing date as start
+  date. GOVERNANCE.md, CONTRIBUTING.md, TRAFFIC.md and tools/README.md
+  describe the rule (#208).
 - No ruleset can be bypassed any more, by admins included. "Protect main" and
   "Protect release branches" lose their admin bypass; release branches now
   require pull requests that are up to date with their base, and accept a
@@ -323,8 +359,7 @@ Use only the categories needed by a release.
   keep a provisional priority and ask for a target end date and the
   dependencies. The traffic alert files its issue under the open milestone
   with the earliest due date after today, so the `ISSUE_MILESTONE_NUMBER`
-  variable is no longer read. `P1` is now reserved for confirmed calculation
-  or correctness bugs (#136).
+  variable is no longer read (#136).
 - The active release branch is named only in RELEASING.md's current-status
   table, in `.github/dependabot.yml` and in CHANGELOG.md; the other documents
   link to that table. `tools/test_workflow_pins.py` fails when another file
@@ -362,7 +397,7 @@ Use only the categories needed by a release.
   issue and milestone links and security/help links follow, and GitHub
   redirects the earlier names. Identifiers, file names and the `IRRBB_`
   prefix are unchanged.
-- The workbook template follows the maintainer's SACCR visual identity:
+- The workbook template follows my SACCR visual identity:
   black-and-gold `K-IRRBB` branding, blue title bands, Aptos typography,
   distinct input/output headers, colored tabs, consistent spacing and landscape
   print setup, with a short Readme workflow, section labels on DataSummary and
@@ -379,21 +414,9 @@ Use only the categories needed by a release.
   license notice for every file; contributions are accepted under MPL-2.0.
   Copies obtained before the change keep the MIT License.
 - The active release branch is now `release/v0.2.0`, opened from `main` when
-  milestone v0.1.0 closed (#55). Documentation and the PR template point to
+  milestone v0.1.0 closed (#55); RELEASING.md's current-status table names
   it. `release/v0.1.0`, opened after the foundation was integrated (PR #13),
   carried the foundation work; release branches are named `release/vX.Y.Z`.
-
-### Security
-
-- The synchronizer and the export script need Excel's *Trust access to the VBA
-  project object model*; `SECURITY.md` says to enable it only while running
-  them. The development-workbook builder still needs neither Excel automation
-  nor that setting (#6).
-- `.gitignore` now keeps local data, extracts, snapshots and parameter
-  exports out of Git (rooted `private/`, `local-data/`, `extracts/`,
-  `snapshots/`, `exports/` and `parameter-exports/` folders), ignores binary
-  data, statistical-package and archive formats, and covers more key and
-  credential files. Synthetic CSV and JSON fixtures stay trackable (#11).
 
 ### Removed
 
@@ -402,132 +425,126 @@ Use only the categories needed by a release.
   created remain; the workflow no longer runs with `issues: write` on every
   push to the release branch.
 
-### Documentation
-
-- `docs/licenses/THIRD_PARTY_NOTICES.txt` lists the files adapted from
-  VBA-SACCR-Toolkit, EXCEL-VBA-PROJECT-TEMPLATE and MyTemplate, with each
-  source's license where verified and the changes made, and is linked from
-  `README.md` and `CONTRIBUTING.md`.
-  Workflows, configuration, scripts and tests no longer name other
-  repositories or cite issue and pull request history in their comments; the
-  Markdown documents record my decisions in the first person and address
-  contributors directly. `CONTRIBUTING.md` states both rules (#132).
-- Correct the contributor guide's current status: the draft Decay engine exists
-  but remains unvalidated under #36; Rates and Stable are not implemented.
-
-- The manual-import component list in `INSTALLATION.md` names every module of
-  `tools/vba-projects.json`, production and development, including the seven
-  decay and example modules it omitted; `tools/test_devbuild.py` keeps the two
-  equal.
-- The milestone guides in `docs/Milestones/` follow one schema, the same as
-  the GitHub milestone descriptions: Objective, Scope, Exit criteria, Tracked
-  issues and dependency, Not in scope and Release evidence. Each keeps its
-  rationale, a synthetic acceptance case and its references; the v0.3.0 guide
-  names the open decay decisions of #36 and the missing `DecayExample` sheet,
-  and the v0.4.0 and v0.5.0 guides name their registered cases.
-- Social preview image `docs/assets/IRRBB_social_preview.png`, titled
-  K-IRRBB and generated from `IRRBB_social_preview.html` in the layout of
-  K-SACCR and K-FRTB-SA, and shown at the top of the root README. Its figures are the
-  decay reference case `DEC-E2E-01` (draft, #36) and the REG-1
-  core-deposit caps; `docs/assets/README.md` records each source and how to
-  regenerate the image.
-- Data-contract amendment for point-in-time data (#32), decided on
-  2026-10-09: a back-filled `close_date` is accepted but masked in the
-  point-in-time view at earlier forecast origins, and closures are assumed
-  reported by the month end in which they occur (attested per import, recorded
-  in the lineage); only a recorded closure is a
-  cash-out, and an account that disappears without one is right-censored
-  (`W05`, redefined); a month end with no rows inside the window rejects the
-  import (new `E12`); `E10` now also rejects a row dated on its own `close_date`, so a
-  closure never sits on a month-end row. `DATA_CONTRACT.md` defines the outcome of every
-  transition (observed, verified closure, gap, censored, end of sample) and its
-  eligibility and lineage; `MODEL_CONTRACTS.md` updates the stable-model
-  cash-out rule and the predictor timing. A hand-built fixture and leakage
-  tests (`DATA-PIT-01`, `DATA-PIT-02`) check it.
-- Translate all milestone guides into US English and establish US English
-  as the repository language standard. Standardize surrounding documentation
-  while preserving glyphs, navigation, technical scope, and official source
-  titles.
-
-- Detailed milestone guides in `docs/Milestones/`, one per milestone
-  from v0.1.0 through v1.0.0, with a navigation index, purpose, deliverables,
-  dependencies, synthetic examples and completion evidence. Implementation
-  tracking gaps are explicit; the guides do not change model contracts or
-  assert that planned functions are delivered.
-- The v0.1.0 guide records the milestone as closed on 2026-10-09: each
-  deliverable links its issue and the document where it lives, the
-  distribution review (#42) and MPL-2.0 relicensing (#49) are included, and
-  the completion criteria are marked met. The status sections of README,
-  `CONTRIBUTING.md`, `INSTALLATION.md` and `RELEASING.md` now name v0.2.0 as
-  the active milestone.
-- `docs/FOUNDATION_CLOSEOUT.md` records the v0.1.0 closeout: every checklist
-  item is marked met with the evidence it rests on.
-
-- Root documents (`CHANGELOG.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`,
-  `INSTALLATION.md`, `RELEASING.md`, `SECURITY.md`) expanded to the
-  maintainer's documentation standard, with headers, badges and complete
-  workflow, evidence, security and release sections.
-- `CONTRIBUTING.md` gains a "Data, confidentiality and provenance" section:
-  what counts as synthetic, private visibility is not permission, no
-  third-party code or restricted manuals without rights, provenance in every
-  PR, and what to do if sensitive material is committed. `docs/GOVERNANCE.md`
-  adds a licensing and distribution gate with a full-history scan procedure
-  (#11).
-- The architecture, validation plan and feature issue form refer to a
-  generic downstream ALM platform instead of a named vendor product (#11).
-- Model contracts accepted (#9) in `docs/methodology/MODEL_CONTRACTS.md`:
-  rate pass-through (unit roots, Engle-Granger long run and cointegration,
-  symmetric and asymmetric ECM, constraints rejected not clipped), stable
-  amount (one-month survival share, balance-weighted fractional logit,
-  predictors known at the forecast date, convergence and separation
-  failures) and decay (log changes, prudential drift, minimum probable
-  amount, conserved profile, mean life), with segment granularity,
-  out-of-sample freeze, confidence bands, scenarios, and the regulatory
-  overlay kept separate from the fit. `SOURCES.md` registers the cited
-  sources: BCBS d368 (core-deposit categories and caps) and Delegated
-  Regulation (EU) 2024/856 (outlier-test scenarios and floor) verified,
-  EBA/GL/2022/14 not yet; `TEST_CASES.md` registers the numerical
-  reference cases with provenance rules and tolerances.
-- Data contract accepted (#4) in `docs/methodology/DATA_CONTRACT.md`: account
-  panel and market-rate field dictionaries with types, units and null policy;
-  segment codes `RET_TX`, `RET_NTX`, `WHS_NFC`; reconciliation; all-or-nothing
-  import with error codes `E01`–`E11` and warnings `W01`–`W06`; gaps,
-  openings, closures, migrations, outliers and look-ahead; CSV streaming for
-  panels beyond worksheet limits; and lineage. Synthetic fixtures with
-  hand-computed totals and warnings are checked by `tools/test_data_contract.py`.
-- Supported hosts decided (#3): Windows 64-bit Microsoft 365 or Excel 2016+
-  is the supported target, 32-bit is best effort (kept compiling, not
-  certified), Mac, web and Excel 2013 or earlier are not supported. Only the
-  four default VBA references are allowed, and the workbook has no runtime
-  dependency beyond Excel; Python or R may produce reference values offline.
-  `INSTALLATION.md` separates these commitments from test evidence, and
-  `docs/EXCEL_EVIDENCE.md` defines the clean-build, compile, smoke-run,
-  failure-path and cleanup stages, their outcomes and per-bitness rules.
-- `docs/REPOSITORY_STRUCTURE.md` rewritten as the architecture, accepted by
-  the owner: profile rationale, the intended Excel workflow, layout,
-  dependency direction, public API boundary, canonical units at the facade,
-  immutable versioned parameter sets and intentional non-goals (#2).
-- Owner-approved v0.1.0-to-v1.0.0 roadmap: workbook/import/harness work moves
-  to v0.2.0, with all Excel obligations retained; model-contract amendments
-  are split into milestone-specific prerequisites (#26, #32-#37). Independent
-  benchmarks accompany each model, and Stable-Decay composition is explicit.
-- Accepted host/data/model records now have direct evidence links; unresolved
-  model interpretation and reproducibility requirements are tracked in #26.
-- `RELEASING.md` and `CONTRIBUTING.md` follow the rulesets copied from
-  VBA-SACCR-Toolkit: task PRs are squash-merged into the release branch, the
-  release branch is merged into `main` with a merge commit from its own PR, and
-  the owner then fast-forwards the release branch, which cannot be deleted, to
-  the merge commit. VBA may be merged into the release branch before Excel
-  evidence exists; nothing is released without it.
-- Documentation prepared for public visibility (#42): `SECURITY.md` routes
-  reports through GitHub private vulnerability reporting, with email as the
-  fallback; `docs/TRAFFIC.md` states that the traffic branch is public and
-  holds aggregate counts only; README, `CONTRIBUTING.md`, `GOVERNANCE.md` and
-  the foundation closeout no longer assume a private repository, and public
-  visibility is recorded as an owner decision separate from any release.
-
 ### Fixed
 
+- `MODEL_CONTRACTS.md` no longer says structural breaks are declared in a run
+  configuration, which does not exist: the caller of `IRRBB_DecayFit` passes
+  the month ends at which declared breaks end, for the segment and currency of
+  the call, as `DATA_CONTRACT.md` states (#230).
+- The preview and `--check` of `tools/setup_repository.py` run without admin
+  rights: they read what the caller can read and record every value an
+  endpoint refuses with 403 or 404 as unknown, with the endpoint and HTTP
+  status, in the output and the evidence file. An unknown value is drift,
+  never VERIFIED; a 404 from an endpoint that answers only admins is no longer
+  read as "off" for anyone else. Each run reads every endpoint once, and the
+  evidence file records those same answers, so its result never disagrees with
+  its rows. `--apply` still requires admin rights and checks them before any
+  write (#222, #221).
+- `tools/setup_repository.py` records a ruleset field that GitHub's response
+  omits, such as `bypass_actors`, which GitHub returns only to callers allowed
+  to see it, as unknown instead of reading a missing `bypass_actors` as no
+  bypass. An unknown ruleset is drift in `--check`, appears as unknown in the
+  evidence file, and makes `--apply` stop before any write, naming the ruleset
+  and the field (#220).
+- A label reconcile run with `--dry-run` no longer stops at the first planned
+  deletion of a label still in use: it lists every planned change, marks each
+  blocked deletion with the issues or pull requests that use the label, changes
+  nothing and exits 0. A real reconcile still refuses those deletions, with the
+  same message, before any change (#224).
+
+- The pull-request milestone guard (`.github/scripts/pr-milestones.py`) appends
+  to the job summary a table of each pull request and the title of the
+  milestone removed from it, or a line saying none was removed, instead of
+  only a count in the log. Titles are written as data: backslashes and pipes
+  are escaped and line breaks become spaces, so a title cannot break the
+  table. `tools/test_pr_milestones.py` covers the summary, including a title
+  with a pipe, a backslash and line breaks (#225).
+
+- Contract wording matches the code: `DATA_CONTRACT.md` states that a
+  structural break reaches `IRRBB_DecayFit` as a month end, applies to the
+  segment and currency of the call and has its reason recorded by the caller;
+  `WORKBOOK_CONTRACT.md` defines the *Template* owner of `Segments_Codes` and
+  names the three Config buttons of the development workbook; the
+  `IRRBB_ImportData` header asks for 40 lower-case hex digits, as the check
+  accepts. Tests keep the owners and the buttons aligned with the contract
+  (#201).
+- Documentation follows its own conventions: label descriptions and the Code
+  of Conduct speak in the first person; the branch model, `GOVERNANCE.md` and
+  `TRAFFIC.md` hold no history (the one-time step leaves the App setup: if the
+  replaced `TRAFFIC_TOKEN` secret still exists, delete it and revoke its
+  token); the `WB_` and `EX_` module prefixes are
+  documented and enforced by `check_source.py` with the others; the public
+  API rule names what `check_vba_public_api.py` checks instead of a versioned
+  manifest; `CORE_Max` and `CORE_Min` have contract headers; `LABELS.md`
+  documents every catalog label and no longer mentions version labels; and
+  milestone titles use GitHub's form `vX.Y.Z - Title` (#200).
+- The feature issue form asks for the methodological basis, compatibility and
+  validation, required, as `CONTRIBUTING.md` describes a feature issue, and the
+  pull request template asks for `python tools/check.py --ci`, the command of
+  the definition of done; `tools/test_contribution_templates.py` keeps them
+  aligned (#197).
+- Documentation describes the current files: the methodology roadmap states
+  that the draft decay model is built in VBA and under review (#36) while the
+  rate and stable-amount models are not built; `REPOSITORY_STRUCTURE.md` names
+  both facades in `PUBLIC_API.txt`; `DATA_CONTRACT.md` states that the importer
+  fails on aggregate overflow and places the account-panel rules (`E04`
+  balance overflow, `E10`, `E11`) under the account-panel heading; the v0.2.0
+  milestone guide lists the Issue triage workflow (#136) instead of the
+  replaced metadata workflow (#41) (#195).
+- The data-contract expected files record their provenance as the fields
+  TEST_CASES requires (tool, steps, date, person) instead of free text, and a
+  test fails when any expected file lacks them. TEST_CASES gives
+  OOS-SCORE-01's reference as the `make_expected.py` count its file records,
+  and states that its `z = -2.0` is an independent input of the scoring check,
+  not derived from `confidence` (#196).
+- The regression harness reaches `Checks` and `Readme` only through defined
+  names, as WORKBOOK_CONTRACT requires, instead of the tab names `Checks` and
+  `Readme`, literal cells and a scan for the "Source commit" label. A new name,
+  `Checks_Info` (`Checks!$B$4:$B$11`), holds the harness run information;
+  WB-LAYOUT-01 expects it and the template is regenerated. The contract states
+  its one exception: example modules address their own sheet, outside the
+  contract, by tab name and literal cells (`EX_DecayExample`, #36) (#194).
+- The automation and its documents agree: GOVERNANCE states that creating a
+  `release/**` branch is the one change the required check does not gate; a
+  label reconcile on `main` is never cancelled midway, only superseded
+  pull-request validations are; `tools/README.md` says that only the reconcile
+  job changes live labels, from `main`, while pull requests run their own label
+  scripts read-only, and no longer says CI skips the synchronizer tests;
+  Dependabot's comments no longer claim the issue audit covers its pull
+  requests; Ruff and mypy cover `.github/scripts/`; each script requests one recorded
+  REST API version (`2026-03-10` for the traffic export, which was written
+  against it, `2022-11-28` elsewhere). New tests check the
+  traffic schedule against `docs/TRAFFIC.md`, setup-python pins whatever their
+  layout, the Repository integrity job and its triggers, and that no automation
+  changes the labels or milestone of an existing issue (#199).
+- The settings baseline now records the `analytics` environment's deployment
+  branches (`main` only) and the CodeQL default setup state (`not-configured`).
+  `tools/setup_repository.py --check` verifies both and lists them in the
+  evidence file; `--apply` restricts the environment to the baseline branches,
+  keeping its wait timer and required reviewers and never touching its secrets
+  or variables, and turns the default setup off (#198).
+- `WB-LAYOUT-01` counts only workbook-level defined names. The template also
+  sets 13 sheet-level print titles and areas, which Excel lists in
+  `Workbook.Names` (LibreOffice does not), so the expected 24 would have failed
+  in Excel (#193).
+- INSTALLATION and the CONTRIBUTING review checklist no longer require Excel
+  evidence for every VBA change before merge: as GOVERNANCE states, a VBA
+  change records Excel results when run, or states them as not run, and a
+  release candidate needs them (#191).
+- The release checklist no longer asks for a fast-forward of the release
+  branch, which the rulesets refuse: it asks for the levelling pull request of
+  step 4. RELEASING and CONTRIBUTING state that this pull request is the one
+  merged with a merge commit, and name its branch `fix/level-<release>-after-<PR>`
+  (#190).
+- The decay facade and the data contract name the same source for the decay
+  balance series: in production the per-segment totals of the import
+  (`IRRBB_ImportTotals`), never a series the user supplies; tests and examples
+  pass synthetic series (#189).
+- The data contract no longer requires a reconciliation the import does not
+  run: it states that the import reports per date, segment and currency
+  totals, each account row counted once, and takes no control totals. The
+  check against control totals from the source system is tracked in #202
+  (#188).
 - Dependabot updates every `github/codeql-action` step in one grouped pull
   request, since CodeQL fails when `init` and `analyze` differ in version; both
   steps are pinned to v4.39.3, in place of the separate #180 and #181 (#183).
@@ -558,12 +575,11 @@ Use only the categories needed by a release.
 - The label reconcile job runs only from the default branch: a manual
   dispatch from another branch no longer applies a manifest that has not been
   integrated (#169).
-- Merging an integration pull request no longer deletes the release branch.
-  "Protect release branches" lets admins bypass it, so "delete head branches
-  on merge" removed `release/v0.2.0` when an admin merged it into `main`. The
-  settings baseline now also has "Prevent release branch deletion", a
-  deletion rule for `release/**` with no bypass; an admin fast-forward of a
-  release branch is unaffected (#158).
+- Merging an integration pull request no longer deletes the release branch:
+  "delete head branches on merge" had removed `release/v0.2.0` when its
+  integration pull request merged into `main`. The settings baseline now has
+  "Prevent release branch deletion", a deletion rule for `release/**` with no
+  bypass (#158).
 - Label synchronization sends its API requests to the host GitHub Actions
   names in `GITHUB_API_URL` (trailing slashes removed), falling back to
   `https://api.github.com`, instead of a hard-coded address. Its self-test now
@@ -633,6 +649,142 @@ Use only the categories needed by a release.
 - Continued comments now recognize VBA whitespace, including tabs, and require
   the continuation underscore immediately before the newline.
 
+### Security
+
+- The synchronizer and the export script need Excel's *Trust access to the VBA
+  project object model*; `SECURITY.md` says to enable it only while running
+  them. The development-workbook builder still needs neither Excel automation
+  nor that setting (#6).
+- `.gitignore` now keeps local data, extracts, snapshots and parameter
+  exports out of Git (rooted `private/`, `local-data/`, `extracts/`,
+  `snapshots/`, `exports/` and `parameter-exports/` folders), ignores binary
+  data, statistical-package and archive formats, and covers more key and
+  credential files. Synthetic CSV and JSON fixtures stay trackable (#11).
+
+### Documentation
+
+- `docs/licenses/THIRD_PARTY_NOTICES.txt` lists the files adapted from
+  VBA-SACCR-Toolkit, EXCEL-VBA-PROJECT-TEMPLATE and MyTemplate, with each
+  source's license where verified and the changes made, and is linked from
+  `README.md` and `CONTRIBUTING.md`.
+  Workflows, configuration, scripts and tests no longer name other
+  repositories or cite issue and pull request history in their comments; the
+  Markdown documents record my decisions in the first person and address
+  contributors directly. `CONTRIBUTING.md` states both rules (#132).
+- Correct the contributor guide's current status: the draft Decay engine exists
+  but remains unvalidated under #36; Rates and Stable are not implemented.
+
+- The manual-import component list in `INSTALLATION.md` names every module of
+  `tools/vba-projects.json`, production and development, including the seven
+  decay and example modules it omitted; `tools/test_devbuild.py` keeps the two
+  equal.
+- The milestone guides in `docs/Milestones/` follow one schema, the same as
+  the GitHub milestone descriptions: Objective, Scope, Exit criteria, Tracked
+  issues and dependency, Not in scope and Release evidence. Each keeps its
+  rationale, a synthetic acceptance case and its references; the v0.3.0 guide
+  names the open decay decisions of #36 and the missing `DecayExample` sheet,
+  and the v0.4.0 and v0.5.0 guides name their registered cases.
+- Social preview image `docs/assets/IRRBB_social_preview.png`, titled
+  K-IRRBB and generated from `IRRBB_social_preview.html` in the layout of
+  K-SACCR and K-FRTB-SA, and shown at the top of the root README. Its figures are the
+  decay reference case `DEC-E2E-01` (draft, #36) and the REG-1
+  core-deposit caps; `docs/assets/README.md` records each source and how to
+  regenerate the image.
+- Data-contract amendment for point-in-time data (#32), decided on
+  2026-10-09: a back-filled `close_date` is accepted but masked in the
+  point-in-time view at earlier forecast origins, and closures are assumed
+  reported by the month end in which they occur (attested per import, recorded
+  in the lineage); only a recorded closure is a
+  cash-out, and an account that disappears without one is right-censored
+  (`W05`, redefined); a month end with no rows inside the window rejects the
+  import (new `E12`); `E10` now also rejects a row dated on its own `close_date`, so a
+  closure never sits on a month-end row. `DATA_CONTRACT.md` defines the outcome of every
+  transition (observed, verified closure, gap, censored, end of sample) and its
+  eligibility and lineage; `MODEL_CONTRACTS.md` updates the stable-model
+  cash-out rule and the predictor timing. A hand-built fixture and leakage
+  tests (`DATA-PIT-01`, `DATA-PIT-02`) check it.
+- Translate all milestone guides into US English and establish US English
+  as the repository language standard. Standardize surrounding documentation
+  while preserving glyphs, navigation, technical scope, and official source
+  titles.
+
+- Detailed milestone guides in `docs/Milestones/`, one per milestone
+  from v0.1.0 through v1.0.0, with a navigation index, purpose, deliverables,
+  dependencies, synthetic examples and completion evidence. Implementation
+  tracking gaps are explicit; the guides do not change model contracts or
+  assert that planned functions are delivered.
+- The v0.1.0 guide records the milestone as closed on 2026-10-09: each
+  deliverable links its issue and the document where it lives, the
+  distribution review (#42) and MPL-2.0 relicensing (#49) are included, and
+  the completion criteria are marked met. The status sections of README,
+  `CONTRIBUTING.md`, `INSTALLATION.md` and `RELEASING.md` now name v0.2.0 as
+  the active milestone.
+- `docs/FOUNDATION_CLOSEOUT.md` records the v0.1.0 closeout: every checklist
+  item is marked met with the evidence it rests on.
+
+- Root documents (`CHANGELOG.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`,
+  `INSTALLATION.md`, `RELEASING.md`, `SECURITY.md`) expanded to my
+  documentation standard, with headers, badges and complete
+  workflow, evidence, security and release sections.
+- `CONTRIBUTING.md` gains a "Data, confidentiality and provenance" section:
+  what counts as synthetic, private visibility is not permission, no
+  third-party code or restricted manuals without rights, provenance in every
+  PR, and what to do if sensitive material is committed. `docs/GOVERNANCE.md`
+  adds a licensing and distribution gate with a full-history scan procedure
+  (#11).
+- The architecture, validation plan and feature issue form refer to a
+  generic downstream ALM platform instead of a named vendor product (#11).
+- Model contracts accepted (#9) in `docs/methodology/MODEL_CONTRACTS.md`:
+  rate pass-through (unit roots, Engle-Granger long run and cointegration,
+  symmetric and asymmetric ECM, constraints rejected not clipped), stable
+  amount (one-month survival share, balance-weighted fractional logit,
+  predictors known at the forecast date, convergence and separation
+  failures) and decay (log changes, prudential drift, minimum probable
+  amount, conserved profile, mean life), with segment granularity,
+  out-of-sample freeze, confidence bands, scenarios, and the regulatory
+  overlay kept separate from the fit. `SOURCES.md` registers the cited
+  sources: BCBS d368 (core-deposit categories and caps) and Delegated
+  Regulation (EU) 2024/856 (outlier-test scenarios and floor) verified,
+  EBA/GL/2022/14 not yet; `TEST_CASES.md` registers the numerical
+  reference cases with provenance rules and tolerances.
+- Data contract accepted (#4) in `docs/methodology/DATA_CONTRACT.md`: account
+  panel and market-rate field dictionaries with types, units and null policy;
+  segment codes `RET_TX`, `RET_NTX`, `WHS_NFC`; reconciliation; all-or-nothing
+  import with error codes `E01`–`E11` and warnings `W01`–`W06`; gaps,
+  openings, closures, migrations, outliers and look-ahead; CSV streaming for
+  panels beyond worksheet limits; and lineage. Synthetic fixtures with
+  hand-computed totals and warnings are checked by `tools/test_data_contract.py`.
+- Supported hosts decided (#3): Windows 64-bit Microsoft 365 or Excel 2016+
+  is the supported target, 32-bit is best effort (kept compiling, not
+  certified), Mac, web and Excel 2013 or earlier are not supported. Only the
+  four default VBA references are allowed, and the workbook has no runtime
+  dependency beyond Excel; Python or R may produce reference values offline.
+  `INSTALLATION.md` separates these commitments from test evidence, and
+  `docs/EXCEL_EVIDENCE.md` defines the clean-build, compile, smoke-run,
+  failure-path and cleanup stages, their outcomes and per-bitness rules.
+- `docs/REPOSITORY_STRUCTURE.md` rewritten as the architecture, which I
+  accepted: profile rationale, the intended Excel workflow, layout,
+  dependency direction, public API boundary, canonical units at the facade,
+  immutable versioned parameter sets and intentional non-goals (#2).
+- The v0.1.0-to-v1.0.0 roadmap I approved: workbook/import/harness work moves
+  to v0.2.0, with all Excel obligations retained; model-contract amendments
+  are split into milestone-specific prerequisites (#26, #32-#37). Independent
+  benchmarks accompany each model, and Stable-Decay composition is explicit.
+- Accepted host/data/model records now have direct evidence links; unresolved
+  model interpretation and reproducibility requirements are tracked in #26.
+- `RELEASING.md` and `CONTRIBUTING.md` follow the rulesets copied from
+  VBA-SACCR-Toolkit: task PRs are squash-merged into the release branch, the
+  release branch is merged into `main` with a merge commit from its own PR, and
+  the release branch, which cannot be deleted, is then levelled with `main`
+  through a merge-commit PR (#170). VBA may be merged into the release branch before Excel
+  evidence exists; nothing is released without it.
+- Documentation prepared for public visibility (#42): `SECURITY.md` routes
+  reports through GitHub private vulnerability reporting, with email as the
+  fallback; `docs/TRAFFIC.md` states that the traffic branch is public and
+  holds aggregate counts only; README, `CONTRIBUTING.md`, `GOVERNANCE.md` and
+  the foundation closeout no longer assume a private repository, and public
+  visibility is recorded as my decision, separate from any release.
+
 ### Validation
 
 - Decay model as merged into `release/v0.3.0`: `python tools/check.py --ci`
@@ -645,7 +797,7 @@ Use only the categories needed by a release.
 - The decay model is a draft under review (#36). Nothing yet builds its
   aggregate series from an accepted import; the caller supplies the series.
   The rate pass-through and stable-amount models are not built.
-- Decay choices not fixed by the contract await an owner decision in #36: the
+- Decay choices not fixed by the contract await my decision in #36: the
   treatment of censored disappearances (`W05`) in the aggregate series, the
   break-date convention, the median path, the diagnostic settings and the
   backtest horizons 1 to 12.
