@@ -388,6 +388,12 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The settings baseline now records the `analytics` environment's deployment
+  branches (`main` only) and the CodeQL default setup state (`not-configured`).
+  `tools/setup_repository.py --check` verifies both and lists them in the
+  evidence file; `--apply` restricts the environment to the baseline branches,
+  keeping its wait timer and required reviewers and never touching its secrets
+  or variables, and turns the default setup off (#198).
 - `WB-LAYOUT-01` counts only workbook-level defined names. The template also
   sets 13 sheet-level print titles and areas, which Excel lists in
   `Workbook.Names` (LibreOffice does not), so the expected 24 would have failed
