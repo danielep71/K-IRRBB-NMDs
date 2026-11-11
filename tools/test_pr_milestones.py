@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import copy
 import importlib.util
+import os
 import re
+import tempfile
 import unittest
 from pathlib import Path
 from typing import Any
@@ -41,8 +43,9 @@ class FakeRepository:
         return [call for call in self.calls if call[1] != "GET"]
 
 
-def pull(number: int, milestone: int | None = None) -> dict[str, Any]:
-    return {"number": number, "pull_request": {}, "milestone": None if milestone is None else {"number": milestone}}
+def pull(number: int, milestone: int | None = None, title: str = "") -> dict[str, Any]:
+    return {"number": number, "pull_request": {},
+            "milestone": None if milestone is None else {"number": milestone, "title": title}}
 
 
 def issue(number: int, milestone: int | None = None) -> dict[str, Any]:
@@ -52,13 +55,13 @@ def issue(number: int, milestone: int | None = None) -> dict[str, Any]:
 class GuardTests(unittest.TestCase):
     def run_guard(self, repository: FakeRepository, number: int | None) -> int:
         with patch.object(guard, "api", side_effect=repository.api):
-            return int(guard.reconcile("owner/repo", number))
+            return len(guard.reconcile("owner/repo", number))
 
     def test_event_clears_only_its_pull_request(self) -> None:
         repository = FakeRepository([pull(1, 2), pull(2, 2)])
         self.assertEqual(self.run_guard(repository, 1), 1)
         self.assertIsNone(repository.items[1]["milestone"])
-        self.assertEqual(repository.items[2]["milestone"], {"number": 2})
+        self.assertEqual(repository.items[2]["milestone"], {"number": 2, "title": ""})
         self.assertEqual(repository.writes(), [("repos/owner/repo/issues/1", "PATCH", {"milestone": None})])
 
     def test_pull_request_without_milestone_is_left_alone(self) -> None:
@@ -100,6 +103,73 @@ class GuardTests(unittest.TestCase):
         self.assertNotIn("ghp_", detail)
         self.assertIn("[REDACTED]", detail)
         self.assertLessEqual(len(detail), guard.DETAIL_LIMIT + 3)
+
+
+class SummaryTests(unittest.TestCase):
+    def run_main(self, repository: FakeRepository, number: str, summary_path: str | None) -> None:
+        env = {"GITHUB_REPOSITORY": "owner/repo", "PR_NUMBER": number}
+        if summary_path is not None:
+            env["GITHUB_STEP_SUMMARY"] = summary_path
+        with patch.object(guard, "api", side_effect=repository.api), \
+                patch.dict(os.environ, env, clear=True):
+            self.assertEqual(guard.main(), 0)
+
+    def summary_after(self, repository: FakeRepository, number: str = "") -> str:
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "summary.md")
+            Path(path).write_text("earlier step\n", encoding="utf-8")
+            self.run_main(repository, number, path)
+            text = Path(path).read_text(encoding="utf-8")
+        self.assertTrue(text.startswith("earlier step\n"), "the summary must be appended")
+        return text
+
+    def test_summary_lists_each_pull_request_and_milestone_title(self) -> None:
+        repository = FakeRepository([pull(1, 2, "v0.2.0"), pull(2), pull(3, 4, "v0.3.0"), issue(4, 2)])
+        text = self.summary_after(repository)
+        self.assertIn("| Pull request | Milestone removed |\n| --- | --- |\n"
+                      "| #1 | v0.2.0 |\n| #3 | v0.3.0 |\n", text)
+        self.assertNotIn("#2", text)
+        self.assertNotIn("No milestone", text)
+
+    def test_summary_for_one_pull_request_event(self) -> None:
+        repository = FakeRepository([pull(1, 2, "v0.2.0"), pull(2, 2, "v0.2.0")])
+        text = self.summary_after(repository, "2")
+        self.assertIn("| #2 | v0.2.0 |", text)
+        self.assertNotIn("| #1 |", text)
+
+    def test_summary_says_when_none_was_removed(self) -> None:
+        for number in ("", "1"):
+            with self.subTest(number=number):
+                text = self.summary_after(FakeRepository([pull(1)]), number)
+                self.assertIn("No milestone was removed from any pull request.", text)
+                self.assertNotIn("| Pull request |", text)
+
+    def test_hostile_title_stays_in_its_cell(self) -> None:
+        title = "a|b\\|c\r\nd\ne\rf\\"
+        text = self.summary_after(FakeRepository([pull(7, 2, title)]))
+        row = text.splitlines()[-1]
+        self.assertEqual(row, "| #7 | a\\|b\\\\\\|c d e f\\\\ |")
+        unescaped_pipes = re.findall(r"(?<!\\)(?:\\\\)*\|", row)
+        self.assertEqual(len(unescaped_pipes), 3, row)
+
+    def test_table_cell_escapes_markdown_table_breakers(self) -> None:
+        self.assertEqual(guard.table_cell("plain v1"), "plain v1")
+        self.assertEqual(guard.table_cell("a|b"), "a\\|b")
+        self.assertEqual(guard.table_cell("a\\b"), "a\\\\b")
+        self.assertEqual(guard.table_cell("a\\|b"), "a\\\\\\|b")
+        self.assertEqual(guard.table_cell("a\r\nb\nc\rd"), "a b c d")
+
+    def test_no_summary_file_without_the_variable(self) -> None:
+        repository = FakeRepository([pull(1, 2, "v0.2.0")])
+        with tempfile.TemporaryDirectory() as directory:
+            cwd = os.getcwd()
+            os.chdir(directory)
+            try:
+                self.run_main(repository, "", None)
+            finally:
+                os.chdir(cwd)
+            self.assertEqual(os.listdir(directory), [])
+        self.assertIsNone(repository.items[1]["milestone"])
 
 
 def workflow(name: str) -> str:

@@ -105,6 +105,7 @@ NAMES = {
     "Config_WindowEnd": ("Config", "$B$9"),
     "Config_RateSeries": ("Config", "$B$10"),
     "Config_ClosureAttested": ("Config", "$B$11"),
+    "Config_ControlTotalsFile": ("Config", "$B$12"),
     "Segments_Codes": ("Segments", "$A$6:$A$8"),
     "Segments_Include": ("Segments", "$C$6:$C$8"),
     "DataSummary_Info": ("DataSummary", "$B$4:$B$12"),
@@ -203,6 +204,8 @@ def _layout() -> None:  # noqa: C901
         ("Rate series", INPUT, "rate_id", "Market rate series used by the rate model."),
         ("Timely closure reporting attested", INPUT, "Yes / No",
          "Closures are reported by the month end in which they occur (DATA_CONTRACT.md). No: the import stops."),
+        ("Control totals file", INPUT, "Path",
+         "Optional control-totals CSV; set by the file picker. Read only. Empty: no reconciliation."),
     ]
     for row, (label, style, fmt, note) in enumerate(settings, 6):
         config.cells[f"A{row}"] = (label, LABEL)
@@ -210,11 +213,11 @@ def _layout() -> None:  # noqa: C901
         config.cells[f"C{row}"] = (fmt, TEXT)
         config.cells[f"D{row}"] = (note, TEXT)
     config.cells["A3"] = (config.purpose, PURPOSE)
-    config.cells["A12"] = ("Yellow cells identify inputs. File paths are selected with the buttons in the "
+    config.cells["A13"] = ("Yellow cells identify inputs. File paths are selected with the buttons in the "
                            "development workbook; the macro-free template has no action buttons.", NOTE)
-    config.merges = ["A3:D3", "A12:D12"]
+    config.merges = ["A3:D3", "A13:D13"]
     config.widths = {"A": 34, "B": 46, "C": 14, "D": 70}
-    config.heights.update({3: 34, 4: 10, 5: 32, 6: 32, 7: 32, 8: 26, 9: 26, 10: 26, 11: 44, 12: 32})
+    config.heights.update({3: 34, 4: 10, 5: 32, 6: 32, 7: 32, 8: 26, 9: 26, 10: 26, 11: 44, 12: 32, 13: 32})
     config.tab_color = INPUT_GOLD
     config.print_columns = "D"
 
@@ -510,7 +513,7 @@ def package(stamp: list[str] | None = None, notes: list[str] | None = None) -> b
                     f"'{sheet.name}'!$1:${repeat}</definedName>")
         if sheet.role != "Output":
             last = (max(30, README_NOTE_ROW + len(notes or []) - 1) if sheet.name == "Readme"
-                    else 23 if sheet.name == "Config" else 11)
+                    else 26 if sheet.name == "Config" else 11)
             defined += (f'<definedName name="_xlnm.Print_Area" localSheetId="{index}">'
                         f"'{sheet.name}'!$A$1:${sheet.print_columns}${last}</definedName>")
     members.append(("xl/workbook.xml", _xml(

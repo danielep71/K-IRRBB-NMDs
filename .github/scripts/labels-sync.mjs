@@ -20,6 +20,7 @@ const LABELS_PER_PAGE = 100;
 const MAX_LABEL_PAGES = 100;
 const ISSUES_PER_PAGE = 100;
 const MAX_ISSUE_PAGES = 100;
+const USAGE_SAMPLE = 10;
 const MAX_RATE_LIMIT_RETRIES = 2;
 const MAX_RETRY_DELAY_MS = 5000;
 
@@ -377,46 +378,66 @@ function itemLabelNames(item) {
   });
 }
 
-// Returns the names, among `names`, that label at least one issue or pull
-// request, open or closed. `request(suffix)` performs one GET. The labels
-// filter cannot express a name that contains a comma, so those names are
-// compared against every item, read page by page.
-async function findLabelsInUse(names, request) {
-  const used = [];
+function itemNumber(item) {
+  if (!Number.isInteger(item?.number) || item.number < 1) {
+    throw new Error("GitHub issues response has an item without a number");
+  }
+  return item.number;
+}
+
+// Returns, for each name among `names` that labels at least one issue or pull
+// request, open or closed, `{ name, items, more }`: up to USAGE_SAMPLE item
+// numbers, ascending, and whether further items use it. `request(suffix)`
+// performs one GET. The labels filter cannot express a name that contains a
+// comma, so those names are compared against every item, read page by page.
+async function findLabelUsage(names, request) {
+  const usage = [];
+  const record = (name, numbers) => {
+    const sorted = [...numbers].sort((left, right) => left - right);
+    usage.push({ name, items: sorted.slice(0, USAGE_SAMPLE), more: sorted.length > USAGE_SAMPLE });
+  };
   for (const name of names.filter(candidate => !candidate.includes(","))) {
-    const batch = await request(`/issues?state=all&per_page=1&labels=${encodeURIComponent(name)}`);
+    const batch = await request(
+      `/issues?state=all&per_page=${USAGE_SAMPLE + 1}&labels=${encodeURIComponent(name)}`
+    );
     if (!Array.isArray(batch)) throw new Error("GitHub issues response is not an array");
-    if (batch.length > 0) used.push(name);
+    if (batch.length > 0) record(name, batch.map(itemNumber));
   }
   const wanted = new Map(names.filter(name => name.includes(",")).map(name => [name.toLowerCase(), name]));
   if (wanted.size > 0) {
-    const found = new Set();
+    const found = new Map();
     let complete = false;
     for (let page = 1; page <= MAX_ISSUE_PAGES && !complete; page += 1) {
       const batch = await request(`/issues?state=all&per_page=${ISSUES_PER_PAGE}&page=${page}`);
       if (!Array.isArray(batch)) throw new Error("GitHub issues response is not an array");
       for (const item of batch) {
-        for (const name of itemLabelNames(item)) if (wanted.has(name)) found.add(name);
+        for (const name of itemLabelNames(item)) {
+          if (wanted.has(name)) found.set(name, [...(found.get(name) ?? []), itemNumber(item)]);
+        }
       }
       complete = batch.length < ISSUES_PER_PAGE;
     }
     if (!complete) throw new Error(`GitHub issue pagination exceeded ${MAX_ISSUE_PAGES} pages`);
-    for (const [key, name] of wanted) if (found.has(key)) used.push(name);
+    for (const [key, name] of wanted) if (found.has(key)) record(name, found.get(key));
   }
-  return used.sort(compareNames);
+  return usage.sort((left, right) => compareNames(left.name, right.name));
+}
+
+// Reads, for each planned deletion, whether the label is still in use.
+async function collectDeletionUsage(changes, request) {
+  const deletions = changes.filter(change => change.action === "delete").map(change => change.currentName);
+  if (deletions.length === 0) return [];
+  return findLabelUsage(deletions, request);
 }
 
 // Pruning a label removes it from every issue and pull request and cannot be
 // undone, so a planned deletion of a label still in use stops the run before
 // any change is made.
-async function refuseUsedDeletions(changes, request) {
-  const deletions = changes.filter(change => change.action === "delete").map(change => change.currentName);
-  if (deletions.length === 0) return;
-  const used = await findLabelsInUse(deletions, request);
-  if (used.length > 0) {
+function refuseUsedDeletions(usage) {
+  if (usage.length > 0) {
     throw new Error(
-      `Refusing to delete ${used.length} label(s) still used by issues or pull requests: `
-      + `${used.map(name => JSON.stringify(name)).join(", ")}. Nothing was changed. `
+      `Refusing to delete ${usage.length} label(s) still used by issues or pull requests: `
+      + `${usage.map(entry => JSON.stringify(entry.name)).join(", ")}. Nothing was changed. `
       + "Remove the labels from those items, or add them to .github/labels.json."
     );
   }
@@ -443,6 +464,12 @@ function renderLabelNames(labels) {
   return labels.map(label => inlineCode(label.name)).join(", ");
 }
 
+// Where a label planned for deletion is used, e.g. "#3, #7 and others".
+function renderUsage(entry) {
+  const numbers = entry.items.map(number => `#${number}`).join(", ");
+  return `${numbers}${entry.more ? " and others" : ""}`;
+}
+
 function renderSummary({
   mode,
   manifest,
@@ -453,6 +480,7 @@ function renderSummary({
   domains,
   changes = [],
   verified = null,
+  usage = [],
   dryRun = false,
   error = null
 }) {
@@ -478,6 +506,8 @@ function renderSummary({
     `- Planned changes: **${changes.length}**`,
     `- Create / update / delete: **${counts.create} / ${counts.update} / ${counts.delete}**`
   ];
+  const blocked = new Map(usage.map(entry => [entry.name.toLowerCase(), entry]));
+  if (blocked.size > 0) lines.push(`- Deletions blocked by labels in use: **${blocked.size}**`);
   if (verified !== null) lines.push(`- Post-run exact match: **${verified ? "yes" : "no"}**`);
   lines.push(
     "",
@@ -495,8 +525,17 @@ function renderSummary({
   } else {
     lines.push("", "| Action | Label | Detail |", "|---|---|---|");
     for (const change of changes) {
-      const detail = change.action === "update" ? change.fields.join(", ") : change.action === "delete" ? "outside selected manifest" : "missing live label";
+      let detail = change.action === "update" ? change.fields.join(", ") : change.action === "delete" ? "outside selected manifest" : "missing live label";
+      const entry = change.action === "delete" ? blocked.get(change.currentName.toLowerCase()) : undefined;
+      if (entry) detail += `; blocked, used by ${renderUsage(entry)}`;
       lines.push(`| ${markdownEscape(change.action)} | ${inlineCode(change.name, { table: true })} | ${markdownEscape(detail)} |`);
+    }
+    if (blocked.size > 0) {
+      lines.push(
+        "",
+        `A reconcile run would refuse ${blocked.size} deletion(s) of labels still used by issues or pull requests `
+        + "and change nothing. Remove the labels from those items, or add them to .github/labels.json."
+      );
     }
   }
   return `${lines.join("\n")}\n`;
@@ -676,7 +715,7 @@ async function runSelfTest(manifestPath, policyPath) {
 
   await selfTestReconcileEndToEnd(manifestPath, policyPath, resolveDesired(manifest, currentSelection));
 
-  process.stdout.write("SELF-TEST PASS: retry delays, validation, policy, overlay, reconciliation, Markdown summary, deletion guard, API URL and end-to-end reconcile fixtures\n");
+  process.stdout.write("SELF-TEST PASS: retry delays, validation, policy, overlay, reconciliation, Markdown summary, deletion guard, API URL and end-to-end reconcile and dry-run fixtures\n");
 }
 
 // Label names, paths and error text with backticks, pipes and line breaks
@@ -724,6 +763,28 @@ function selfTestSummaryMarkdown() {
     domains: [],
     error: "Invalid label manifest:\r\n- core[0].name `x``y` | bad\r- next\nend`"
   });
+  const blockedSummary = renderSummary({
+    mode: "reconcile",
+    manifest: null,
+    manifestPath: null,
+    policyPath: null,
+    desiredLabels: [],
+    profile: null,
+    domains: [],
+    dryRun: true,
+    changes: [
+      { action: "delete", name: "old|`x`", currentName: "old|`x`" },
+      { action: "delete", name: "spare", currentName: "spare" }
+    ],
+    usage: [{ name: "OLD|`X`", items: [3, 7], more: true }]
+  }).split("\n");
+  assert.ok(blockedSummary.includes("- Deletions blocked by labels in use: **1**"));
+  assert.deepEqual(blockedSummary.filter(line => line.startsWith("| delete ")), [
+    "| delete | `` old\\|`x` `` | outside selected manifest; blocked, used by #3, #7 and others |",
+    "| delete | `spare` | outside selected manifest |"
+  ]);
+  assert.ok(blockedSummary.some(line => line.startsWith("A reconcile run would refuse 1 deletion(s)")));
+
   assert.ok(failure.endsWith("## Failure\n\n``` Invalid label manifest: - core[0].name `x``y` | bad - next end` ```\n"), failure);
 }
 
@@ -746,43 +807,63 @@ function fakeIssues(items, calls = []) {
 }
 
 async function selfTestDeletionGuard() {
-  const labelled = (...names) => ({ labels: names.map(name => ({ name })) });
+  let nextNumber = 1;
+  const labelled = (...names) => ({ number: nextNumber++, labels: names.map(name => ({ name })) });
   const remove = (...names) => names.map(name => ({ action: "delete", name, currentName: name }));
+  const guard = async (changes, request) => refuseUsedDeletions(await collectDeletionUsage(changes, request));
 
   const noCalls = [];
-  await refuseUsedDeletions([{ action: "create", name: "new" }], fakeIssues([], noCalls));
+  assert.deepEqual(await collectDeletionUsage([{ action: "create", name: "new" }], fakeIssues([], noCalls)), []);
   assert.deepEqual(noCalls, [], "no deletion, no request");
 
-  await refuseUsedDeletions(remove("unused"), fakeIssues([labelled("bug")]));
+  await guard(remove("unused"), fakeIssues([labelled("bug")]));
 
+  const usedItems = [labelled("Legacy"), labelled("bug", "old"), labelled("old")];
+  assert.deepEqual(await collectDeletionUsage(remove("old", "legacy", "unused"), fakeIssues(usedItems)), [
+    { name: "legacy", items: [usedItems[0].number], more: false },
+    { name: "old", items: [usedItems[1].number, usedItems[2].number], more: false }
+  ]);
   await assert.rejects(
-    refuseUsedDeletions(remove("legacy", "old", "unused"), fakeIssues([labelled("Legacy"), labelled("bug", "old")])),
-    error => /2 label\(s\) still used/.test(error.message)
-      && error.message.includes('"legacy", "old"')
-      && !error.message.includes('"unused"')
+    guard(remove("legacy", "old", "unused"), fakeIssues(usedItems)),
+    error => error.message === 'Refusing to delete 2 label(s) still used by issues or pull requests: '
+      + '"legacy", "old". Nothing was changed. Remove the labels from those items, or add them to .github/labels.json.'
   );
 
   const many = Array.from({ length: 150 }, () => labelled("bug"));
   many.push(labelled("Area, Legacy"));
   const calls = [];
-  assert.deepEqual(await findLabelsInUse(["area, legacy", "a, b"], fakeIssues(many, calls)), ["area, legacy"]);
+  assert.deepEqual(
+    await findLabelUsage(["area, legacy", "a, b"], fakeIssues(many, calls)),
+    [{ name: "area, legacy", items: [many.at(-1).number], more: false }]
+  );
   assert.deepEqual(calls, [
     "/issues?state=all&per_page=100&page=1",
     "/issues?state=all&per_page=100&page=2"
   ], "comma names read every page once, unfiltered");
 
   const plainCalls = [];
-  await findLabelsInUse(["needs triage"], fakeIssues([], plainCalls));
-  assert.deepEqual(plainCalls, ["/issues?state=all&per_page=1&labels=needs%20triage"]);
+  await findLabelUsage(["needs triage"], fakeIssues([], plainCalls));
+  assert.deepEqual(plainCalls, [`/issues?state=all&per_page=${USAGE_SAMPLE + 1}&labels=needs%20triage`]);
 
-  await assert.rejects(findLabelsInUse(["old"], async () => ({ message: "x" })), /not an array/);
-  await assert.rejects(findLabelsInUse(["a, b"], async () => ({})), /not an array/);
-  await assert.rejects(findLabelsInUse(["a, b"], async () => [{ number: 1 }]), /labels array/);
-  await assert.rejects(findLabelsInUse(["a, b"], async () => [{ labels: [{ id: 1 }] }]), /malformed label/);
-  await assert.rejects(findLabelsInUse(["a, b"], async () => [{ labels: ["a, b"] }]), /malformed label/);
+  const crowded = Array.from({ length: USAGE_SAMPLE + 2 }, () => labelled("busy", "x, y"));
+  const sample = crowded.slice(0, USAGE_SAMPLE).map(item => item.number);
+  assert.deepEqual(await findLabelUsage(["busy", "x, y"], fakeIssues(crowded)), [
+    { name: "busy", items: sample, more: true },
+    { name: "x, y", items: sample, more: true }
+  ]);
+  const exact = Array.from({ length: USAGE_SAMPLE }, () => labelled("full"));
+  assert.equal((await findLabelUsage(["full"], fakeIssues(exact)))[0].more, false);
+
+  await assert.rejects(findLabelUsage(["old"], async () => ({ message: "x" })), /not an array/);
+  await assert.rejects(findLabelUsage(["old"], async () => [{ labels: [] }]), /without a number/);
+  await assert.rejects(findLabelUsage(["a, b"], async () => ({})), /not an array/);
+  await assert.rejects(findLabelUsage(["a, b"], async () => [{ number: 1 }]), /labels array/);
+  await assert.rejects(findLabelUsage(["a, b"], async () => [{ labels: [{ id: 1 }] }]), /malformed label/);
+  await assert.rejects(findLabelUsage(["a, b"], async () => [{ labels: ["a, b"] }]), /malformed label/);
+  await assert.rejects(findLabelUsage(["a, b"], async () => [{ number: "1", labels: [{ name: "A, B" }] }]), /without a number/);
   const fullPages = [];
   await assert.rejects(
-    findLabelsInUse(["a, b"], async suffix => {
+    findLabelUsage(["a, b"], async suffix => {
       fullPages.push(suffix);
       return Array.from({ length: ISSUES_PER_PAGE }, () => labelled("bug"));
     }),
@@ -793,7 +874,8 @@ async function selfTestDeletionGuard() {
 
 // Runs this script in reconcile mode against a local API that holds the
 // selected labels plus "legacy": the run deletes "legacy" only when no issue
-// or pull request uses it. The fixture uses its own copy of the manifest with
+// or pull request uses it, and a dry run reports the blocked deletion without
+// a change. The fixture uses its own copy of the manifest with
 // pruning enabled, so it holds whatever the repository's prune setting is.
 async function selfTestReconcileEndToEnd(manifestPath, policyPath, desired) {
   const folder = await mkdtemp(join(tmpdir(), "labels-sync-"));
@@ -808,7 +890,7 @@ async function selfTestReconcileEndToEnd(manifestPath, policyPath, desired) {
 }
 
 async function reconcileAgainstLocalApi(manifestPath, policyPath, desired) {
-  for (const used of [true, false]) {
+  for (const [used, dryRun] of [[true, false], [false, false], [true, true]]) {
     let live = [...structuredClone(desired), { name: "legacy", color: "ABCDEF", description: "Old label" }];
     const requests = [];
     const server = createServer((request, response) => {
@@ -834,17 +916,36 @@ async function reconcileAgainstLocalApi(manifestPath, policyPath, desired) {
     const result = await new Promise(resolve => execFile(
       process.execPath,
       [fileURLToPath(import.meta.url), "--manifest", manifestPath, "--policy", policyPath,
-        "--mode", "reconcile", "--repository", "owner/repo"],
+        "--mode", "reconcile", "--repository", "owner/repo", ...(dryRun ? ["--dry-run"] : [])],
       { env },
       (error, stdout, stderr) => resolve({ code: error ? error.code : 0, stdout, stderr })
     ));
     await new Promise(resolve => server.close(resolve));
     const deletes = requests.filter(line => line.startsWith("DELETE "));
-    assert.ok(requests.includes("GET /repos/owner/repo/issues?state=all&per_page=1&labels=legacy"), requests.join("\n"));
-    if (used) {
+    const writes = requests.filter(line => !line.startsWith("GET "));
+    assert.ok(
+      requests.includes(`GET /repos/owner/repo/issues?state=all&per_page=${USAGE_SAMPLE + 1}&labels=legacy`),
+      requests.join("\n")
+    );
+    if (dryRun) {
+      assert.equal(result.code, 0, result.stderr);
+      assert.deepEqual(writes, [], "a dry run changes nothing");
+      assert.match(result.stdout, /Mode: `reconcile` \(dry run\)/);
+      assert.match(result.stdout, /Deletions blocked by labels in use: \*\*1\*\*/);
+      assert.ok(
+        result.stdout.includes("| delete | `legacy` | outside selected manifest; blocked, used by #7 |"),
+        result.stdout
+      );
+      assert.match(result.stdout, /A reconcile run would refuse 1 deletion\(s\)/);
+      assert.doesNotMatch(result.stdout, /Post-run exact match/);
+    } else if (used) {
       assert.equal(result.code, 1, result.stdout);
-      assert.match(result.stderr, /Refusing to delete 1 label\(s\) still used by issues or pull requests: "legacy"/);
-      assert.deepEqual(deletes, [], "a label in use is never deleted");
+      assert.equal(
+        result.stderr,
+        'Refusing to delete 1 label(s) still used by issues or pull requests: "legacy". Nothing was changed. '
+        + "Remove the labels from those items, or add them to .github/labels.json.\n"
+      );
+      assert.deepEqual(writes, [], "a label in use is never deleted, and nothing else changes");
     } else {
       assert.equal(result.code, 0, result.stderr);
       assert.deepEqual(deletes, ["DELETE /repos/owner/repo/labels/legacy"]);
@@ -892,14 +993,16 @@ async function main() {
   }
 
   const changes = planChanges(desired, live, { prune: manifest.prune });
+  let usage = [];
   if (options.mode === "reconcile") {
-    await refuseUsedDeletions(
+    usage = await collectDeletionUsage(
       changes,
       suffix => githubRequest(options.repository, process.env.GITHUB_TOKEN, "GET", suffix)
     );
+    if (!options.dryRun) refuseUsedDeletions(usage);
   }
   if (options.mode === "plan" || options.dryRun) {
-    await publishSummary(renderSummary({ mode: options.mode, ...summaryBase, changes, dryRun: options.dryRun }));
+    await publishSummary(renderSummary({ mode: options.mode, ...summaryBase, changes, usage, dryRun: options.dryRun }));
     return;
   }
 
