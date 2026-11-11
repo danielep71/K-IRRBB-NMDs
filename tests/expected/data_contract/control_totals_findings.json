@@ -10,7 +10,7 @@
       "Assigned by hand, per row, the first failing rule in the order of DATA_CONTRACT.md (validation), then E13 for a locally valid row that does not match its total."
     ],
     "date": "2026-11-11",
-    "person": "Daniele Penza"
+    "produced_by": "Daniele Penza"
   },
   "accounts_fixture": "tests/fixtures/data_contract/accounts.csv",
   "window": {"first": "2025-01-31", "last": "2025-06-30"},

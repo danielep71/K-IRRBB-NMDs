@@ -432,10 +432,21 @@ Private Function ChiSquareSurvivalEven(ByVal x As Double, ByVal dof As Long) As 
 End Function
 
 
+'------------------------------------------------------------------------------
+' CORE_Max: the larger of a and b, in their common unit; a when equal.
+'   Domain: any two Doubles; no missing values. Exact, no tolerance; raises
+'   no error.
+'------------------------------------------------------------------------------
 Public Function CORE_Max(ByVal a As Double, ByVal b As Double) As Double
     If a >= b Then CORE_Max = a Else CORE_Max = b
 End Function
 
+
+'------------------------------------------------------------------------------
+' CORE_Min: the smaller of a and b, in their common unit; a when equal.
+'   Domain: any two Doubles; no missing values. Exact, no tolerance; raises
+'   no error.
+'------------------------------------------------------------------------------
 Public Function CORE_Min(ByVal a As Double, ByVal b As Double) As Double
     If a <= b Then CORE_Min = a Else CORE_Min = b
 End Function

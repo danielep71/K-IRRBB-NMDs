@@ -22,9 +22,10 @@ VBA_ENCODING = "cp1252"
 VB_NAME = re.compile(r'^Attribute VB_Name = "([^"]+)"\s*$', re.M)
 OPTION_EXPLICIT = re.compile(r"^[ \t]*Option[ \t]+Explicit[ \t]*(?:'.*)?$", re.M | re.I)
 OPTION_PRIVATE = re.compile(r"^[ \t]*Option[ \t]+Private[ \t]+Module[ \t]*(?:'.*)?$", re.M | re.I)
-# Role prefix of standard modules in the core, facade and test homes; see
+# Role prefix of standard modules in each VBA home that holds them; see
 # docs/VBA_HOUSE_STYLE.md.
-ROLE_PREFIXES = (("src/core/", "CORE_"), ("src/modules/", "IRRBB_"), ("tests/", "TEST_"))
+ROLE_PREFIXES = (("src/core/", "CORE_"), ("src/modules/", "IRRBB_"), ("src/workbook/", "WB_"),
+                 ("tests/", "TEST_"), ("examples/", "EX_"))
 # Homes for VBA components; see docs/REPOSITORY_STRUCTURE.md.
 VBA_HOMES = ("src/core/", "src/modules/", "src/classes/", "src/workbook/", "src/forms/",
              "tests/", "examples/")
