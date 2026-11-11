@@ -211,8 +211,7 @@ the CodeQL default setup (`not-configured`, see above) and the rulesets for
 `main`, `release/**` (one for pull requests and checks, one that forbids
 deletion), the release tags `v*` and `traffic-history`; none can be bypassed,
 by admins included.
-`setup_repository.py` compares the saved settings with it through an authenticated GitHub CLI and refuses to run without admin
-rights on the repository:
+`setup_repository.py` compares the saved settings with it through an authenticated GitHub CLI:
 
 ```shell
 python tools/setup_repository.py --repo danielep71/K-IRRBB-NMDs            # preview; never writes
@@ -220,6 +219,13 @@ python tools/setup_repository.py --repo danielep71/K-IRRBB-NMDs --apply    # wri
 python tools/setup_repository.py --repo danielep71/K-IRRBB-NMDs --check    # read-only; exit 1 on drift
 ```
 
+The preview and `--check` need only read access. What they cannot read is
+recorded as unknown: a value whose endpoint answers 403 or 404 to the caller
+(the output and the evidence name the endpoint and HTTP status), or a field
+GitHub leaves out of its response, such as a ruleset's `bypass_actors`. An
+unknown value is never a match, so `--check` reports drift. `--apply` needs
+admin rights and stops before any write without them or while any value is
+unknown.
 Every run writes a dated evidence file,
 `test-results/repository-settings-<mode>-<time>.md` unless `--report` names
 another. `--apply` stops before writing when a named ruleset differs, until
