@@ -22,7 +22,7 @@ how fit is separated from the regulatory overlay**. Inputs come from the
 [data contract](DATA_CONTRACT.md); units follow the
 [parameter and units boundary](../REPOSITORY_STRUCTURE.md#parameter-and-units-boundary);
 external sources are cited by ID from the [source register](SOURCES.md); the
-numerical cases that will test each model are registered in
+numerical cases that test each model are registered in
 [`TEST_CASES.md`](TEST_CASES.md); validation and backtesting obligations are in
 [`VALIDATION_PLAN.md`](VALIDATION_PLAN.md).
 
@@ -77,7 +77,7 @@ Every model is estimated separately for each segment (`RET_TX`, `RET_NTX`,
 segment and currency with fewer observations than the minimum below is not
 estimated; the run reports it instead.
 
-| Model | Minimum sample (proposed) |
+| Model | Minimum sample ([decision 2](#decisions)) |
 | --- | --- |
 | Rate pass-through | 60 consecutive monthly observations |
 | Stable amount | 1,000 account transitions from at least 30 accounts |
@@ -298,7 +298,7 @@ confidence level?
    freedom for $K$ dummies.
 4. **Prudential drift:** $\mu^{*} = \min(\hat\mu, 0)$, so balance growth is
    never credited.
-5. **Minimum probable amount** at confidence $c$ (proposed $c = 0.99$), with
+5. **Minimum probable amount** at confidence $c$ ($c = 0.99$, [decision 6](#decisions)), with
    $z = \Phi^{-1}(1 - c)$:
 
    $$MPA(h) = B_{t_0} \exp\!\left(\mu^{*} h + z\, \hat\sigma \sqrt{h}\right), \qquad h = 0, 1, \dots, H$$
@@ -308,7 +308,7 @@ confidence level?
 
 ### Profile, core and mean life
 
-With cutoff $H$ (proposed 120 months), monthly runoff and the remainder are
+With cutoff $H$ (120 months, [decision 8](#decisions)), monthly runoff and the remainder are
 
 $$o_h = MPA(h-1) - MPA(h), \quad h = 1, \dots, H, \qquad \text{remainder } MPA(H) \text{ placed at month } H$$
 

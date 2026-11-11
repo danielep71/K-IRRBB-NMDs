@@ -45,10 +45,10 @@ decay model under review in #36.
 | VBA conventions | Defined in [`docs/VBA_HOUSE_STYLE.md`](docs/VBA_HOUSE_STYLE.md) |
 | Static checks | Available: `python tools/check.py` |
 | VBA source | `src/core/`: CORE_Parse (dates, decimals, rates), CORE_Codes (segments, currency allowlist, identifiers), CORE_Sha256 (data fingerprint) and CORE_Import (validation, summary, outcomes and point-in-time view of the data files); `src/modules/IRRBB_Import` (public import from files) and `src/workbook/WB_Import` (runs the import from `Config` into `DataSummary`), #71; the draft decay model CORE_Math, CORE_Decay, CORE_Overlay and `src/modules/IRRBB_Decay` (#36, not validated) |
-| Workbook template | [`src/workbook/IRRBB_Template.xlsx`](src/workbook/IRRBB_Template.xlsx), macro-free, generated from source; layout in [`docs/WORKBOOK_CONTRACT.md`](docs/WORKBOOK_CONTRACT.md) (#5); not yet opened in Excel |
-| Regression harness | `tests/modules/` (#8): runs from a [development workbook](#development-workbook); no Excel run recorded yet |
+| Workbook template | [`src/workbook/IRRBB_Template.xlsx`](src/workbook/IRRBB_Template.xlsx), macro-free, generated from source; layout in [`docs/WORKBOOK_CONTRACT.md`](docs/WORKBOOK_CONTRACT.md) (#5); opened in Excel 64-bit on `32ff849` |
+| Regression harness | `tests/modules/` (#8): runs from a [development workbook](#development-workbook); passed in Excel 64-bit on `32ff849` |
 | Supported hosts and references | Decided in issue #3; see [supported hosts](#supported-hosts) |
-| Excel evidence | Requirements defined in [`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md); no record yet |
+| Excel evidence | Defined in [`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md); a passing record on `32ff849`, Windows Excel 64-bit |
 | Released versions | None |
 
 Passing static checks is **not** evidence of correct IRRBB calculations.
@@ -104,8 +104,8 @@ Python is also used by the static checks, which never run with the workbook.
 **Commitments are not evidence.** The tables above state what the project
 commits to support. Whether a given commit actually compiles and runs on a
 host is shown only by an Excel evidence record bound to that commit, as defined
-in [`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md). No host is listed as
-tested until such a record exists; none does yet.
+in [`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md). Tested so far: Windows 11
+x64 with Excel 16.0 build 20430, 64-bit, on `32ff849`. No 32-bit host is tested.
 
 ## 📥 Get the source
 
@@ -234,7 +234,7 @@ at present, production: `src/core/CORE_Codes.bas`, `src/core/CORE_Decay.bas`,
    the sheet modules `src/workbook/sh*.cls`) into the existing module instead
    of importing it, which would create a duplicate class.
 6. Run **Debug → Compile VBAProject**; it must complete with no error.
-   Enter the 40-digit commit of the imported source in `Readme` cell `B5`
+   Enter the 40-character commit of the imported source in `Readme` cell `B5`
    (`Readme_SourceCommit`); the data import refuses to run without it, since
    the lineage must name the code version.
 7. Run the synthetic regression harness and the specific scenario under test,

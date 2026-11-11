@@ -2,7 +2,7 @@
 """Write a large synthetic account panel and market-rate file for timing the import.
 
 Usage: python tools/devbuild/make_large_panel.py [--accounts N] [--months M] [--out DIR]
-Default: 50,000 accounts x 16 month ends (about 50 MB) in build/large_panel/.
+Default: 50,000 accounts x 16 month ends (about 47 MB) in build/large_panel/.
 
 The files follow docs/methodology/DATA_CONTRACT.md and import with no error:
 every account is observed at every month end of the window, with a fixed

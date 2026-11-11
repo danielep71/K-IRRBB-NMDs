@@ -4,7 +4,7 @@
 
 ### What a real Excel run must record before anyone can rely on it
 
-[![Execution](https://img.shields.io/badge/Execution-manual-1d76db?style=flat-square)](#procedure)
+[![Execution](https://img.shields.io/badge/Execution-one_command-1d76db?style=flat-square)](#one-command-session)
 [![Binding](https://img.shields.io/badge/Binding-exact_SHA-217346?style=flat-square)](#what-a-record-binds)
 [![Hosts](https://img.shields.io/badge/Hosts-64--bit_target-6f42c1?style=flat-square)](../INSTALLATION.md#supported-hosts)
 
@@ -27,7 +27,7 @@ and [`RELEASING.md`](../RELEASING.md#release-invariants).
 > [!IMPORTANT]
 > `python tools/check.py` and CI never compile VBA or run Excel. Only a record
 > made by a person running Excel, bound to an exact commit, is Excel evidence.
-> No record exists yet for the VBA source of v0.2.0.
+> A passing record exists for `32ff849` (2026-11-11), Windows Excel 64-bit.
 > [`tools/Certify-IRRBB.ps1`](../tools/Certify-IRRBB.ps1) runs every stage
 > below in one command and writes the record;
 > [`tools/check_excel_evidence.py`](../tools/check_excel_evidence.py) validates

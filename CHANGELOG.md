@@ -128,7 +128,8 @@ Use only the categories needed by a release.
   holds open for writing, which must be refused with error 70, and a
   `timing` stage records the import time of the large synthetic panel,
   with no speed target (#71). The manual procedure stays
-  as the fallback. It passed in 64-bit Excel on `14e0aae` (#238).
+  as the fallback. All 13 stages passed in 64-bit Excel on `32ff849`
+  ([Validation](#validation)).
 - The import can reconcile its totals against control totals from the source
   system. An optional third CSV file (`as_of_date,segment,currency,accounts,balance`),
   chosen on `Config` (`Config_ControlTotalsFile`, **Choose control totals file**
@@ -143,7 +144,7 @@ Use only the categories needed by a release.
   `DATA-RECON-01` checks matching totals, a count difference, balances just
   within and just beyond the tolerance and unknown keys against hand-assigned
   expected files, in Python and VBA. Existing calls without the argument run no
-  check. Not yet run in Excel (#202).
+  check (#202).
 - Workbook synchronization and source round trip (#6), following
   VBA-SACCR-Toolkit: `tools/Sync-IRRBB-VBA.ps1` with the launchers
   `Sync-IRRBB-VBA.cmd` (drag a workbook onto it to import the checkout's source)
@@ -191,8 +192,7 @@ Use only the categories needed by a release.
   failure ends `COMPLETE - FAILURES` with those cases `FAIL` and `ERROR`, never
   `PASS`, and that the next `RunTests` withdraws them. `docs/EXCEL_EVIDENCE.md`
   stage 4 now names this run and `TEST_RunTestsWithWriteFault`, and stage 3
-  says to copy the `Checks` results. `tools/devbuild/lo_smoke.py` runs it. Not
-  run in Excel.
+  says to copy the `Checks` results. `tools/devbuild/lo_smoke.py` runs it.
 - Per-period outcome lineage (#71): an accepted import now writes, per month
   end, segment and currency, the transitions from that month end by outcome
   (observed, verified closures, gaps, censored disappearances with the sum of
@@ -202,7 +202,7 @@ Use only the categories needed by a release.
   The data contract now says how a masked account is counted (under its
   latest segment and currency on or before the origin). `DATA-PIT-01` and
   `DATA-IMPORT-01` check it against hand-assigned values for
-  `availability.csv`. Not run in Excel.
+  `availability.csv`.
 - Segment selection (#71): the segments marked `Yes` on `Segments` form the
   run's segment list, recorded in the lineage. The import still validates and
   reconciles every segment, so leaving one out never turns a migration into a
@@ -217,8 +217,8 @@ Use only the categories needed by a release.
   workbook's build stamp (`Readme_SourceCommit`). `IRRBB_ImportData` takes the
   commit as a new last argument. `DATA-SHA-01` checks the published FIPS
   180-2 examples and padding boundaries. The import time is local, without
-  UTC offset (DATA_CONTRACT.md decision 9). Not run in Excel; speed on large
-  panels not measured.
+  UTC offset (DATA_CONTRACT.md decision 9). In Excel, a 47.4 MB synthetic panel
+  imports in about two minutes ([Validation](#validation)).
 - Import from files (#71, stage 3): `IRRBB_ImportData`, the first public
   entry point, reads the account panel and market-rate CSV files (read only,
   other writers locked out while reading, streamed in 64 KB chunks, LF or
@@ -228,7 +228,7 @@ Use only the categories needed by a release.
   lineage as tables. **Import data** on `Config` writes them to `DataSummary`
   under the status protocol: earlier results withdrawn first, totals only
   for an accepted import, primary and cleanup errors kept. `DATA-IMPORT-01`
-  runs it end to end. `SECURITY.md` records the file access. Not run in Excel.
+  runs it end to end. `SECURITY.md` records the file access.
 - Transition outcomes and point-in-time view (#71, stage 2): the import
   summary assigns every observed month its outcome (observed, verified
   closure, gap, censored disappearance, end of sample), and `CORE_ViewBuild`
@@ -237,16 +237,14 @@ Use only the categories needed by a release.
   keeps to the data window.
   `DATA-PIT-01` and `DATA-PIT-02` now run in VBA: the hand-assigned outcomes
   and visible closures, and a leakage test showing that changing everything
-  learned after an origin leaves the view at that origin unchanged. Not run
-  in Excel.
+  learned after an origin leaves the view at that origin unchanged.
 - VBA import core (#71, stage 1): `CORE_Import` validates the account panel
   and the market-rate file line by line in the contract's rule order (`E01`–
   `E11`, cross-row `E11`, `E10`, `E05`, `E08`), and for a data window reports
   warnings `W01`–`W06`, totals per date, segment and currency (compensated
   sums, never across currencies) and missing extracts (`E12`).
   `DATA-VALID-01` and `DATA-INVALID-01` now run in VBA against the
-  hand-computed expected files. No file input, workbook output or lineage
-  yet; not run in Excel.
+  hand-computed expected files.
 - Workbook template (#5): `src/workbook/IRRBB_Template.xlsx`, macro-free and
   sanitized, with ten sheets, their CodeNames, named input and output areas,
   input validation and a status cell per output sheet that starts as not
@@ -254,7 +252,7 @@ Use only the categories needed by a release.
   status protocol; the template is generated from
   `tools/workbook/build_template.py` and checked against it, the contract and
   the harness by `tools/test_workbook_template.py`. Placeholder sheets are
-  marked as such. Not yet opened in Excel.
+  marked as such.
 - `WB-LAYOUT-01`: a harness case that checks the sheets, CodeNames and names of
   the built workbook through Excel.
 - Regression harness for Excel (#8): `TEST_Harness.RunTests` runs every case
@@ -266,8 +264,7 @@ Use only the categories needed by a release.
   result remains. First VBA cases: `HARN-OUT-01` (outcome and
   tolerance rules), `DATA-PARSE-01`, `DATA-PARSE-02` and `DATA-CODES-01`.
   `tools/test_vba_harness.py` checks their expectations against the contract
-  and the registry against the register without Excel. No Excel run is
-  recorded yet.
+  and the registry against the register without Excel.
 - First core modules: `CORE_Parse` parses the data contract's dates,
   decimals and rates without Excel's locale-dependent conversions, returning
   missing and invalid separately; `CORE_Codes` holds the segment codes and the
@@ -846,10 +843,17 @@ Use only the categories needed by a release.
 
 ### Validation
 
+- Excel, Windows 11 x64, Excel 16.0 build 20430, 64-bit: `tools/Certify-IRRBB.cmd` passed all 13 stages on `32ff849` (2026-11-11),
+  validated offline (`RESULT=PASS`). The harness ran 22 cases `PASS` and 14
+  `NOT RUN` (the Rates and Stable cases, not built); the failure path, every
+  import scenario (control totals, pasted input, a locked file), the buttons,
+  the template's appearance, the synchronizer and the source round trip passed;
+  a 47.4 MB synthetic panel imported in 125 s. This shows the source compiles
+  and behaves as tested in Excel; it validates no model.
 - Decay model as merged into `release/v0.3.0`: `python tools/check.py --ci`
   passes; LibreOffice 24.2 headless proxy run of the development workbook, see
-  the merge commit messages for counts. **No Excel compile or run has been recorded**;
-  LibreOffice is not a supported host and this is not Excel evidence.
+  the merge commit messages for counts. LibreOffice is not a supported host
+  and this is not Excel evidence; the Excel run above covers the decay cases.
 
 ### Known limitations
 
@@ -860,8 +864,8 @@ Use only the categories needed by a release.
   treatment of censored disappearances (`W05`) in the aggregate series, the
   break-date convention, the median path, the diagnostic settings and the
   backtest horizons 1 to 12.
-- No Excel compile or run has been recorded for the VBA source; the
-  LibreOffice proxy runs are not Excel evidence.
+- Excel evidence covers Windows Excel 64-bit only; no 32-bit host has run the
+  session. The LibreOffice proxy runs are not Excel evidence.
 - No automated check compiles VBA, runs Excel or validates a model; passing CI
   is not evidence of correct IRRBB calculations.
 - The methodology is a roadmap, not a validated specification. Of its
