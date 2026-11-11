@@ -388,6 +388,13 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The regression harness reaches `Checks` and `Readme` only through defined
+  names, as WORKBOOK_CONTRACT requires, instead of the tab names `Checks` and
+  `Readme`, literal cells and a scan for the "Source commit" label. A new name,
+  `Checks_Info` (`Checks!$B$4:$B$11`), holds the harness run information;
+  WB-LAYOUT-01 expects it and the template is regenerated. The contract states
+  its one exception: example modules address their own sheet, outside the
+  contract, by tab name and literal cells (`EX_DecayExample`, #36) (#194).
 - INSTALLATION and the CONTRIBUTING review checklist no longer require Excel
   evidence for every VBA change before merge: as GOVERNANCE states, a VBA
   change records Excel results when run, or states them as not run, and a
