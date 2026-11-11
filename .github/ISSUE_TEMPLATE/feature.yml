@@ -24,9 +24,23 @@ body:
     validations:
       required: true
   - type: textarea
+    id: methodology
+    attributes:
+      label: "Methodological basis"
+      description: "The method, regulatory or econometric source and assumptions the change rests on, with references to docs/methodology/ where they exist; \"Not applicable.\" for a repository or CI change."
+    validations:
+      required: true
+  - type: textarea
     id: contract
     attributes:
       label: "Proposed observable behavior (units, bounds, source)"
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: "Compatibility"
+      description: "Effect on the public API, workbook contract, data contract, model versions and stored results, and any migration you need; or \"None.\""
     validations:
       required: true
   - type: textarea
@@ -43,6 +57,13 @@ body:
       placeholder: "- [ ] Independent numerical result
 - [ ] Regression test
 - [ ] Failure behavior"
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: "Validation"
+      description: "How the change will be shown correct: independent expected values and tolerances, regression tests, and the Excel evidence needed."
     validations:
       required: true
   - type: textarea

@@ -22,6 +22,9 @@ The gate runner checks:
 - VBA jump targets and conditional compilation across supported Windows bitness contexts;
 - explicit public API declarations compared with `docs/PUBLIC_API.txt`;
 - changelog/version consistency;
+- the feature issue form requires the elements `CONTRIBUTING.md` names for a
+  feature, and the pull request template names the definition-of-done command
+  (`test_contribution_templates.py`);
 - Markdown links (`check_links.py`): every relative link names an existing
   file or directory in the repository, every fragment names a heading or
   anchor of its target, and every external link uses HTTPS, so a plain

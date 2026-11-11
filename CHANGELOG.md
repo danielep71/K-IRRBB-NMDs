@@ -388,6 +388,11 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The feature issue form asks for the methodological basis, compatibility and
+  validation, required, as `CONTRIBUTING.md` describes a feature issue, and the
+  pull request template asks for `python tools/check.py --ci`, the command of
+  the definition of done; `tools/test_contribution_templates.py` keeps them
+  aligned (#197).
 - INSTALLATION and the CONTRIBUTING review checklist no longer require Excel
   evidence for every VBA change before merge: as GOVERNANCE states, a VBA
   change records Excel results when run, or states them as not run, and a
