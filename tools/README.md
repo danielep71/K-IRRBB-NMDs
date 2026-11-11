@@ -28,6 +28,8 @@ The gate runner checks:
 - VBA jump targets and conditional compilation across supported Windows bitness contexts;
 - no module declares a reserved word of VBA as a name, which Excel rejects and
   LibreOffice accepts (`test_vba_reserved_words.py`);
+- no module spells a number with more than 15 significant digits, which the VBE
+  rounds on import (`test_vba_double_literals.py`);
 - explicit public API declarations compared with `docs/PUBLIC_API.txt`;
 - changelog/version consistency;
 - `docs/LABELS.md` names every label of the catalog, and milestone titles use
