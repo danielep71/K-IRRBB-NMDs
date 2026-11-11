@@ -203,8 +203,10 @@ function Get-ExcelState {
 }
 
 function Get-Area {
+    # A Range is enumerable: returned bare, PowerShell would unroll it into its
+    # cells, and .Value2 would then be a flat list instead of the area's array.
     param($Book, [string]$Name)
-    return $Book.Names.Item($Name).RefersToRange
+    return ,($Book.Names.Item($Name).RefersToRange)
 }
 
 function Get-Rows {

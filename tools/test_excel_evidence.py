@@ -388,6 +388,12 @@ class ScriptShapeTests(unittest.TestCase):
             self.assertNotIn(forbidden, self.text)
         self.assertIn("This script never changes it.", self.text)
 
+    def test_a_range_is_returned_whole(self) -> None:
+        # Returned bare from a function, an enumerable Range is unrolled into its cells.
+        body = re.search(r"function Get-Area \{(.*?)\n\}", self.text, re.DOTALL)
+        assert body is not None
+        self.assertIn("return ,(", body.group(1))
+
     def test_cell_arrays_are_read_with_their_true_bounds(self) -> None:
         # Excel's Value2 arrays start at 1; PowerShell's own indexer counts from 0.
         self.assertNotRegex(self.text, r"\$data\[")
