@@ -100,6 +100,20 @@ Use only the categories needed by a release.
 
 ### Added
 
+- The import can reconcile its totals against control totals from the source
+  system. An optional third CSV file (`as_of_date,segment,currency,accounts,balance`),
+  chosen on `Config` (`Config_ControlTotalsFile`, **Choose control totals file**
+  in the development workbook) and passed to `IRRBB_ImportData` as the new
+  optional last argument `controlTotalsPath`, lists the totals to check: each
+  needs an import total for its date, segment and currency with the same
+  number of accounts and a balance within 0.005 currency units, never adding
+  currencies. A difference or a key with no total is the new error `E13` and
+  rejects the whole import; malformed rows use `E01`–`E07` and `E09`. The
+  lineage records the file's name, size, rows read and SHA-256, or `none`.
+  `DATA-RECON-01` checks matching totals, a count difference, balances just
+  within and just beyond the tolerance and unknown keys against hand-assigned
+  expected files, in Python and VBA. Existing calls without the argument run no
+  check. Not yet run in Excel (#202).
 - Workbook synchronization and source round trip (#6), following
   VBA-SACCR-Toolkit: `tools/Sync-IRRBB-VBA.ps1` with the launchers
   `Sync-IRRBB-VBA.cmd` (drag a workbook onto it to import the checkout's source)
@@ -405,6 +419,43 @@ Use only the categories needed by a release.
   table. `tools/test_pr_milestones.py` covers the summary, including a title
   with a pipe, a backslash and line breaks (#225).
 
+- Contract wording matches the code: `DATA_CONTRACT.md` states that a
+  structural break reaches `IRRBB_DecayFit` as a month end, applies to the
+  segment and currency of the call and has its reason recorded by the caller;
+  `WORKBOOK_CONTRACT.md` defines the *Template* owner of `Segments_Codes` and
+  names the three Config buttons of the development workbook; the
+  `IRRBB_ImportData` header asks for 40 lower-case hex digits, as the check
+  accepts. Tests keep the owners and the buttons aligned with the contract
+  (#201).
+- Documentation follows its own conventions: label descriptions and the Code
+  of Conduct speak in the first person; the branch model, `GOVERNANCE.md` and
+  `TRAFFIC.md` hold no history (the one-time step leaves the App setup: if the
+  replaced `TRAFFIC_TOKEN` secret still exists, delete it and revoke its
+  token); the `WB_` and `EX_` module prefixes are
+  documented and enforced by `check_source.py` with the others; the public
+  API rule names what `check_vba_public_api.py` checks instead of a versioned
+  manifest; `CORE_Max` and `CORE_Min` have contract headers; `LABELS.md`
+  documents every catalog label and no longer mentions version labels; and
+  milestone titles use GitHub's form `vX.Y.Z - Title` (#200).
+- The feature issue form asks for the methodological basis, compatibility and
+  validation, required, as `CONTRIBUTING.md` describes a feature issue, and the
+  pull request template asks for `python tools/check.py --ci`, the command of
+  the definition of done; `tools/test_contribution_templates.py` keeps them
+  aligned (#197).
+- Documentation describes the current files: the methodology roadmap states
+  that the draft decay model is built in VBA and under review (#36) while the
+  rate and stable-amount models are not built; `REPOSITORY_STRUCTURE.md` names
+  both facades in `PUBLIC_API.txt`; `DATA_CONTRACT.md` states that the importer
+  fails on aggregate overflow and places the account-panel rules (`E04`
+  balance overflow, `E10`, `E11`) under the account-panel heading; the v0.2.0
+  milestone guide lists the Issue triage workflow (#136) instead of the
+  replaced metadata workflow (#41) (#195).
+- The data-contract expected files record their provenance as the fields
+  TEST_CASES requires (tool, steps, date, person) instead of free text, and a
+  test fails when any expected file lacks them. TEST_CASES gives
+  OOS-SCORE-01's reference as the `make_expected.py` count its file records,
+  and states that its `z = -2.0` is an independent input of the scoring check,
+  not derived from `confidence` (#196).
 - The regression harness reaches `Checks` and `Readme` only through defined
   names, as WORKBOOK_CONTRACT requires, instead of the tab names `Checks` and
   `Readme`, literal cells and a scan for the "Source commit" label. A new name,

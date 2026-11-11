@@ -4,7 +4,9 @@ Attribute VB_Name = "TEST_ImportCases"
 '------------------------------------------------------------------------------
 ' PURPOSE
 '   VBA implementation of DATA-IMPORT-01 (docs/methodology/TEST_CASES.md): the
-'   import from files through IRRBB_ImportData and WB_ImportData, end to end.
+'   import from files through IRRBB_ImportData and WB_ImportData, end to end;
+'   and of DATA-RECON-01: the same import reconciled against control-totals
+'   files (issue #202).
 '   The fixtures of TEST_Fixtures are written to temporary files (LF and CRLF,
 '   a file longer than one read chunk, a non-ASCII byte, an empty file), the
 '   run settings on Config are set, the import runs, and DataSummary is read
@@ -32,6 +34,7 @@ Private mRunFolder As String
 Public Sub TEST_RunImportCase(ByVal caseId As String)
     Select Case caseId
         Case "DATA-IMPORT-01": CaseImport
+        Case "DATA-RECON-01": CaseReconcile
         Case Else
             Err.Raise TEST_ERR_NO_CASE, "TEST_ImportCases.TEST_RunImportCase", "No VBA implementation for " & caseId & "."
     End Select
@@ -45,6 +48,7 @@ Private Sub CaseImport()
     Const C As String = "DATA-IMPORT-01"
     Dim accounts As String, rates As String, invalid As String, window As Variant
     SaveSettings
+    NamedRange("Config_ControlTotalsFile").Value = vbNullString
     window = TEST_ExpectedLines("accounts_summary.window")
     accounts = WriteFixture("irrbb_accounts.csv", JoinFixture("accounts.csv", vbLf))
     rates = WriteFixture("irrbb_rates.csv", JoinFixture("market_rates.csv", vbLf))
@@ -146,6 +150,90 @@ Private Sub CaseImport()
 End Sub
 
 
+'------------------------------------------------------------------------------
+' DATA-RECON-01: control totals against the accepted panel, files to
+' DataSummary; findings, status and lineage as hand-assigned in
+' control_totals_findings.json.
+'------------------------------------------------------------------------------
+Private Sub CaseReconcile()
+    Const C As String = "DATA-RECON-01"
+    Dim accounts As String, rates As String, control As String, invalid As String, window As Variant
+    Dim fixtures As Variant, fields() As String, findings As Variant, i As Long, n As Long, lineage As Variant
+    SaveSettings
+    window = TEST_ExpectedLines("control_totals_findings.window")
+    accounts = WriteFixture("irrbb_accounts.csv", JoinFixture("accounts.csv", vbLf))
+    rates = WriteFixture("irrbb_rates.csv", JoinFixture("market_rates.csv", vbLf))
+
+    ' No control-totals file: no check; the lineage says so.
+    RunControl accounts, rates, window, vbNullString
+    TEST_AssertText C, "no control file: status", StatusText(), ACCEPTED
+    TEST_AssertText C, "no control file: lineage", ControlLineage(), "none|none|none|none"
+
+    ' The facade's control-totals path is optional.
+    TEST_AssertText C, "facade without a control path: errors", CStr(IRRBB_ImportData(accounts, rates, _
+                    IsoDate(window(1)), IsoDate(window(2)), "", "RET_TX,RET_NTX,WHS_NFC", True, _
+                    CStr(NamedRange("Readme_SourceCommit").Value))), "0"
+    lineage = IRRBB_ImportLineage()
+    TEST_AssertText C, "facade without a control path: lineage", CStr(lineage(24, 1)) & "|" & CStr(lineage(24, 2)), _
+                    "Control-totals file|none"
+
+    ' Every control-totals fixture against the accepted panel.
+    fixtures = TEST_ExpectedLines("control_totals_findings.fixtures")
+    For i = LBound(fixtures) To UBound(fixtures)
+        fields = Split(fixtures(i), "|")
+        control = WriteFixture("irrbb_" & fields(0), JoinFixture(fields(0), vbLf))
+        RunControl accounts, rates, window, control
+        findings = TEST_ExpectedLines("control_totals_findings." & fields(0))
+        n = UBound(findings) - LBound(findings) + 1
+        TEST_AssertText C, fields(0) & ": findings", FindingText(), JoinExpected("control_totals_findings." & fields(0))
+        If n = 0 Then
+            TEST_AssertText C, fields(0) & ": status", StatusText(), ACCEPTED
+            CheckTotals C, fields(0)
+        Else
+            TEST_AssertText C, fields(0) & ": status", StatusText(), "FAILED - IMPORT REJECTED (" & n & " errors)"
+            TEST_AssertText C, fields(0) & ": no totals", CellText("DataSummary_Totals", 1, 1), ""
+            TEST_AssertText C, fields(0) & ": finding file", CellText("DataSummary_Findings", 1, 1), "irrbb_" & fields(0)
+        End If
+        TEST_AssertText C, fields(0) & ": lineage", LineageValue("Control-totals file") & "|" & _
+                        LineageValue("Control-totals rows read"), "irrbb_" & fields(0) & "|" & fields(1)
+    Next i
+
+    ' The matching file with CRLF endings; its size and fingerprint in the lineage.
+    control = WriteFixture("irrbb_control_crlf.csv", JoinFixture("control_totals.csv", vbCrLf))
+    RunControl accounts, rates, window, control
+    TEST_AssertText C, "CRLF control file: status", StatusText(), ACCEPTED
+    control = WriteFixture("irrbb_control.csv", JoinFixture("control_totals.csv", vbLf))
+    RunControl accounts, rates, window, control
+    TEST_AssertText C, "control file: lineage", ControlLineage(), "irrbb_control.csv|" & _
+                    Len(JoinFixture("control_totals.csv", vbLf)) & "|23|" & FirstExpected("sha256.control_totals.csv")
+
+    ' A rejected panel has no totals: the control totals are validated, never
+    ' reconciled, so only the panel's findings are listed.
+    invalid = WriteFixture("irrbb_invalid.csv", JoinFixture("accounts_invalid.csv", vbLf))
+    RunControl invalid, rates, window, control
+    TEST_AssertText C, "rejected panel: findings", FindingText(), JoinExpected("accounts_invalid_findings.errors")
+
+    ' A wrong header stops the control-totals file; a missing file is refused.
+    control = WriteFixture("irrbb_control_header.csv", "as_of_date,segment,currency,balance,accounts" & vbLf & _
+                           "2025-01-31,RET_TX,EUR,6600.00,5" & vbLf)
+    RunControl accounts, rates, window, control
+    TEST_AssertText C, "wrong header: findings", FindingText(), "1|E01"
+    TEST_AssertText C, "wrong header: lineage rows read", LineageValue("Control-totals rows read"), "0"
+    RunControl accounts, rates, window, control & ".missing"
+    TEST_AssertTrue C, "missing control file: error 53", InStr(1, CellText("DataSummary_Info", 8, 1), "error 53") > 0
+
+    RestoreSettings
+    DeleteFiles
+End Sub
+
+
+' "file|bytes|rows read|SHA-256" of the control-totals lineage items.
+Private Function ControlLineage() As String
+    ControlLineage = LineageValue("Control-totals file") & "|" & LineageValue("Control-totals bytes") & "|" & _
+                     LineageValue("Control-totals rows read") & "|" & LineageValue("Control-totals SHA-256")
+End Function
+
+
 ' 2,000 accounts in one month: about 80 KB, so lines cross a chunk boundary.
 Private Sub CheckLongFile(ByVal caseId As String, ByVal rates As String)
     Dim text As String, i As Long, path As String
@@ -203,6 +291,14 @@ End Sub
 '==============================================================================
 ' Helpers
 '==============================================================================
+' RunImport with the control-totals file set; the window is (first, last).
+Private Sub RunControl(ByVal accounts As String, ByVal rates As String, ByVal window As Variant, _
+                       ByVal control As String)
+    NamedRange("Config_ControlTotalsFile").Value = control
+    RunImport accounts, rates, window(1), window(2), "", "Yes"
+End Sub
+
+
 Private Sub RunImport(ByVal accounts As String, ByVal rates As String, ByVal first As String, _
                       ByVal last As String, ByVal rateSeries As String, ByVal attested As String)
     NamedRange("Config_AccountsFile").Value = accounts
@@ -362,7 +458,8 @@ End Sub
 Private Function SettingCells() As Collection
     Dim out As New Collection, settingName As Variant, cell As Range
     For Each settingName In Array("Config_AccountsFile", "Config_RatesFile", "Config_WindowStart", _
-                                  "Config_WindowEnd", "Config_RateSeries", "Config_ClosureAttested")
+                                  "Config_WindowEnd", "Config_RateSeries", "Config_ClosureAttested", _
+                                  "Config_ControlTotalsFile")
         out.Add NamedRange(CStr(settingName))
     Next settingName
     For Each cell In NamedRange("Segments_Include").Cells

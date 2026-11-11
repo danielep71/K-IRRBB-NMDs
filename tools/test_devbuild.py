@@ -295,5 +295,20 @@ class DevelopmentWorkbook(unittest.TestCase):
         self.assertEqual(listed_production, production)
         self.assertEqual(listed_development, development)
 
+    def test_contract_names_every_button(self) -> None:
+        # docs/WORKBOOK_CONTRACT.md names each development button, in bold,
+        # with its sheet; no other bold label.
+        import re
+        sys.path.insert(0, str(ROOT / "tools" / "devbuild"))
+        import build_dev_workbook
+        text = (ROOT / "docs" / "WORKBOOK_CONTRACT.md").read_text(encoding="utf-8")
+        paragraph = " ".join(text.split("The development workbook (`tools/devbuild/build_dev_workbook.py`)", 1)[1]
+                             .split("\n\n", 1)[0].split())
+        labels = [label for buttons in build_dev_workbook.BUTTONS.values() for label, *_ in buttons]
+        self.assertEqual(sorted(re.findall(r"\*\*([^*]+)\*\*", paragraph)), sorted(labels))
+        for sheet in build_dev_workbook.BUTTONS:
+            self.assertIn(f"`{sheet}`", paragraph)
+
+
 if __name__ == "__main__":
     unittest.main()

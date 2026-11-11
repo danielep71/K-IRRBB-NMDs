@@ -50,7 +50,7 @@ artifact. The v0.1.0 foundation milestone closed without producing a release.
 | Branch | Role |
 | --- | --- |
 | `release/<version>` | Active integration branch. Task PRs are squash-merged into it after review and green checks; the PR that levels it with `main` after an integration is merged with a merge commit. |
-| `release/v0.3.0` | Opened early for the decay prototype (#36, #94). That work was integrated into `main` (#97) and reached `release/v0.2.0` when it was levelled with `main`. Takes no other work until v0.2.0 is released; it is levelled after each integration (step 4 below). |
+| `release/v0.3.0` | Next release branch. Takes no task PRs until v0.2.0 is released; it is levelled after each integration (step 4 below). |
 | `main` | Default branch. Receives the release branch only through a PR I request, merged with a merge commit. |
 | Task branches | One per change, from the release branch: `fix/<issue>-<slug>`, `docs/<slug>`, `test/<slug>`; a levelling branch is `fix/level-<release>-after-<PR>`, named after the integration PR. |
 

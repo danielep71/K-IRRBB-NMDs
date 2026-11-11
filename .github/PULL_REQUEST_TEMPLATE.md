@@ -23,7 +23,7 @@ Milestones belong to issues only. See docs/GOVERNANCE.md#pull-requests. -->
 
 ## Evidence
 
-- [ ] `python tools/check.py` completed on this commit (record outcome)
+- [ ] `python tools/check.py --ci` completed on this commit (record outcome)
 - [ ] Added or updated synthetic regression test(s), or explained why not applicable
 - [ ] Independent numerical expected values and tolerances, or N/A
 - [ ] Real Excel compile/run on exact SHA, or explicitly NOT RUN with reason
