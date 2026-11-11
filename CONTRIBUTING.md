@@ -114,7 +114,9 @@ missing; it never changes an issue. See
    every review finding resolved. The release branch accepts changes only
    through pull requests that are up to date with it; task pull requests are
    merged with a **squash**, and the squash commit message must follow the
-   rules below.
+   rules below. The one exception is the pull request that levels a release
+   branch with `main` after an integration, which I merge with a merge commit
+   ([`RELEASING.md`](RELEASING.md#integrating-the-release-branch-into-main)).
 
 Nothing is committed directly to the release branch or to `main`; even
 levelling a release branch with `main` is a pull request. Integration of
@@ -298,7 +300,7 @@ A pull request answers five questions:
 - [ ] Scope is focused; model, API and compatibility impact are assessed.
 - [ ] Exported VBA and required binary companions are synchronized.
 - [ ] `python tools/check.py` passes, and the **Repository integrity** check is green.
-- [ ] Excel compile, harness and scenario results are recorded for VBA changes.
+- [ ] For VBA changes, Excel compile, harness and scenario results are recorded, or stated as not run; a release candidate needs them.
 - [ ] Estimator changes carry independent references, tolerances and failure cases.
 - [ ] Documentation and the `[Unreleased]` changelog entry are updated.
 - [ ] No confidential, real-portfolio, accidental binary or generated material is added.

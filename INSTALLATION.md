@@ -73,7 +73,7 @@ Decided on 2026-10-08; see the
 
 | Host | Support level | Evidence required |
 | --- | --- | --- |
-| Microsoft 365 or Excel 2016 and later, **Windows, 64-bit** | Supported target | Compile, regression and smoke run for every VBA change and release |
+| Microsoft 365 or Excel 2016 and later, **Windows, 64-bit** | Supported target | Compile, regression and smoke run on every release candidate; for a VBA change before release, recorded when run, otherwise stated as not run ([merge policy](docs/GOVERNANCE.md#workflow)) |
 | Same versions, Windows, 32-bit | Best effort: kept compiling, not certified | Compile when a 32-bit host is available; otherwise recorded as `NOT_RUN` |
 | Excel for Mac, Excel for the web, Excel 2013 and earlier | Not supported | None |
 

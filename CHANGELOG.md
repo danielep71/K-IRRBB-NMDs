@@ -388,6 +388,24 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- INSTALLATION and the CONTRIBUTING review checklist no longer require Excel
+  evidence for every VBA change before merge: as GOVERNANCE states, a VBA
+  change records Excel results when run, or states them as not run, and a
+  release candidate needs them (#191).
+- The release checklist no longer asks for a fast-forward of the release
+  branch, which the rulesets refuse: it asks for the levelling pull request of
+  step 4. RELEASING and CONTRIBUTING state that this pull request is the one
+  merged with a merge commit, and name its branch `fix/level-<release>-after-<PR>`
+  (#190).
+- The decay facade and the data contract name the same source for the decay
+  balance series: in production the per-segment totals of the import
+  (`IRRBB_ImportTotals`), never a series the user supplies; tests and examples
+  pass synthetic series (#189).
+- The data contract no longer requires a reconciliation the import does not
+  run: it states that the import reports per date, segment and currency
+  totals, each account row counted once, and takes no control totals. The
+  check against control totals from the source system is tracked in #202
+  (#188).
 - Dependabot updates every `github/codeql-action` step in one grouped pull
   request, since CodeQL fails when `init` and `analyze` differ in version; both
   steps are pinned to v4.39.3, in place of the separate #180 and #181 (#183).
