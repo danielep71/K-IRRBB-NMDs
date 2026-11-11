@@ -47,6 +47,11 @@ model definitions are in [`README.md`](README.md); validation obligations in
 
 Customer-rate averages, segment balances, cash-outs and log balance changes
 are **derived** by the toolkit from these inputs, never supplied as inputs.
+The decay model's balance series is the per-segment total of the import
+(`IRRBB_ImportTotals`, [reconciliation](#reconciliation)). The decay facade
+takes that series as an argument so that tests and examples can pass
+synthetic series; production runs pass the import totals, never a series the
+user supplies.
 
 <a id="file-format"></a>
 
