@@ -161,6 +161,7 @@ Private Function Registry() As Variant
     c.Add Array("DATA-PIT-01", True, "")
     c.Add Array("DATA-PIT-02", True, "")
     c.Add Array("DATA-IMPORT-01", True, "")
+    c.Add Array("DATA-RECON-01", True, "")
     c.Add Array("DATA-SHA-01", True, "")
     c.Add Array("DATA-PARSE-01", True, "")
     c.Add Array("DATA-PARSE-02", True, "")
@@ -253,7 +254,7 @@ Private Sub DispatchCase(ByVal caseId As String)
             TEST_WorkbookCases.TEST_RunWorkbookCase caseId
         Case "DATA-VALID-01", "DATA-INVALID-01", "DATA-PIT-01", "DATA-PIT-02"
             TEST_DataCases.TEST_RunDataCase caseId
-        Case "DATA-IMPORT-01"
+        Case "DATA-IMPORT-01", "DATA-RECON-01"
             TEST_ImportCases.TEST_RunImportCase caseId
         Case "DATA-SHA-01"
             TEST_HashCases.TEST_RunHashCase caseId

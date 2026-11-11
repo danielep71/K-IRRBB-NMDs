@@ -100,6 +100,20 @@ Use only the categories needed by a release.
 
 ### Added
 
+- The import can reconcile its totals against control totals from the source
+  system. An optional third CSV file (`as_of_date,segment,currency,accounts,balance`),
+  chosen on `Config` (`Config_ControlTotalsFile`, **Choose control totals file**
+  in the development workbook) and passed to `IRRBB_ImportData` as the new
+  optional last argument `controlTotalsPath`, lists the totals to check: each
+  needs an import total for its date, segment and currency with the same
+  number of accounts and a balance within 0.005 currency units, never adding
+  currencies. A difference or a key with no total is the new error `E13` and
+  rejects the whole import; malformed rows use `E01`–`E07` and `E09`. The
+  lineage records the file's name, size, rows read and SHA-256, or `none`.
+  `DATA-RECON-01` checks matching totals, a count difference, balances just
+  within and just beyond the tolerance and unknown keys against hand-assigned
+  expected files, in Python and VBA. Existing calls without the argument run no
+  check. Not yet run in Excel (#202).
 - Workbook synchronization and source round trip (#6), following
   VBA-SACCR-Toolkit: `tools/Sync-IRRBB-VBA.ps1` with the launchers
   `Sync-IRRBB-VBA.cmd` (drag a workbook onto it to import the checkout's source)
