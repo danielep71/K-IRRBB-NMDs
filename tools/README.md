@@ -14,6 +14,12 @@ The gate runner checks:
 - source placement, role prefixes of standard modules, LF storage and VBA export headers; every VBA component lies in a directory the synchronizer's `$sourceRoots` list reads, and the document modules in `src/workbook/` match the template's sheets by CodeName (`test_sync_checks.py`);
 - the synchronizer's folder selection, document-module decoding, production/development answer and component sets, run in PowerShell 7 without Excel (`test_sync_script.py`; skipped where `pwsh` is not installed);
 - the export comparison of the source round trip (`test_compare_vba_export.py`);
+- the Excel evidence bundle: `excel_evidence.py` judges each stage from synthetic
+  passing and broken bundles, `write_excel_evidence.py` writes `host.json`,
+  `check_excel_evidence.py` rejects every break, and `Certify-IRRBB.ps1` writes
+  the logs, scenarios and runs the validator expects and never changes a
+  security setting (`test_excel_evidence.py`; the script is parsed where `pwsh`
+  is installed);
 - data-contract fixtures in `tests/` agree with their hand-computed expectations and with `docs/methodology/DATA_CONTRACT.md` (`test_data_contract.py`);
 - the VBA harness: every literal expectation in the `TEST_*Cases` modules agrees with the contract, the harness rules or the template generator, `TEST_Fixtures.bas` equals the output of `devbuild/fixture_module.py`, and the harness registry equals the register in `docs/methodology/TEST_CASES.md` (`test_vba_harness.py`; VBA is read, not run);
 - the development-workbook builder: `vbaProject.bin` read back with an independent [MS-OVBA]/[MS-CFB] decoder (`test_devbuild.py`);
@@ -146,6 +152,21 @@ It requires Windows desktop Excel and Excel's **Trust access to the VBA project
 object model** setting (see [`SECURITY.md`](../SECURITY.md)). The workbook's VBA
 project must not be password-locked. The development-workbook builder above
 remains the route that needs neither.
+
+## Excel evidence session
+
+`Certify-IRRBB.ps1` (or `Certify-IRRBB.cmd`) runs every stage of
+[`docs/EXCEL_EVIDENCE.md`](../docs/EXCEL_EVIDENCE.md#one-command-session) for
+the checked-out commit in Windows Excel and writes a bundle of logs next to the
+checkout. `write_excel_evidence.py` writes its `host.json`;
+`check_excel_evidence.py` validates a bundle offline against the candidate.
+Both use `excel_evidence.py`, which reads every expected value from the
+candidate commit and never runs Excel:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\Certify-IRRBB.ps1
+python tools/check_excel_evidence.py --bundle ..\irrbb-evidence-SHORTSHA --candidate-sha <sha>
+```
 
 ## Source round trip
 

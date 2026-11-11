@@ -100,6 +100,21 @@ Use only the categories needed by a release.
 
 ### Added
 
+- One command runs the Excel evidence session: `tools/Certify-IRRBB.ps1`, with
+  the launcher `tools/Certify-IRRBB.cmd`, certifies the checked-out commit in
+  Windows Excel. It records the host and its security settings without
+  changing them, and checks the template: no repair, its names, CodeNames,
+  validation and print view. It builds and compiles the development workbook
+  and runs the harness and its failure path. It exercises the import
+  (accepted, control totals matching and differing, a pasted invalid window
+  date and attestation, a rerun), synchronizes a workbook from the template,
+  makes the synchronizer fail on purpose and runs the source round trip. Each
+  stage writes its own log, first line `CANDIDATE=`, in a bundle outside the
+  checkout. `tools/write_excel_evidence.py` writes `host.json` from the logs,
+  and `tools/check_excel_evidence.py` validates a bundle offline: source and
+  log digests, and every stage judged again against values read from the
+  candidate commit. The manual procedure stays as the fallback. Not yet run in
+  Excel (#238).
 - The import can reconcile its totals against control totals from the source
   system. An optional third CSV file (`as_of_date,segment,currency,accounts,balance`),
   chosen on `Config` (`Config_ControlTotalsFile`, **Choose control totals file**
