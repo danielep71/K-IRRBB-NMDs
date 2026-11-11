@@ -103,8 +103,9 @@ Use only the categories needed by a release.
 - One command runs the Excel evidence session: `tools/Certify-IRRBB.ps1`, with
   the launcher `tools/Certify-IRRBB.cmd`, certifies the checked-out commit in
   Windows Excel. It records the host and its security settings without
-  changing them, and checks the template: no repair, its names, CodeNames,
-  validation and print view. It builds and compiles the development workbook
+  changing them, and checks the template: no repair, its names, CodeNames
+  and validation, without printing or exporting it, so Excel never waits on a
+  printer. It builds and compiles the development workbook
   and runs the harness and its failure path. It exercises the import
   (accepted, control totals matching and differing, a pasted invalid window
   date and attestation, a rerun), synchronizes a workbook from the template,
