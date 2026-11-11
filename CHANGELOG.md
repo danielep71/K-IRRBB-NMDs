@@ -388,6 +388,14 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- Contract wording matches the code: `DATA_CONTRACT.md` states that a
+  structural break reaches `IRRBB_DecayFit` as a month end, applies to the
+  segment and currency of the call and has its reason recorded by the caller;
+  `WORKBOOK_CONTRACT.md` defines the *Template* owner of `Segments_Codes` and
+  names the three Config buttons of the development workbook; the
+  `IRRBB_ImportData` header asks for 40 lower-case hex digits, as the check
+  accepts. Tests keep the owners and the buttons aligned with the contract
+  (#201).
 - INSTALLATION and the CONTRIBUTING review checklist no longer require Excel
   evidence for every VBA change before merge: as GOVERNANCE states, a VBA
   change records Excel results when run, or states them as not run, and a

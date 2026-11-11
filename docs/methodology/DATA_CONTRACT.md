@@ -246,10 +246,12 @@ month end $t+1$. Its **outcome** is the first of these that applies:
 ### Structural breaks and outliers
 
 The import never alters, removes or winsorizes a value. Outlier candidates are
-flagged (`W04`); structural breaks are declared in the run configuration with a
-date, segment and reason. How flagged values and breaks enter estimation is a
-model setting (issue #9), recorded in the parameter set, never an import side
-effect.
+flagged (`W04`); structural breaks are declared by the caller of a model fit:
+`IRRBB_DecayFit` takes the month ends at which declared breaks end, every break
+applies to the segment and currency of the call, and the caller records the
+reason of each break with the run. How flagged values and breaks enter
+estimation is a model setting (issue #9), recorded in the parameter set, never
+an import side effect.
 
 <a id="look-ahead"></a>
 

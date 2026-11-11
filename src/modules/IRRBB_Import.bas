@@ -76,9 +76,9 @@ Private mRatesSha As String
 '                          by the month end in which they occur (timely closure
 '                          reporting); the import refuses to run otherwise
 '   toolkitCommit    [in]  commit of the toolkit code running the import, as
-'                          stamped on the workbook: 40 hex digits, optionally
-'                          followed by the builder's " (dirty working tree:
-'                          NOT evidence-grade)"; recorded in the lineage
+'                          stamped on the workbook: 40 lower-case hex digits,
+'                          optionally followed by the builder's " (dirty working
+'                          tree: NOT evidence-grade)"; recorded in the lineage
 '   Returns the number of errors; 0 means the panel is accepted.
 '------------------------------------------------------------------------------
 Public Function IRRBB_ImportData(ByVal accountsPath As String, ByVal ratesPath As String, _

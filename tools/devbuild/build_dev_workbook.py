@@ -5,7 +5,8 @@ Usage: python tools/devbuild/build_dev_workbook.py [output.xlsm]
 Default output: build/IRRBB_Dev.xlsm (ignored by Git; never commit it).
 
 The workbook is the macro-free template (tools/workbook/build_template.py)
-with a build stamp on the Readme sheet, a Run tests button on Checks and a VBA
+with a build stamp on the Readme sheet, three buttons on Config (Choose account
+file, Choose rate file, Import data), a Run tests button on Checks and a VBA
 project assembled from one commit: every .bas in src/core, src/modules,
 src/workbook, tests/modules and examples/modules is embedded unchanged (CRLF),
 with the document modules of src/workbook (ThisWorkbook.cls and one .cls per
