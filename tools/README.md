@@ -28,7 +28,7 @@ The gate runner checks:
   `http://` link is an error (`test_check_links.py`);
 - the issue forms and label catalog (`check_issues.py --check-config`): each
   form assigns `danielep71`, sets its provisional priority and requires a
-  target end date and the dependencies, and `blocked` is the only
+  start date, a target end date and the dependencies, and `blocked` is the only
   dependency-status label (`test_check_issues.py`).
 
 CI runs these checks on GitHub's hosted Linux runner. **VBA compile, Excel workbook execution, econometric calibration and numerical result validation are not performed by these gates.** Record Excel host evidence separately under `docs/EXCEL_EVIDENCE.md`.
@@ -200,9 +200,12 @@ manifest and offline fixtures; they change nothing.
 ## Repository settings
 
 `docs/repository-settings.json` is the baseline of the general settings, the
-security features and the rulesets for `main`, `release/**` (one for pull
-requests and checks, one that forbids deletion), the release tags `v*` and
-`traffic-history`; none can be bypassed, by admins included.
+security features, the deployment branches of the `analytics` environment
+(`main` only, [`docs/TRAFFIC.md`](../docs/TRAFFIC.md#credentials-and-access)),
+the CodeQL default setup (`not-configured`, see above) and the rulesets for
+`main`, `release/**` (one for pull requests and checks, one that forbids
+deletion), the release tags `v*` and `traffic-history`; none can be bypassed,
+by admins included.
 `setup_repository.py` compares the saved settings with it through an authenticated GitHub CLI and refuses to run without admin
 rights on the repository:
 
@@ -216,7 +219,11 @@ Every run writes a dated evidence file,
 `test-results/repository-settings-<mode>-<time>.md` unless `--report` names
 another. `--apply` stops before writing when a named ruleset differs, until
 `--update-existing` allows it to replace that whole ruleset. A ruleset the
-baseline does not name is reported and never changed or deleted. Dependabot
+baseline does not name is reported and never changed or deleted. For an
+environment, `--apply` sets the deployment branch policy, keeping its wait
+timer and required reviewers, then adds or deletes branch policies until only
+the baseline branches remain; it never reads or changes environment secrets or
+variables. Dependabot
 security updates stay off: their pull requests target `main`, which takes work
 only through the release branch, and the weekly version updates on the
 release branch cover the pinned actions and tools. `test_setup_repository.py`

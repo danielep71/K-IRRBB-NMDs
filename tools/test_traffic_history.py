@@ -358,6 +358,7 @@ class AlertTests(unittest.TestCase):
                     issue["body"].startswith("Automated traffic alert for **K-IRRBB**.\n"))
                 self.assertIn("\n## Dependencies\n\nNone.\n", issue["body"])
                 self.assertTrue(issue["body"].endswith(
+                    f"\n- Start date: {today} (Europe/Rome)"
                     f"\n- Target end date: {target} (Europe/Rome)"), issue["body"][-80:])
 
 
