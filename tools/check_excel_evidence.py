@@ -6,8 +6,9 @@ Usage: python tools/check_excel_evidence.py --bundle FOLDER [--candidate-sha SHA
 Reads host.json, judges every stage again from the bundle's logs and the
 repository at the candidate commit (tools/excel_evidence.py), recomputes the
 source and log digests and compares all of it with what host.json records.
-Prints every finding and RESULT=PASS or RESULT=FAIL; exit code 0 only for
-PASS. --candidate-sha, when given, must be the commit host.json certifies.
+Prints every finding and RESULT=PASS, RESULT=BEST_EFFORT (every stage passed,
+but not in 64-bit Excel, so it is not certification) or RESULT=FAIL; exit code
+0 only for PASS. --candidate-sha, when given, must be the commit host.json certifies.
 The root must be a Git clone that contains the candidate commit. It never runs
 Excel and cannot prove what a person did; NOT_RUN is never a pass.
 """

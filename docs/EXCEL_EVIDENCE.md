@@ -128,7 +128,10 @@ python tools/check_excel_evidence.py --bundle ../irrbb-evidence-SHORTSHA --candi
 ```
 
 A log changed after the record, a missing log, a stage that did not pass or a
-record that names another commit is `RESULT=FAIL`. Keep a failing bundle as it
+record that names another commit is `RESULT=FAIL`. Only 64-bit Excel certifies
+(see [Bitness](#bitness)): when every stage passes in a 32-bit or unidentified
+Office, the result is `RESULT=BEST_EFFORT`, never `PASS`, and the exit code is
+not 0. Keep a failing bundle as it
 is: a later passing run never replaces it. Attach the bundle's `host.json` and
 the validator's output to the issue or pull request.
 
