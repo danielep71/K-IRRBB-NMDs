@@ -109,6 +109,13 @@ class Template(unittest.TestCase):
             self.assertEqual([self.value("Readme", f"{c}{row}") for c in "ABCDE"],
                              [s.name, s.code_name, s.role, s.owner, s.status])
 
+    def test_every_owner_is_defined(self) -> None:
+        text = CONTRACT.read_text(encoding="utf-8")
+        rule = text.split("- **Owner** is the only writer.", 1)[1].split("\n- ", 1)[0]
+        defined = set(re.findall(r"(?<!\*)\*(\w+)\*(?!\*)", rule))
+        used = {row[3] for row in table("## 📑 Sheets")} | {row[2] for row in table("## 🏷️ Named areas")}
+        self.assertEqual(used - defined, set())
+
     def test_names_match_the_contract(self) -> None:
         documented = {}
         for name, refers, _, _ in table("## 🏷️ Named areas"):
