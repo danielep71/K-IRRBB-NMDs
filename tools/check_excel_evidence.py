@@ -8,7 +8,7 @@ repository at the candidate commit (tools/excel_evidence.py), recomputes the
 source and log digests and compares all of it with what host.json records.
 Prints every finding and RESULT=PASS, RESULT=BEST_EFFORT (every stage passed,
 but not in 64-bit Excel, so it is not certification) or RESULT=FAIL; exit code
-0 only for PASS. --candidate-sha, when given, must be the commit host.json certifies.
+0 for PASS, 3 for BEST_EFFORT, 1 for FAIL. --candidate-sha, when given, must be the commit host.json certifies.
 The root must be a Git clone that contains the candidate commit. It never runs
 Excel and cannot prove what a person did; NOT_RUN is never a pass.
 """
@@ -18,7 +18,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from excel_evidence import validate
+from excel_evidence import EXIT_CODES, validate
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -31,7 +31,7 @@ def main(argv: list[str] | None = None) -> int:
     for finding in findings:
         print(f"- {finding}")
     print(f"RESULT={result}")
-    return 0 if result == "PASS" else 1
+    return EXIT_CODES.get(result, 1)
 
 
 if __name__ == "__main__":
