@@ -17,6 +17,7 @@ import re
 import subprocess
 import sys
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -49,6 +50,33 @@ Plan = list[tuple[str, str, Json]]
 
 class SetupError(Exception):
     pass
+
+
+class Unknown:
+    """A managed value that could not be read. `==` is never true for it, itself included, so
+    an unread value is never taken as matching the baseline."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+
+    def __eq__(self, other: object) -> bool:
+        return False
+
+    __hash__ = object.__hash__
+
+    def __str__(self) -> str:
+        return f"unknown ({self.reason})"
+
+
+@dataclass
+class Reading:
+    """The writes that would reach the baseline, and the managed values that could not be read."""
+    metadata: dict[str, Json]
+    plan: Plan
+    unknown: dict[str, Unknown] = field(default_factory=dict)
+
+    def verified(self) -> bool:
+        return not self.plan and not self.unknown
 
 
 def api(method: str, endpoint: str, payload: Json = None) -> Json:
@@ -96,8 +124,9 @@ def canonical(value: Json) -> Json:
 
 
 def rule_spec(rule: dict[str, Json]) -> Json:
-    # Ignore response metadata, but keep unknown rules and parameters in the comparison.
-    return canonical({k: rule.get(k, [] if k == "bypass_actors" else None) for k in RULE_KEYS})
+    # Ignore response metadata, but keep unknown rules and parameters in the comparison. A field
+    # the response omits is unknown: GitHub returns bypass_actors only to callers who may see it.
+    return canonical({k: rule[k] if k in rule else Unknown(f"{k} not returned") for k in RULE_KEYS})
 
 
 def check_ruleset(rule: dict[str, Json]) -> None:
@@ -151,8 +180,7 @@ def load_config(path: Path) -> dict[str, Json]:
     return dict(value)
 
 
-def inspect(call: Call, repo: str, config: dict[str, Json],
-            report: bool = True) -> tuple[dict[str, Json], Plan]:
+def inspect(call: Call, repo: str, config: dict[str, Json], report: bool = True) -> Reading:
     root = f"repos/{repo}"
     metadata = call("GET", root)
     if metadata.get("archived") or metadata.get("disabled"):
@@ -168,6 +196,7 @@ def inspect(call: Call, repo: str, config: dict[str, Json],
     if report:
         report_unmanaged(call, root, current, config)
     plan: Plan = []
+    unknown: dict[str, Unknown] = {}
     for desired in config["rulesets"]:
         matches = [r for r in current if r["name"] == desired["name"]]
         if len(matches) > 1:
@@ -176,7 +205,12 @@ def inspect(call: Call, repo: str, config: dict[str, Json],
             plan.append(("POST", root + "/rulesets", desired))
         else:
             endpoint = root + "/rulesets/" + str(matches[0]["id"])
-            if rule_spec(call("GET", endpoint)) != rule_spec(desired):
+            live = rule_spec(call("GET", endpoint))
+            omitted = [k for k in RULE_KEYS if isinstance(live[k], Unknown)]
+            if omitted:
+                unknown[f'ruleset "{desired["name"]}"'] = Unknown(
+                    f"{', '.join(omitted)} not returned by GET {endpoint}")
+            elif live != rule_spec(desired):
                 plan.append(("PUT", endpoint, desired))
     plan += security_plan(call, root, metadata, config, report)
     for name, environment in config["environments"].items():
@@ -193,7 +227,7 @@ def inspect(call: Call, repo: str, config: dict[str, Json],
     # Protection first, then the general settings.
     if changes:
         plan.append(("PATCH", root, changes))
-    return metadata, plan
+    return Reading(metadata, plan, unknown)
 
 
 def missing(call: Call, endpoint: str) -> tuple[Json, bool]:
@@ -351,10 +385,11 @@ def cell(value: Json) -> str:
     return "on" if value is True else "off" if value is False else str(value)
 
 
-def evidence(call: Call, repo: str, config: dict[str, Json], metadata: dict[str, Json],
-             plan: Plan, mode: str, now: datetime) -> str:
+def evidence(call: Call, repo: str, config: dict[str, Json], reading: Reading, mode: str,
+             now: datetime) -> str:
     """A dated Markdown record of the managed settings as GitHub reports them."""
     root = f"repos/{repo}"
+    metadata, plan = reading.metadata, reading.plan
     public = metadata.get("visibility") == "public"
     differs = {endpoint for method, endpoint, _ in plan if method == "PUT" and "/rulesets/" in endpoint}
     created = {payload["name"] for method, endpoint, payload in plan
@@ -368,7 +403,7 @@ def evidence(call: Call, repo: str, config: dict[str, Json], metadata: dict[str,
              f"`tools/setup_repository.py` ({mode})",
              f"- Repository: `{metadata['full_name']}`; visibility: {metadata['visibility']}; "
              f"default branch: `{metadata['default_branch']}`",
-             f"- Result: **{'VERIFIED' if not plan else 'DRIFT'}**", "",
+             f"- Result: **{'VERIFIED' if reading.verified() else 'DRIFT'}**", "",
              "## General settings", "", "| Setting | Baseline | Observed |", "| --- | --- | --- |"]
     lines += [f"| `{key}` | {cell(value)} | {cell(metadata.get(key))} |"
               for key, value in config["repository"].items()]
@@ -392,7 +427,10 @@ def evidence(call: Call, repo: str, config: dict[str, Json], metadata: dict[str,
     lines += ["", "## Managed rulesets", "", "| Ruleset | ID | Status |", "| --- | --- | --- |"]
     for rule in config["rulesets"]:
         match = next((r for r in current if r["name"] == rule["name"]), None)
-        if rule["name"] in created or match is None:
+        unread = reading.unknown.get(f'ruleset "{rule["name"]}"')
+        if unread is not None and match is not None:
+            lines.append(f"| {rule['name']} | {match['id']} | {unread} |")
+        elif rule["name"] in created or match is None:
             lines.append(f"| {rule['name']} | — | missing |")
         else:
             status = "differs" if f"{root}/rulesets/{match['id']}" in differs else "matches"
@@ -445,23 +483,34 @@ def print_plan(plan: Plan) -> None:
             print(json.dumps(payload, indent=2))
 
 
+def unread(unknown: dict[str, Unknown]) -> str:
+    return "; ".join(f"{label}: {value.reason}" for label, value in unknown.items())
+
+
 def run(args: argparse.Namespace, call: Call = api, now: datetime | None = None) -> int:
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_.-]+", args.repo) \
             or args.repo.split("/")[1] in (".", ".."):
         raise SetupError("The repository must be an explicit owner/name on github.com.")
     config = load_config(args.config)
-    metadata, plan = inspect(call, args.repo, config)
+    reading = inspect(call, args.repo, config)
+    metadata, plan = reading.metadata, reading.plan
     mode = "apply" if args.apply else "check" if args.check else "preview"
     stamp = now or datetime.now(timezone.utc)
     path = evidence_path(args.report, mode, stamp)
+    if args.apply and reading.unknown:
+        # Never change or certify a setting on a reading that misses part of it.
+        raise SetupError(f"Nothing was changed: these managed values could not be read: "
+                         f"{unread(reading.unknown)}.")
     if not args.apply or not plan:
-        write_evidence(path, evidence(call, args.repo, config, metadata, plan, mode, stamp))
-    if not plan:
+        write_evidence(path, evidence(call, args.repo, config, reading, mode, stamp))
+    if reading.verified():
         print("VERIFIED: every setting in the baseline matches.")
         return 0
     print_plan(plan)
+    for label, value in reading.unknown.items():
+        print(f"UNKNOWN: {label}: {value.reason}")
     if args.check:
-        print("DRIFT: the saved settings differ from the baseline.")
+        print("DRIFT: the saved settings differ from the baseline or could not be read.")
         return 1
     if not args.apply:
         print("PREVIEW ONLY: nothing was changed. Use --apply to make these changes.")
@@ -474,9 +523,9 @@ def run(args: argparse.Namespace, call: Call = api, now: datetime | None = None)
     for method, endpoint, payload in plan:
         call(method, endpoint, payload)
         print(f"Applied {method} {endpoint}")
-    metadata, remaining = inspect(call, args.repo, config, report=False)
-    write_evidence(path, evidence(call, args.repo, config, metadata, remaining, mode, stamp))
-    if remaining:
+    remaining = inspect(call, args.repo, config, report=False)
+    write_evidence(path, evidence(call, args.repo, config, remaining, mode, stamp))
+    if not remaining.verified():
         raise SetupError("Read-back failed; run the preview to inspect the remaining differences.")
     print("VERIFIED: every setting in the baseline matches after apply.")
     return 0
