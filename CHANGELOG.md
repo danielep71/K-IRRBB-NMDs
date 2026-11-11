@@ -411,6 +411,14 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The pull-request milestone guard (`.github/scripts/pr-milestones.py`) appends
+  to the job summary a table of each pull request and the title of the
+  milestone removed from it, or a line saying none was removed, instead of
+  only a count in the log. Titles are written as data: backslashes and pipes
+  are escaped and line breaks become spaces, so a title cannot break the
+  table. `tools/test_pr_milestones.py` covers the summary, including a title
+  with a pipe, a backslash and line breaks (#225).
+
 - Contract wording matches the code: `DATA_CONTRACT.md` states that a
   structural break reaches `IRRBB_DecayFit` as a month end, applies to the
   segment and currency of the call and has its reason recorded by the caller;
