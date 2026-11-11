@@ -182,7 +182,12 @@ def inspect(call: Call, repo: str, config: dict[str, Json],
     for name, environment in config["environments"].items():
         plan += environment_plan(call, root, name, environment["deployment_branches"])
     desired_setup = config["code_scanning_default_setup"]
-    if default_setup(call, root) != desired_setup:
+    observed_setup = default_setup(call, root, metadata)
+    if observed_setup is None:
+        if report:
+            print("NOTE: code scanning is not available on this private repository; the CodeQL "
+                  "default setup cannot be on and is not checked.")
+    elif observed_setup != desired_setup:
         plan.append(("PATCH", root + "/code-scanning/default-setup", {"state": desired_setup}))
     changes = {k: v for k, v in config["repository"].items() if metadata.get(k) != v}
     # Protection first, then the general settings.
@@ -314,8 +319,17 @@ def describe_environment(call: Call, root: str, name: str) -> str:
                             else f"{p['name']} ({p['type']})" for p in policies)) or "none"
 
 
-def default_setup(call: Call, root: str) -> str:
-    return str((call("GET", root + "/code-scanning/default-setup") or {}).get("state"))
+def default_setup(call: Call, root: str, metadata: dict[str, Json]) -> str | None:
+    """The CodeQL default-setup state; None when code scanning is unavailable, which GitHub
+    answers with 403 or 404 on a private repository without Code Security. On a public
+    repository those statuses are real failures."""
+    try:
+        return str((call("GET", root + "/code-scanning/default-setup") or {}).get("state"))
+    except SetupError as error:
+        if metadata.get("visibility") != "public" and \
+                any(f"(HTTP {status})" in str(error) for status in (403, 404)):
+            return None
+        raise
 
 
 def report_unmanaged(call: Call, root: str, current: list[Json], config: dict[str, Json]) -> None:
@@ -372,8 +386,9 @@ def evidence(call: Call, repo: str, config: dict[str, Json], metadata: dict[str,
     lines += [f"| `{name}` deployment branches | {', '.join(environment['deployment_branches'])} | "
               f"{describe_environment(call, root, name)} |"
               for name, environment in config["environments"].items()]
+    setup_state = default_setup(call, root, metadata)
     lines.append(f"| `code_scanning_default_setup` | {config['code_scanning_default_setup']} | "
-                 f"{default_setup(call, root)} |")
+                 f"{'not available (code scanning unavailable)' if setup_state is None else setup_state} |")
     lines += ["", "## Managed rulesets", "", "| Ruleset | ID | Status |", "| --- | --- | --- |"]
     for rule in config["rulesets"]:
         match = next((r for r in current if r["name"] == rule["name"]), None)

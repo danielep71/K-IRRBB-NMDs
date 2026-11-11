@@ -38,6 +38,7 @@ class FakeAPI:
         self.branch_policies: dict[str, list[dict[str, Any]]] = {}
         self.next_policy = 100
         self.default_setup = "configured"
+        self.scanning_status: int | None = None
 
     def not_found(self, endpoint: str) -> Any:
         raise setup.SetupError(f"GET {endpoint} failed (HTTP 404). Check gh authentication.")
@@ -118,6 +119,8 @@ class FakeAPI:
             return self.environment(method, endpoint, payload)
         if endpoint.endswith("/code-scanning/default-setup"):
             if method == "GET":
+                if self.scanning_status is not None:
+                    raise setup.SetupError(f"GET {endpoint} failed (HTTP {self.scanning_status}).")
                 return {"state": self.default_setup, "languages": []}
             self.writes.append((method, endpoint, copy.deepcopy(payload)))
             self.default_setup = payload["state"]
@@ -291,6 +294,31 @@ class SetupTests(unittest.TestCase):
         self.assertIn("apply only to public repositories", output)
         self.assertFalse(any("private-vulnerability" in endpoint or "security_and_analysis" in str(payload)
                              for _, endpoint, payload in self.api.writes))
+
+    def test_private_repositories_without_code_scanning_skip_the_default_setup(self) -> None:
+        self.api.repo["visibility"] = "private"
+        for status in (403, 404):
+            with self.subTest(status=status):
+                self.api.scanning_status = status
+                self.api.writes.clear()
+                code, output = self.run_setup()
+                self.assertEqual(code, 0)
+                self.assertIn("code scanning is not available", output)
+                self.assertIn("| `code_scanning_default_setup` | not-configured | "
+                              "not available (code scanning unavailable) |",
+                              self.report.read_text(encoding="utf-8"))
+                self.args.apply = True
+                self.run_setup()
+                self.args.apply = False
+                self.assertFalse(any("code-scanning" in endpoint for _, endpoint, _ in self.api.writes))
+
+    def test_code_scanning_errors_fail_on_public_repositories_and_for_other_statuses(self) -> None:
+        for visibility, status in (("public", 403), ("public", 404), ("private", 401)):
+            with self.subTest(visibility=visibility, status=status):
+                self.api.repo["visibility"] = visibility
+                self.api.scanning_status = status
+                with self.assertRaisesRegex(setup.SetupError, rf"HTTP {status}"):
+                    self.run_setup()
 
     def test_dependent_security_features_are_rejected(self) -> None:
         config = setup.load_config(setup.CONFIG)
