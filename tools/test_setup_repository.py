@@ -332,6 +332,42 @@ class SetupTests(unittest.TestCase):
             self.run_setup()
         self.assertEqual(self.api.writes, [])
 
+    def test_a_value_unreadable_on_the_evidence_reading_is_never_verified(self) -> None:
+        # The evidence reads some values again; one refused only then still voids the result.
+        self.args.apply = True
+        self.assertEqual(self.run_setup()[0], 0)
+        api = self.api
+        for target in ("code-scanning/default-setup", "environments/analytics",
+                       "rulesets?includes_parents=false", "vulnerability-alerts"):
+            for apply in (False, True):
+                with self.subTest(target=target, apply=apply):
+                    seen = {"reads": 0}
+
+                    def flaky(method: str, endpoint: str, payload: Any = None,
+                              target: str = "repos/owner/repo/" + target,
+                              seen: dict[str, int] = seen) -> Any:
+                        if method == "GET" and (endpoint == target or endpoint.startswith(target + "&")):
+                            seen["reads"] += 1
+                            if seen["reads"] > 1:
+                                raise setup.SetupError(f"GET {endpoint} failed (HTTP 403).")
+                        return api(method, endpoint, payload)
+
+                    self.api.writes.clear()
+                    self.args.apply, self.args.check = apply, not apply
+                    output = io.StringIO()
+                    with redirect_stdout(output):
+                        if apply:
+                            with self.assertRaisesRegex(setup.SetupError, "second reading"):
+                                setup.run(self.args, flaky, NOW)
+                        else:
+                            self.assertEqual(setup.run(self.args, flaky, NOW), 1)
+                    text = self.report.read_text(encoding="utf-8")
+                    self.assertIn("- Result: **DRIFT**", text)
+                    self.assertIn("HTTP 403) |", text)
+                    if not apply:
+                        self.assertIn("UNKNOWN:", output.getvalue())
+                    self.assertEqual(self.api.writes, [])
+
     def test_a_failed_required_check_blocks_every_write(self) -> None:
         self.args.apply = True
         self.api.green = False

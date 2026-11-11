@@ -399,11 +399,11 @@ def environment_plan(call: Call, root: str, name: str, branches: list[str],
     return plan
 
 
-def describe_environment(call: Call, root: str, name: str) -> str:
+def describe_environment(call: Call, root: str, name: str) -> str | Unknown:
     environment, policies = environment_state(call, root, name)
     for value in (environment, policies):
         if isinstance(value, Unknown):
-            return str(value)
+            return value
     if environment is None:
         return "missing"
     if policies is None:
@@ -447,8 +447,17 @@ def cell(value: Json) -> str:
 
 def evidence(call: Call, repo: str, config: dict[str, Json], reading: Reading, mode: str,
              now: datetime) -> str:
-    """A dated Markdown record of the managed settings as GitHub reports them."""
+    """A dated Markdown record of the managed settings as GitHub reports them. A managed value
+    that inspection read but this second reading cannot is added to reading.unknown, so neither
+    the record nor the run certifies it."""
     root = f"repos/{repo}"
+    late: dict[str, Unknown] = {}
+
+    def seen(label: str, value: Any) -> Any:
+        if isinstance(value, Unknown) and label not in reading.unknown:
+            late[label] = value
+        return value
+
     metadata, plan = reading.metadata, reading.plan
     public = metadata.get("visibility") == "public"
     differs = {endpoint for method, endpoint, _ in plan if method == "PUT" and "/rulesets/" in endpoint}
@@ -457,13 +466,12 @@ def evidence(call: Call, repo: str, config: dict[str, Json], reading: Reading, m
     current = attempt(lambda: pages(call, root + "/rulesets?includes_parents=false"))
     inherited = attempt(lambda: pages(call, root + "/rulesets?includes_parents=true"))
     managed = {rule["name"] for rule in config["rulesets"]}
-    lines = ["# Repository settings evidence", "",
-             f"- Checked: **{now.strftime('%Y-%m-%dT%H:%M:%SZ')}** with "
-             f"`tools/setup_repository.py` ({mode})",
-             f"- Repository: `{metadata['full_name']}`; visibility: {metadata['visibility']}; "
-             f"default branch: `{metadata['default_branch']}`",
-             f"- Result: **{'VERIFIED' if reading.verified() else 'DRIFT'}**", "",
-             "## General settings", "", "| Setting | Baseline | Observed |", "| --- | --- | --- |"]
+    head = ["# Repository settings evidence", "",
+            f"- Checked: **{now.strftime('%Y-%m-%dT%H:%M:%SZ')}** with "
+            f"`tools/setup_repository.py` ({mode})",
+            f"- Repository: `{metadata['full_name']}`; visibility: {metadata['visibility']}; "
+            f"default branch: `{metadata['default_branch']}`"]
+    lines = ["", "## General settings", "", "| Setting | Baseline | Observed |", "| --- | --- | --- |"]
     lines += [f"| `{key}` | {cell(value)} | {cell(reading.unknown.get(f'`{key}`', metadata.get(key)))} |"
               for key, value in config["repository"].items()]
     lines += ["", "## Security features", "", "| Feature | Baseline | Observed |", "| --- | --- | --- |"]
@@ -474,14 +482,14 @@ def evidence(call: Call, repo: str, config: dict[str, Json], reading: Reading, m
                 and security_fixes(call, root, is_admin(metadata)) == (True, True):
             observed = "on (paused)"
         else:
-            observed = cell(security_state(call, root, metadata, feature))
+            observed = cell(seen(f"`{feature}`", security_state(call, root, metadata, feature)))
         lines.append(f"| `{feature}` | {cell(value)} | {observed} |")
     lines += ["", "## Environments and code scanning", "", "| Setting | Baseline | Observed |",
               "| --- | --- | --- |"]
     lines += [f"| `{name}` deployment branches | {', '.join(environment['deployment_branches'])} | "
-              f"{describe_environment(call, root, name)} |"
+              f"{cell(seen(f'`{name}` deployment branches', describe_environment(call, root, name)))} |"
               for name, environment in config["environments"].items()]
-    setup_state = default_setup(call, root, metadata)
+    setup_state = seen("`code_scanning_default_setup`", default_setup(call, root, metadata))
     lines.append(f"| `code_scanning_default_setup` | {config['code_scanning_default_setup']} | "
                  f"{'not available (code scanning unavailable)' if setup_state is None else cell(setup_state)} |")
     lines += ["", "## Managed rulesets", "", "| Ruleset | ID | Status |", "| --- | --- | --- |"]
@@ -489,6 +497,8 @@ def evidence(call: Call, repo: str, config: dict[str, Json], reading: Reading, m
         match = None if isinstance(current, Unknown) else \
             next((r for r in current if r["name"] == rule["name"]), None)
         unread = reading.unknown.get(f'ruleset "{rule["name"]}"')
+        if unread is None and isinstance(current, Unknown):
+            unread = seen(f'ruleset "{rule["name"]}"', current)
         if unread is not None:
             lines.append(f"| {rule['name']} | {match['id'] if match else '—'} | {unread} |")
         elif rule["name"] in created or match is None:
@@ -505,7 +515,9 @@ def evidence(call: Call, repo: str, config: dict[str, Json], reading: Reading, m
               f"- Unmanaged repository rulesets: {unmanaged}",
               f"- Inherited rulesets: {others}",
               "", "Settings outside the baseline are not recorded here."]
-    return "\n".join(lines) + "\n"
+    reading.unknown.update(late)
+    head.append(f"- Result: **{'VERIFIED' if reading.verified() else 'DRIFT'}**")
+    return "\n".join(head + lines) + "\n"
 
 
 def evidence_path(report: Path | None, mode: str, now: datetime) -> Path:
@@ -570,6 +582,9 @@ def run(args: argparse.Namespace, call: Call = api, now: datetime | None = None)
                          f"{unread(reading.unknown)}.")
     if not args.apply or not plan:
         write_evidence(path, evidence(call, args.repo, config, reading, mode, stamp))
+        if args.apply and reading.unknown:
+            raise SetupError(f"Nothing was changed: these managed values could not be read on "
+                             f"the second reading: {unread(reading.unknown)}.")
     if reading.verified():
         print("VERIFIED: every setting in the baseline matches.")
         return 0
