@@ -60,8 +60,6 @@ short-lived installation token in each run:
    variable `TRAFFIC_APP_CLIENT_ID` and a newly generated private key as the
    secret `TRAFFIC_APP_PRIVATE_KEY`.
 4. Run the workflow once from `main` and confirm both jobs succeed.
-5. Then delete the earlier `TRAFFIC_TOKEN` environment secret and revoke the
-   fine-grained personal access token it held; the workflow no longer reads it.
 
 A run without the variable or the secret fails at its first step that needs
 them, with a message naming both.
