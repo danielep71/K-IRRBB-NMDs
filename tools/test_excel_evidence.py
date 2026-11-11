@@ -388,6 +388,11 @@ class ScriptShapeTests(unittest.TestCase):
             self.assertNotIn(forbidden, self.text)
         self.assertIn("This script never changes it.", self.text)
 
+    def test_cell_arrays_are_read_with_their_true_bounds(self) -> None:
+        # Excel's Value2 arrays start at 1; PowerShell's own indexer counts from 0.
+        self.assertNotRegex(self.text, r"\$data\[")
+        self.assertIn("GetValue(", self.text)
+
     def test_the_script_never_waits_on_a_printer(self) -> None:
         # Exporting or printing makes Excel query the default printer, which can stall a run.
         for call in ("ExportAsFixedFormat", "PrintOut", "PrintPreview", "PageSetup", "ActivePrinter"):

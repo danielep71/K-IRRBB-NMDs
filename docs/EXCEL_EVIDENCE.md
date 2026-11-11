@@ -95,7 +95,7 @@ first line `CANDIDATE=` and the SHA:
 | --- | --- |
 | `template.log` | Opens the macro-free template read-only: no repair, its sheets, CodeNames, defined names and title font, and every validated cell refusing an invalid value and accepting a valid one. Nothing is printed or exported, so Excel never waits on a printer; the print view stays a manual check |
 | `build.log` | Builds `IRRBB_Dev.xlsm` in the bundle with the [development builder](../INSTALLATION.md#development-workbook) (stage 1) |
-| `harness.log` | Opens it in a visible Excel that follows the macro setting, compiles it (stage 2) and runs the harness (stage 3) |
+| `harness.log` | Opens it in a visible Excel with its macros enabled for that Excel session only, compiles it (stage 2) and runs the harness (stage 3) |
 | `failure.log` | The four runs of [stage 4](#4-failure-path) |
 | `import.log` | **Import data** with the synthetic fixtures: accepted; control totals that match and that differ; a window date and an attestation pasted past the validation; a rerun. Each later result must withdraw the earlier one |
 | `sync.log` | The template saved as `IRRBB_Sync.xlsm`, synchronized with `Sync-IRRBB-VBA.ps1 -Mode Development`, compiled and run through the harness |
@@ -107,9 +107,12 @@ and after every run. The development workbook is closed without saving
 (stage 5). The script then writes `session.json` and runs
 `tools/write_excel_evidence.py`, which judges every stage from the logs,
 writes `host.json` and validates the bundle; the exit code is 0 only for
-`PASS`. The operator clicks **Enable Content** when Excel asks, once for each
-workbook, and otherwise leaves Excel alone until the run ends: a click in a
-sheet during a run can change the state it records.
+`PASS`. The two workbooks the script builds open with their macros enabled
+for that Excel session only (`AutomationSecurity` low): the Trust Center
+setting is recorded as found and not changed. Should the macros still not
+run, the script asks the operator to click **Enable Content**. Otherwise the
+operator leaves Excel alone until the run ends: a click in a sheet during a
+run can change the state it records.
 
 `host.json` binds the record: the candidate, the environment with
 `trust_changes: false`, the SHA-256 of every source the workbook is built from
@@ -157,7 +160,8 @@ The smoke run shows that the built workbook works end to end on synthetic
 data, not that the models are correct. It consists of:
 
 1. opening the saved workbook afresh with macros enabled through the existing
-   trust mechanism;
+   trust mechanism, or, in the [one-command session](#one-command-session),
+   for that Excel session only;
 2. running the harness entry point `TEST_Harness.RunTests` (the **Run tests**
    button on `Checks`) and copying its status block (`Checks!A3:B11`) and case
    table (`Checks!A13:F48`) into the log; and

@@ -15,9 +15,10 @@ For the commit checked out in this repository, with a clean working tree:
    valid one) (template.log). Nothing is printed or exported, so Excel never
    waits on a printer;
 4. builds the development workbook with tools\devbuild\build_dev_workbook.py
-   (build.log), opens it in a visible Excel that follows the Trust Center macro
-   setting and, when the macros are disabled, asks the operator to click
-   Enable Content;
+   (build.log) and opens it in a visible Excel with its macros enabled for
+   that Excel session only (AutomationSecurity "low"): the Trust Center is
+   neither read for it nor changed. Should the macros still not run, it asks
+   the operator to click Enable Content;
 5. records the references, compiles the project (Debug > Compile VBAProject)
    and runs the harness (harness.log), its failure path: injected failures,
    a rerun, an injected write fault and a final run (failure.log), and the
@@ -72,7 +73,7 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 }
 $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
 
-$msoAutomationSecurityByUI = 2
+$msoAutomationSecurityLow = 1
 $msoAutomationSecurityForceDisable = 3
 $compileControlId = 578
 $xlOpenXMLWorkbookMacroEnabled = 52
@@ -219,14 +220,17 @@ function Get-Rows {
         $rows.Add((ConvertTo-EvidenceText $data))
         return ,$rows
     }
-    $rowCount = $data.GetLength(0)
-    $colCount = $data.GetLength(1)
-    for ($r = 1; $r -le $rowCount; $r++) {
-        $first = ConvertTo-EvidenceText $data[$r, 1]
+    # Value2 is a 1-based two-dimensional array; GetValue takes its true indices,
+    # where PowerShell's own indexer would count from 0.
+    $firstColumn = $data.GetLowerBound(1)
+    for ($r = $data.GetLowerBound(0); $r -le $data.GetUpperBound(0); $r++) {
+        $first = ConvertTo-EvidenceText $data.GetValue($r, $firstColumn)
         if ($first -eq "") {
             continue
         }
-        $cells = for ($c = 1; $c -le $colCount; $c++) { ConvertTo-EvidenceText $data[$r, $c] }
+        $cells = for ($c = $firstColumn; $c -le $data.GetUpperBound(1); $c++) {
+            ConvertTo-EvidenceText $data.GetValue($r, $c)
+        }
         $rows.Add(($cells -join "|"))
     }
     # The comma keeps an empty list a list: unrolled, it would arrive as $null.
@@ -238,8 +242,12 @@ function Get-Column {
     param($Book, [string]$Name)
     $data = (Get-Area -Book $Book -Name $Name).Value2
     $out = New-Object System.Collections.Generic.List[string]
-    for ($r = 1; $r -le $data.GetLength(0); $r++) {
-        $out.Add((ConvertTo-EvidenceText $data[$r, 1]))
+    if (-not ($data -is [System.Array])) {
+        $out.Add((ConvertTo-EvidenceText $data))
+        return ,$out
+    }
+    for ($r = $data.GetLowerBound(0); $r -le $data.GetUpperBound(0); $r++) {
+        $out.Add((ConvertTo-EvidenceText $data.GetValue($r, $data.GetLowerBound(1))))
     }
     return ,$out
 }
@@ -553,7 +561,7 @@ $excel = $null
 $book = $null
 if ($buildCode -eq 0 -and (Test-Path -LiteralPath $devPath)) {
     try {
-        $excel = New-Excel -Visible $true -Security $msoAutomationSecurityByUI
+        $excel = New-Excel -Visible $true -Security $msoAutomationSecurityLow
         $book = $excel.Workbooks.Open($devPath)
         $qualified = "'" + $book.Name + "'!"
         Wait-Macros -App $excel -Qualified $qualified
@@ -651,7 +659,7 @@ $excel = $null
 $book = $null
 if ($syncCode -eq 0) {
     try {
-        $excel = New-Excel -Visible $true -Security $msoAutomationSecurityByUI
+        $excel = New-Excel -Visible $true -Security $msoAutomationSecurityLow
         $book = $excel.Workbooks.Open($syncPath)
         $qualified = "'" + $book.Name + "'!"
         Wait-Macros -App $excel -Qualified $qualified
