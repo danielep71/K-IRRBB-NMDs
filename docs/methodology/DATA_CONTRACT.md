@@ -397,7 +397,7 @@ or reference may be used at runtime.
 | [`tests/expected/data_contract/accounts_summary.json`](../../tests/expected/data_contract/accounts_summary.json) | Hand-computed totals per date, segment and currency, and every expected warning |
 | [`tests/expected/data_contract/accounts_invalid_findings.json`](../../tests/expected/data_contract/accounts_invalid_findings.json) | Expected first error per invalid line |
 | [`tests/fixtures/data_contract/control_totals.csv`](../../tests/fixtures/data_contract/control_totals.csv) | The 23 totals of `accounts.csv`, unchanged |
-| `tests/fixtures/data_contract/control_totals_*.csv` | Balances 0.0049 from the total (`within`), 0.0051 from it (`balance`), a count difference and EUR plus USD added (`count`), keys with no import total (`unknown`), and one row per format rule, a balance at the 1E+11 limit included (`invalid`) |
+| `tests/fixtures/data_contract/control_totals_*.csv` | Balances 0.0049 and exactly 0.0050 from the total (`within`, the tolerance included), 0.0051 from it (`balance`), a count difference and EUR plus USD added (`count`), keys with no import total (`unknown`), and one row per format rule, a balance at the 1E+11 limit included (`invalid`) |
 | [`tests/expected/data_contract/control_totals_findings.json`](../../tests/expected/data_contract/control_totals_findings.json) | Expected findings per control-totals file against `accounts.csv`, with the steps of the hand assignment |
 
 The fixtures are hand-constructed; the expected values were computed by hand

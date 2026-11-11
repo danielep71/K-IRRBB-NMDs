@@ -8,4 +8,4 @@ Decay cases: fixtures and their generator in `fixtures/decay/`; independent expe
 
 Synthetic fixtures for the data contract are in `fixtures/data_contract/`, with hand-computed expectations in `expected/data_contract/`; `tools/test_data_contract.py` keeps them consistent with [`docs/methodology/DATA_CONTRACT.md`](../docs/methodology/DATA_CONTRACT.md).
 
-No Excel test run is recorded yet, and no numerical model test passes are claimed. Do not commit actual customer records or proprietary benchmarks.
+The harness passed in Windows Excel 64-bit on `32ff849` (22 PASS, 14 NOT RUN; [`docs/EXCEL_EVIDENCE.md`](../docs/EXCEL_EVIDENCE.md)); no numerical model is claimed as validated. Do not commit actual customer records or proprietary benchmarks.

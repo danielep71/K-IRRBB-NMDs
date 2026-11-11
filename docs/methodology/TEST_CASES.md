@@ -4,7 +4,7 @@
 
 ### Registered reference cases for every model, with independent provenance and tolerances
 
-[![Status](https://img.shields.io/badge/Cases-decay_built%2C_others_registered-d97706?style=flat-square)](#register)
+[![Status](https://img.shields.io/badge/Cases-22_built%2C_14_registered-d97706?style=flat-square)](#register)
 [![Rule](https://img.shields.io/badge/Rule-no_self--validation-6f42c1?style=flat-square)](#provenance)
 
 </div>
@@ -24,8 +24,8 @@ evidence protocol is in [`VALIDATION_PLAN.md`](VALIDATION_PLAN.md).
 > implementation run by `TEST_Harness.RunTests` in Excel; their literal
 > expectations are checked without Excel by `tools/test_vba_harness.py`; the
 > decay expectations are generated into `tests/modules/TEST_DecayData.bas` and
-> checked against their expected files by the same tool. No
-> Excel run is recorded yet. A case moves to *built* when its fixture and
+> checked against their expected files by the same tool. The built cases
+> passed in Windows Excel 64-bit on `32ff849`. A case moves to *built* when its fixture and
 > expected file are committed with their provenance; the harness registry in
 > `tests/modules/TEST_Harness.bas` lists every ID here, in this order.
 
