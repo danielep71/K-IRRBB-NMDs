@@ -13,6 +13,11 @@ Attribute VB_Name = "EX_DecayExample"
 '   (DATA_CONTRACT.md) and uses the workbook template of issue #5. This sheet
 '   holds a synthetic summary series only, for demonstration.
 '
+' WORKBOOK CONTRACT
+'   The sheet "DecayExample" is not part of docs/WORKBOOK_CONTRACT.md, so it
+'   is addressed by tab name and literal cells: the contract's exception for
+'   example code. No contract sheet or defined name is read or written.
+'
 ' FAILURE POLICY
 '   Outputs are withdrawn before the run; on failure they stay withdrawn and
 '   the status shows FAILED with the primary error (and any cleanup error).

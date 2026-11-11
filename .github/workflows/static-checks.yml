@@ -97,7 +97,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           set -o pipefail
-          ruff check tools 2>&1 | tee test-results/ruff.txt
+          ruff check tools .github/scripts 2>&1 | tee test-results/ruff.txt
           # Prove the complexity ceiling in pyproject.toml is active: a synthetic
           # complexity-15 function passes and one at 16 is rejected.
           probe() {

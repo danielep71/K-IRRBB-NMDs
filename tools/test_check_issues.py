@@ -21,14 +21,15 @@ ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = "owner/repo"
 PERSON = "danielep71"
 CATALOG = check_issues.catalog_labels(ROOT)
-READY = "## Problem\n\nx\n\n## Dependencies\n\nNone.\n\n- Target end date: {} (Europe/Rome)\n"
+READY = ("## Problem\n\nx\n\n## Dependencies\n\nNone.\n\n- Start date: {} (Europe/Rome)\n"
+         "- Target end date: {} (Europe/Rome)\n")
 
 
 def issue(number: int, *labels: str, body: str | None = None, target: str = "2026-11-10",
-          assignees: tuple[str, ...] = (PERSON,), milestone: str | None = "v0.2.0",
-          due: str | None = "2026-11-20", milestone_state: str = "open",
-          state: str = "open") -> Issue:
-    text = READY.format(target) if body is None else body
+          start: str = "2026-11-02", assignees: tuple[str, ...] = (PERSON,),
+          milestone: str | None = "v0.2.0", due: str | None = "2026-11-20",
+          milestone_state: str = "open", state: str = "open") -> Issue:
+    text = READY.format(start, target) if body is None else body
     return Issue(number, state, labels or ("P3",), assignees, milestone, text, due, milestone_state)
 
 
@@ -41,7 +42,7 @@ def rules(issues: list[Issue], states: dict[int, str] | None = None,
 
 def depends(*lines: str, target: str = "2026-11-10") -> str:
     return ("## Problem\n\nx\n\n## Dependencies\n\n" + "\n".join(lines)
-            + f"\n\n## Planning\n\n- Target end date: {target}\n")
+            + f"\n\n## Planning\n\n- Start date: 2026-11-02\n- Target end date: {target}\n")
 
 
 class MetadataTests(unittest.TestCase):
@@ -78,29 +79,67 @@ class TargetDateTests(unittest.TestCase):
         self.assertEqual(rules([issue(1, target="2026-11-19")]), [])
 
     def test_the_issue_form_field_is_read(self) -> None:
-        body = ("### Problem\n\nx\n\n### Target end date (Europe/Rome)\n\n2026-11-10\n\n"
+        body = ("### Problem\n\nx\n\n### Start date (Europe/Rome)\n\n2026-11-02\n\n"
+                "### Target end date (Europe/Rome)\n\n2026-11-10\n\n"
                 "### Dependencies\n\nNone.\n")
         self.assertEqual(rules([issue(1, body=body)]), [])
         empty = body.replace("2026-11-10", "_No response_")
         self.assertEqual(rules([issue(1, body=empty)]), [(1, "target-date")])
 
     def test_a_level_two_heading_is_read(self) -> None:
-        body = ("## Dependencies\n\nNone.\n\n## Target end date\n\n2026-11-10 (Europe/Rome)\n\n"
-                "Planning note.\n")
+        body = ("## Dependencies\n\nNone.\n\n## Start date\n\n2026-11-02 (Europe/Rome)\n\n"
+                "## Target end date\n\n2026-11-10 (Europe/Rome)\n\nPlanning note.\n")
         self.assertEqual(rules([issue(1, body=body)]), [])
 
     def test_an_invalid_planning_line_does_not_fall_back_to_the_form(self) -> None:
-        body = ("- Target end date: later\n\n### Target end date\n\n2026-11-10\n\n"
-                "## Dependencies\n\nNone.\n")
+        body = ("- Start date: 2026-11-02\n- Target end date: later\n\n"
+                "### Target end date\n\n2026-11-10\n\n## Dependencies\n\nNone.\n")
         self.assertEqual(rules([issue(1, body=body)]), [(1, "target-date")])
 
     def test_crlf_bodies_are_read(self) -> None:
-        self.assertEqual(rules([issue(1, body=READY.format("2026-11-10").replace("\n", "\r\n"))]), [])
+        crlf = READY.format("2026-11-02", "2026-11-10").replace("\n", "\r\n")
+        self.assertEqual(rules([issue(1, body=crlf)]), [])
+
+
+class StartDateTests(unittest.TestCase):
+    def test_a_missing_start_date_is_reported(self) -> None:
+        body = "## Dependencies\n\nNone.\n\n- Target end date: 2026-11-10\n"
+        self.assertEqual(rules([issue(1, body=body)]), [(1, "start-date")])
+
+    def test_an_unreadable_start_date_is_reported(self) -> None:
+        for start in ("", "soon", "2026-02-30", "02/11/2026", "_No response_"):
+            with self.subTest(start=start):
+                self.assertEqual(rules([issue(1, start=start)]), [(1, "start-date")])
+
+    def test_the_start_must_not_be_after_the_target(self) -> None:
+        self.assertEqual(rules([issue(1, start="2026-11-11")]), [(1, "start-date")])
+        self.assertEqual(rules([issue(1, start="2026-11-10")]), [])
+        # The target rule still applies on its own.
+        self.assertEqual(rules([issue(1, start="2026-11-21", target="2026-11-20")]),
+                         [(1, "start-date"), (1, "target-date")])
+
+    def test_both_heading_levels_are_read(self) -> None:
+        for marks in ("##", "###"):
+            with self.subTest(heading=marks):
+                body = (f"## Dependencies\n\nNone.\n\n{marks} Start date (Europe/Rome)\n\n"
+                        f"{{}}\n\n{marks} Target end date\n\n2026-11-10 (Europe/Rome)\n")
+                self.assertEqual(rules([issue(1, body=body.format("2026-11-02 (Europe/Rome)"))]), [])
+                self.assertEqual(rules([issue(1, body=body.format("2026-11-12"))]),
+                                 [(1, "start-date")])
+                self.assertEqual(rules([issue(1, body=body.format("_No response_"))]),
+                                 [(1, "start-date")])
+
+    def test_the_planning_line_is_read_and_never_falls_back_to_a_heading(self) -> None:
+        line = "## Dependencies\n\nNone.\n\n- Start date: {}\n- Target end date: 2026-11-10\n"
+        self.assertEqual(rules([issue(1, body=line.format("2026-11-02 (Europe/Rome)"))]), [])
+        self.assertEqual(rules([issue(1, body=line.format("2026-11-12"))]), [(1, "start-date")])
+        fallback = line.format("later") + "\n### Start date\n\n2026-11-02\n"
+        self.assertEqual(rules([issue(1, body=fallback)]), [(1, "start-date")])
 
 
 class DependencyTests(unittest.TestCase):
     def test_a_dependencies_section_is_required(self) -> None:
-        body = "## Problem\n\nx\n\n- Target end date: 2026-11-10\n"
+        body = "## Problem\n\nx\n\n- Start date: 2026-11-02\n- Target end date: 2026-11-10\n"
         self.assertEqual(rules([issue(1, body=body)]), [(1, "dependencies")])
 
     def test_blocked_matches_open_prerequisites(self) -> None:
@@ -147,6 +186,7 @@ class ConfigTests(unittest.TestCase):
             'labels: ["bug", "P2"]': ('labels: ["bug"]', "must set exactly the priority P2"),
             "    id: dependencies\n": ("    id: notes\n", "has no dependencies field"),
             "    id: target_end_date\n": ("    id: target\n", "has no target_end_date field"),
+            "    id: start_date\n": ("    id: start\n", "has no start_date field"),
         }
         for old, (new, message) in cases.items():
             with self.subTest(change=new):
@@ -156,18 +196,19 @@ class ConfigTests(unittest.TestCase):
                 problems = check_issues.config_findings(root)
                 self.assertTrue(any(message in problem for problem in problems), problems)
 
-    def test_each_form_must_require_the_target_end_date(self) -> None:
+    def test_each_form_must_require_the_start_and_target_end_dates(self) -> None:
         for name in sorted(check_issues.FORM_PRIORITIES):
-            with self.subTest(form=name):
-                root = self.copy()
-                form = root / ".github/ISSUE_TEMPLATE" / name
-                text = form.read_text(encoding="utf-8")
-                optional = re.sub(r"(id: target_end_date\n(?:.*\n)*?\s*required:) true",
-                                  r"\1 false", text, count=1)
-                self.assertNotEqual(optional, text)
-                form.write_text(optional, encoding="utf-8")
-                self.assertEqual(check_issues.config_findings(root),
-                                 [f"{name} must make the target_end_date field required"])
+            for field in ("start_date", "target_end_date"):
+                with self.subTest(form=name, field=field):
+                    root = self.copy()
+                    form = root / ".github/ISSUE_TEMPLATE" / name
+                    text = form.read_text(encoding="utf-8")
+                    optional = re.sub(rf"(id: {field}\n(?:.*\n)*?\s*required:) true",
+                                      r"\1 false", text, count=1)
+                    self.assertNotEqual(optional, text)
+                    form.write_text(optional, encoding="utf-8")
+                    self.assertEqual(check_issues.config_findings(root),
+                                     [f"{name} must make the {field} field required"])
 
     def test_blank_issues_must_stay_disabled(self) -> None:
         root = self.copy()
@@ -192,7 +233,7 @@ class CommandLineTests(unittest.TestCase):
     def item(self, number: int, **changes: Any) -> dict[str, Any]:
         base: dict[str, Any] = {
             "number": number, "state": "open", "labels": [{"name": "P3"}],
-            "assignees": [{"login": PERSON}], "body": READY.format("2026-11-10"),
+            "assignees": [{"login": PERSON}], "body": READY.format("2026-11-02", "2026-11-10"),
             "milestone": {"title": "v0.2.0", "due_on": "2026-11-20T08:00:00Z", "state": "open"}}
         return {**base, **changes}
 
@@ -277,7 +318,10 @@ class AlertMilestoneTests(unittest.TestCase):
             issue = traffic_history.alert(data, milestone, "2026-11-02")
         assert issue is not None
         self.assertIn("\n## Dependencies\n\nNone.\n", issue["body"])
-        self.assertIn("\n- Target end date: 2026-11-04 (Europe/Rome)", issue["body"])
+        self.assertIn("\n- Start date: 2026-11-02 (Europe/Rome)\n"
+                      "- Target end date: 2026-11-04 (Europe/Rome)", issue["body"])
+        self.assertEqual([f.rule for f in check_issues.date_findings(Issue(
+            1, "open", ("P3",), (PERSON,), "v0.2.0", issue["body"], "2026-11-05"))], [])
         self.assertEqual(issue["milestone"], "v0.2.0")
         self.assertEqual(traffic_history.target_end_date("2026-11-02", "2026-11-20"),
                          date(2026, 11, 9))

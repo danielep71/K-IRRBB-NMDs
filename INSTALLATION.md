@@ -31,8 +31,8 @@ and removal**. Contribution workflow is owned by
 
 ## 🧭 Current status
 
-Milestone **v0.2.0 – Workbook, data and Excel tests** is in progress;
-**v0.1.0 – Repository foundation** closed on 2026-10-09. There is **no
+Milestone **v0.2.0 - Workbook, data and Excel tests** is in progress;
+**v0.1.0 - Repository foundation** closed on 2026-10-09. There is **no
 IRRBB release** and **no validated model**: the repository holds
 documentation, issue governance, CI, static source checks, the data import
 (core, public facade and workbook adapter), the workbook template, the
@@ -73,7 +73,7 @@ Decided on 2026-10-08; see the
 
 | Host | Support level | Evidence required |
 | --- | --- | --- |
-| Microsoft 365 or Excel 2016 and later, **Windows, 64-bit** | Supported target | Compile, regression and smoke run for every VBA change and release |
+| Microsoft 365 or Excel 2016 and later, **Windows, 64-bit** | Supported target | Compile, regression and smoke run on every release candidate; for a VBA change before release, recorded when run, otherwise stated as not run ([merge policy](docs/GOVERNANCE.md#workflow)) |
 | Same versions, Windows, 32-bit | Best effort: kept compiling, not certified | Compile when a 32-bit host is available; otherwise recorded as `NOT_RUN` |
 | Excel for Mac, Excel for the web, Excel 2013 and earlier | Not supported | None |
 
@@ -180,8 +180,8 @@ the commit on the `Readme` sheet; a dirty checkout is stamped as not
 evidence-grade. Open the file, enable macros, run **Debug → Compile
 VBAProject**, then **Run tests** on the `Checks` sheet. To import data, fill
 the settings on `Config` (or use **Choose account file** and **Choose rate
-file**), attest timely closure reporting, and click **Import data**; the result
-appears on `DataSummary`. Details and the
+file**, and optionally **Choose control totals file**), attest timely closure
+reporting, and click **Import data**; the result appears on `DataSummary`. Details and the
 LibreOffice early-warning run are in
 [`tools/devbuild/README.md`](tools/devbuild/README.md).
 

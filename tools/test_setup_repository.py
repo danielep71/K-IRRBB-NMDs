@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import collections
 import copy
 import io
 import json
@@ -34,6 +35,20 @@ class FakeAPI:
         self.alerts = False
         self.fixes = False
         self.paused = False
+        self.environments: dict[str, dict[str, Any]] = {}
+        self.branch_policies: dict[str, list[dict[str, Any]]] = {}
+        self.next_policy = 100
+        self.default_setup = "configured"
+        self.scanning_status: int | None = None
+        self.unreadable: set[str] = set()
+        self.actions: dict[str, dict[str, Any]] = {
+            "actions/permissions": {"enabled": True, "allowed_actions": "all",
+                                    "sha_pinning_required": True},
+            "actions/permissions/workflow": {"default_workflow_permissions": "read",
+                                             "can_approve_pull_request_reviews": False},
+            "actions/permissions/fork-pr-contributor-approval": {
+                "approval_policy": "all_external_contributors"},
+            "actions/permissions/artifact-and-log-retention": {"days": 90, "maximum_allowed_days": 400}}
 
     def not_found(self, endpoint: str) -> Any:
         raise setup.SetupError(f"GET {endpoint} failed (HTTP 404). Check gh authentication.")
@@ -49,6 +64,44 @@ class FakeAPI:
         self.writes.append((method, endpoint, payload))
         setattr(self, attribute, method == "PUT")
         return None
+
+    def environment(self, method: str, endpoint: str, payload: Any) -> Any:
+        """GitHub's environment API: a PUT replaces every protection rule it does not name."""
+        path = endpoint.split("?")[0].split("/environments/", 1)[1].split("/")
+        name = path[0]
+        if method != "GET":
+            self.writes.append((method, endpoint, copy.deepcopy(payload)))
+        if len(path) == 1:
+            if method == "GET":
+                return (copy.deepcopy(self.environments[name]) if name in self.environments
+                        else self.not_found(endpoint))
+            rules: list[dict[str, Any]] = []
+            if payload.get("wait_timer"):
+                rules.append({"id": 1, "type": "wait_timer", "wait_timer": payload["wait_timer"]})
+            if payload.get("reviewers"):
+                rules.append({"id": 2, "type": "required_reviewers",
+                              "prevent_self_review": payload.get("prevent_self_review", False),
+                              "reviewers": [{"type": r["type"], "reviewer": {"id": r["id"]}}
+                                            for r in payload["reviewers"]]})
+            policy = payload.get("deployment_branch_policy")
+            if not (policy or {}).get("custom_branch_policies"):
+                self.branch_policies.pop(name, None)
+            self.environments[name] = {"name": name, "deployment_branch_policy": policy,
+                                       "protection_rules": rules}
+            return {}
+        policy = self.environments.get(name, {}).get("deployment_branch_policy") or {}
+        if not policy.get("custom_branch_policies"):
+            return self.not_found(endpoint)
+        current = self.branch_policies.setdefault(name, [])
+        if method == "GET":
+            return {"total_count": len(current), "branch_policies": copy.deepcopy(current)}
+        if method == "POST":
+            self.next_policy += 1
+            current.append(dict(payload, id=self.next_policy))
+        else:
+            number = int(path[-1])
+            self.branch_policies[name] = [p for p in current if p["id"] != number]
+        return {}
 
     def write(self, method: str, endpoint: str, payload: Any) -> Any:
         self.writes.append((method, endpoint, copy.deepcopy(payload)))
@@ -67,11 +120,47 @@ class FakeAPI:
         return {}
 
     def __call__(self, method: str, endpoint: str, payload: Any = None) -> Any:
+        if method == "GET" and any(part in endpoint for part in self.unreadable):
+            raise setup.SetupError(f"GET {endpoint} failed (HTTP 403).")
+        if method == "GET" and not self.repo["permissions"]["admin"]:
+            return self.as_reader(endpoint)
+        return self.respond(method, endpoint, payload)
+
+    def as_reader(self, endpoint: str) -> Any:
+        """What a caller with read access gets: the admin-only endpoints refuse, and the
+        repository and its rulesets come without their admin-only fields."""
+        if endpoint.endswith(("/private-vulnerability-reporting", "/vulnerability-alerts",
+                              "/automated-security-fixes")) or "/actions/" in endpoint:
+            return self.not_found(endpoint)
+        if endpoint.endswith("/code-scanning/default-setup"):
+            raise setup.SetupError(f"GET {endpoint} failed (HTTP 403).")
+        value = self.respond("GET", endpoint)
+        if isinstance(value, dict):
+            value.pop("security_and_analysis", None)
+            value.pop("bypass_actors", None)
+        return value
+
+    def respond(self, method: str, endpoint: str, payload: Any = None) -> Any:
         switches = {"/private-vulnerability-reporting": "reporting",
                     "/vulnerability-alerts": "alerts", "/automated-security-fixes": "fixes"}
         for suffix, attribute in switches.items():
             if endpoint.endswith(suffix):
                 return self.switch(method, endpoint, attribute, payload)
+        if "/environments/" in endpoint:
+            return self.environment(method, endpoint, payload)
+        if "/actions/" in endpoint:
+            if method != "GET":
+                self.writes.append((method, endpoint, copy.deepcopy(payload)))
+                return {}
+            return copy.deepcopy(self.actions[endpoint.split("repos/owner/repo/", 1)[1]])
+        if endpoint.endswith("/code-scanning/default-setup"):
+            if method == "GET":
+                if self.scanning_status is not None:
+                    raise setup.SetupError(f"GET {endpoint} failed (HTTP {self.scanning_status}).")
+                return {"state": self.default_setup, "languages": []}
+            self.writes.append((method, endpoint, copy.deepcopy(payload)))
+            self.default_setup = payload["state"]
+            return {}
         if method != "GET":
             return self.write(method, endpoint, payload)
         if "/check-runs?" in endpoint:
@@ -95,9 +184,16 @@ class SetupTests(unittest.TestCase):
         self.addCleanup(__import__("shutil").rmtree, folder)
         self.report = Path(folder) / "evidence" / "settings.md"
         self.args = argparse.Namespace(repo="owner/repo", config=setup.CONFIG, apply=False,
-                                       check=False, update_existing=False, report=self.report)
+                                       check=False, update_existing=False, report=self.report,
+                                       approve_plan=None)
 
-    def run_setup(self) -> tuple[int, str]:
+    def run_setup(self, approve: bool = True) -> tuple[int, str]:
+        if self.args.apply and approve:
+            # Approve the plan as a preview just before would show it.
+            with redirect_stdout(io.StringIO()):
+                plan = setup.inspect(self.api, self.args.repo, setup.load_config(self.args.config),
+                                     report=False).plan
+            self.args.approve_plan = setup.plan_digest(plan)
         output = io.StringIO()
         with redirect_stdout(output):
             code = setup.run(self.args, self.api, NOW)
@@ -107,6 +203,41 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(self.run_setup()[0], 0)
         self.assertEqual(self.api.writes, [])
         self.assertIn("- Result: **DRIFT**", self.report.read_text(encoding="utf-8"))
+
+    def preview_digest(self) -> str:
+        code, output = self.run_setup()
+        self.assertEqual(code, 0)
+        self.assertIn("PREVIEW ONLY", output)
+        return output.split("Plan digest: ", 1)[1].split()[0]
+
+    def test_apply_writes_the_plan_whose_digest_was_approved(self) -> None:
+        digest = self.preview_digest()
+        self.assertRegex(digest, r"^[0-9a-f]{64}$")
+        self.args.apply, self.args.approve_plan = True, digest
+        self.assertEqual(self.run_setup(approve=False)[0], 0)
+        self.assertEqual(len(self.api.writes), 12)
+
+    def test_a_changed_plan_is_refused_before_any_write(self) -> None:
+        digest = self.preview_digest()
+        # The live settings change between my preview and my apply.
+        self.api.repo["has_projects"] = False
+        self.args.apply, self.args.approve_plan = True, digest
+        with self.assertRaisesRegex(setup.SetupError, "Nothing was changed: the plan differs"):
+            self.run_setup(approve=False)
+        self.assertEqual(self.api.writes, [])
+
+    def test_apply_without_an_approved_digest_is_refused(self) -> None:
+        self.args.apply = True
+        with self.assertRaisesRegex(setup.SetupError, "Nothing was changed: --apply needs --approve-plan"):
+            self.run_setup(approve=False)
+        self.assertEqual(self.api.writes, [])
+        # With nothing to write, there is nothing to approve.
+        self.assertEqual(self.run_setup()[0], 0)
+        self.api.writes.clear()
+        self.args.approve_plan = None
+        code, output = self.run_setup(approve=False)
+        self.assertEqual((code, self.api.writes), (0, []))
+        self.assertIn("VERIFIED", output)
 
     def test_check_reports_drift_without_writing(self) -> None:
         self.args.check = True
@@ -119,7 +250,15 @@ class SetupTests(unittest.TestCase):
         self.args.apply = True
         self.assertEqual(self.run_setup()[0], 0)
         methods = [w[0] for w in self.api.writes]
-        self.assertEqual(methods, ["POST"] * 5 + ["PUT", "PUT", "PATCH", "PATCH"])
+        # Rulesets, security features, the environment and its branch, the
+        # CodeQL default setup, then the general settings.
+        self.assertEqual(methods, ["POST"] * 5 + ["PUT", "PUT", "PATCH", "PUT", "POST", "PATCH", "PATCH"])
+        self.assertEqual(self.api.writes[8:11], [
+            ("PUT", "repos/owner/repo/environments/analytics",
+             {"deployment_branch_policy": {"protected_branches": False, "custom_branch_policies": True}}),
+            ("POST", "repos/owner/repo/environments/analytics/deployment-branch-policies",
+             {"name": "main", "type": "branch"}),
+            ("PATCH", "repos/owner/repo/code-scanning/default-setup", {"state": "not-configured"})])
         self.assertEqual(self.api.writes[-1][2], {
             "delete_branch_on_merge": True, "allow_update_branch": True,
             "allow_rebase_merge": False, "has_projects": False, "has_downloads": False})
@@ -173,12 +312,115 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(self.run_setup()[0], 0)
         self.assertIn(("DELETE", "repos/owner/repo/automated-security-fixes", None), self.api.writes)
 
-    def test_without_admin_rights_nothing_runs(self) -> None:
+    def test_apply_needs_admin_rights_before_any_write(self) -> None:
         self.args.apply = True
         self.api.repo["permissions"]["admin"] = False
-        with self.assertRaisesRegex(setup.SetupError, "Admin rights"):
+        with self.assertRaisesRegex(setup.SetupError, "Admin rights .* required for --apply"):
             self.run_setup()
         self.assertEqual(self.api.writes, [])
+
+    def test_without_admin_rights_preview_and_check_record_what_they_cannot_read(self) -> None:
+        self.args.apply = True
+        self.assertEqual(self.run_setup()[0], 0)
+        self.analytics({"protected_branches": False, "custom_branch_policies": True},
+                       [{"id": 1, "name": "main", "type": "branch"}])
+        self.api.writes.clear()
+        self.args.apply = False
+        self.api.repo["permissions"]["admin"] = False
+        code, output = self.run_setup()
+        self.assertEqual(code, 0)
+        self.assertIn("UNKNOWN: `vulnerability_alerts`: GET repos/owner/repo/vulnerability-alerts: "
+                      "HTTP 404", output)
+        self.assertIn("PREVIEW ONLY", output)
+        self.args.check = True
+        code, output = self.run_setup()
+        # Every baseline value matches, but what could not be read is never VERIFIED.
+        self.assertEqual(code, 1)
+        self.assertIn("DRIFT", output)
+        self.assertEqual(self.api.writes, [])
+        text = self.report.read_text(encoding="utf-8")
+        for row in (
+                "- Result: **DRIFT**",
+                "| `private_vulnerability_reporting` | on | unknown (GET "
+                "repos/owner/repo/private-vulnerability-reporting: HTTP 404) |",
+                # A 404 means "off" only to an admin.
+                "| `automated_security_fixes` | off | unknown (GET "
+                "repos/owner/repo/automated-security-fixes: HTTP 404) |",
+                "| `secret_scanning` | on | unknown (security_and_analysis.secret_scanning not "
+                "returned by GET repos/owner/repo) |",
+                "| `code_scanning_default_setup` | not-configured | unknown (GET "
+                "repos/owner/repo/code-scanning/default-setup: HTTP 403) |",
+                "| Protect main | 1 | unknown (bypass_actors not returned by GET "
+                "repos/owner/repo/rulesets/1) |",
+                # What a reader can see is still read.
+                "| `allow_rebase_merge` | off | off |",
+                "| `retention_days` | 90 | unknown (GET "
+                "repos/owner/repo/actions/permissions/artifact-and-log-retention: HTTP 404) |",
+                "| `analytics` deployment branches | main | main |"):
+            with self.subTest(row=row):
+                self.assertIn(row, text)
+        # Without admin rights a 403 on a private repository is unreadable, not "unavailable".
+        self.api.repo["visibility"] = "private"
+        self.assertEqual(self.run_setup()[0], 1)
+        self.assertIn("| `code_scanning_default_setup` | not-configured | unknown (GET "
+                      "repos/owner/repo/code-scanning/default-setup: HTTP 403) |",
+                      self.report.read_text(encoding="utf-8"))
+
+    def test_unreadable_values_are_unknown_never_matching(self) -> None:
+        self.args.apply = True
+        self.assertEqual(self.run_setup()[0], 0)
+        self.args.apply, self.args.check = False, True
+        for part, row in (
+                ("/rulesets?", "| Protect main | — | unknown (GET repos/owner/repo/rulesets?"
+                               "includes_parents=false&per_page=100&page=1: HTTP 403) |"),
+                ("/environments/", "| `analytics` deployment branches | main | unknown (GET "
+                                   "repos/owner/repo/environments/analytics: HTTP 403) |")):
+            with self.subTest(part=part):
+                self.api.unreadable = {part}
+                self.assertEqual(self.run_setup()[0], 1)
+                self.assertIn(row, self.report.read_text(encoding="utf-8"))
+        self.api.unreadable = set()
+        del self.api.repo["allow_update_branch"]
+        self.assertEqual(self.run_setup()[0], 1)
+        self.assertIn("| `allow_update_branch` | on | unknown (allow_update_branch not returned by "
+                      "GET repos/owner/repo) |", self.report.read_text(encoding="utf-8"))
+        self.api.writes.clear()
+        self.args.check, self.args.apply = False, True
+        with self.assertRaisesRegex(setup.SetupError, "Nothing was changed.*allow_update_branch"):
+            self.run_setup()
+        self.assertEqual(self.api.writes, [])
+
+    def test_one_reading_feeds_the_plan_the_result_and_the_evidence(self) -> None:
+        # A value that changes after it was read, or is refused on a later read, cannot make the
+        # evidence disagree with the result: each GET is made once per reading.
+        self.args.apply = True
+        self.assertEqual(self.run_setup()[0], 0)
+        api, reads = self.api, collections.Counter[str]()
+
+        def changing(method: str, endpoint: str, payload: Any = None) -> Any:
+            if method == "GET":
+                reads[endpoint] += 1
+                if reads[endpoint] > 1 and endpoint.endswith("/code-scanning/default-setup"):
+                    raise setup.SetupError(f"GET {endpoint} failed (HTTP 403).")
+            answer = api(method, endpoint, payload)
+            if endpoint.endswith("/actions/permissions/workflow"):
+                api.actions["actions/permissions/workflow"]["default_workflow_permissions"] = "write"
+            return answer
+
+        self.args.apply, self.args.check = False, True
+        output = io.StringIO()
+        with redirect_stdout(output):
+            self.assertEqual(setup.run(self.args, changing, NOW), 0)
+        self.assertIn("VERIFIED", output.getvalue())
+        text = self.report.read_text(encoding="utf-8")
+        self.assertIn("- Result: **VERIFIED**", text)
+        self.assertIn("| `default_workflow_permissions` | read | read |", text)
+        self.assertNotIn("HTTP 403", text)
+        self.assertEqual({endpoint: n for endpoint, n in reads.items() if n != 1}, {})
+        # The next reading sees the change.
+        code, output_text = self.run_setup()
+        self.assertEqual(code, 1)
+        self.assertIn("MANUAL: Actions setting `default_workflow_permissions` is write", output_text)
 
     def test_a_failed_required_check_blocks_every_write(self) -> None:
         self.args.apply = True
@@ -210,6 +452,84 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(self.run_setup()[0], 0)
         self.assertEqual(self.api.rules[0]["enforcement"], "active")
 
+    def test_an_omitted_bypass_list_is_unknown_never_none(self) -> None:
+        # GitHub returns bypass_actors only to callers allowed to see it.
+        self.args.apply = True
+        self.assertEqual(self.run_setup()[0], 0)
+        del self.api.rules[0]["bypass_actors"]
+        self.api.writes.clear()
+        self.args.apply, self.args.check = False, True
+        code, output = self.run_setup()
+        self.assertEqual(code, 1)
+        self.assertIn('UNKNOWN: ruleset "Protect main": bypass_actors not returned by '
+                      "GET repos/owner/repo/rulesets/1", output)
+        self.assertNotIn("PUT repos/owner/repo/rulesets/1", output)
+        text = self.report.read_text(encoding="utf-8")
+        self.assertIn("- Result: **DRIFT**", text)
+        self.assertIn("| Protect main | 1 | unknown (bypass_actors not returned by "
+                      "GET repos/owner/repo/rulesets/1) |", text)
+        self.args.check, self.args.apply, self.args.update_existing = False, True, True
+        with self.assertRaisesRegex(setup.SetupError, 'Nothing was changed.*"Protect main": '
+                                                      "bypass_actors not returned"):
+            self.run_setup()
+        self.assertEqual(self.api.writes, [])
+
+    def test_matching_actions_settings_are_verified_and_recorded(self) -> None:
+        self.args.apply = True
+        self.assertEqual(self.run_setup()[0], 0)
+        self.assertFalse(any("/actions/" in endpoint for _, endpoint, _ in self.api.writes))
+        self.args.apply, self.args.check = False, True
+        self.assertEqual(self.run_setup()[0], 0)
+        text = self.report.read_text(encoding="utf-8")
+        for row in ("| `sha_pinning_required` | on | on |",
+                    "| `default_workflow_permissions` | read | read |",
+                    "| `can_approve_pull_request_reviews` | off | off |",
+                    "| `fork_pr_approval_policy` | all_external_contributors | all_external_contributors |",
+                    "| `retention_days` | 90 | 90 |"):
+            with self.subTest(row=row):
+                self.assertIn(row, text)
+
+    def test_differing_actions_settings_are_drift_and_never_changed(self) -> None:
+        self.api.actions["actions/permissions/workflow"]["default_workflow_permissions"] = "write"
+        self.api.actions["actions/permissions/artifact-and-log-retention"]["days"] = 30
+        self.args.check = True
+        code, output = self.run_setup()
+        self.assertEqual(code, 1)
+        self.assertIn("MANUAL: Actions setting `default_workflow_permissions` is write; "
+                      "the baseline wants read.", output)
+        text = self.report.read_text(encoding="utf-8")
+        self.assertIn("| `default_workflow_permissions` | read | write |", text)
+        self.assertIn("| `retention_days` | 90 | 30 |", text)
+        # --apply makes its own writes, names each Actions setting and is not VERIFIED.
+        self.args.check, self.args.apply = False, True
+        code, output = self.run_setup()
+        self.assertEqual(code, 1)
+        self.assertIn("MANUAL: Actions setting `retention_days` is 30; the baseline wants 90.", output)
+        self.assertNotIn("VERIFIED", output)
+        self.assertIn("- Result: **DRIFT**", self.report.read_text(encoding="utf-8"))
+        self.assertTrue(self.api.writes)
+        self.assertFalse(any("/actions/" in endpoint for _, endpoint, _ in self.api.writes))
+        # A second apply has nothing else to write and still names them.
+        self.api.writes.clear()
+        code, output = self.run_setup()
+        self.assertEqual((code, self.api.writes), (1, []))
+        self.assertIn("MANUAL: Actions setting `default_workflow_permissions`", output)
+
+    def test_unreadable_actions_settings_are_unknown(self) -> None:
+        self.args.check = True
+        self.api.unreadable = {"/actions/permissions/workflow"}
+        del self.api.actions["actions/permissions"]["sha_pinning_required"]
+        self.assertEqual(self.run_setup()[0], 1)
+        text = self.report.read_text(encoding="utf-8")
+        self.assertIn("| `can_approve_pull_request_reviews` | off | unknown (GET "
+                      "repos/owner/repo/actions/permissions/workflow: HTTP 403) |", text)
+        self.assertIn("| `sha_pinning_required` | on | unknown (sha_pinning_required not returned "
+                      "by GET repos/owner/repo/actions/permissions) |", text)
+        self.args.check, self.args.apply = False, True
+        with self.assertRaisesRegex(setup.SetupError, "Nothing was changed.*default_workflow_permissions"):
+            self.run_setup()
+        self.assertEqual(self.api.writes, [])
+
     def test_unmanaged_rulesets_are_named_and_never_touched(self) -> None:
         other = {"name": "Legacy branch rule", "id": 10, "source_type": "Repository",
                  "target": "branch", "enforcement": "active",
@@ -233,6 +553,37 @@ class SetupTests(unittest.TestCase):
         self.assertIn("apply only to public repositories", output)
         self.assertFalse(any("private-vulnerability" in endpoint or "security_and_analysis" in str(payload)
                              for _, endpoint, payload in self.api.writes))
+
+    def test_private_repositories_without_code_scanning_skip_the_default_setup(self) -> None:
+        self.api.repo["visibility"] = "private"
+        for status in (403, 404):
+            with self.subTest(status=status):
+                self.api.scanning_status = status
+                self.api.writes.clear()
+                code, output = self.run_setup()
+                self.assertEqual(code, 0)
+                self.assertIn("code scanning is not available", output)
+                self.assertIn("| `code_scanning_default_setup` | not-configured | "
+                              "not available (code scanning unavailable) |",
+                              self.report.read_text(encoding="utf-8"))
+                self.args.apply = True
+                self.run_setup()
+                self.args.apply = False
+                self.assertFalse(any("code-scanning" in endpoint for _, endpoint, _ in self.api.writes))
+
+    def test_code_scanning_is_unknown_on_public_repositories_and_fails_for_other_statuses(self) -> None:
+        self.args.check = True
+        for status in (403, 404):
+            with self.subTest(status=status):
+                self.api.scanning_status = status
+                self.assertEqual(self.run_setup()[0], 1)
+                self.assertIn(f"| `code_scanning_default_setup` | not-configured | unknown (GET "
+                              f"repos/owner/repo/code-scanning/default-setup: HTTP {status}) |",
+                              self.report.read_text(encoding="utf-8"))
+        self.api.repo["visibility"] = "private"
+        self.api.scanning_status = 401
+        with self.assertRaisesRegex(setup.SetupError, "HTTP 401"):
+            self.run_setup()
 
     def test_dependent_security_features_are_rejected(self) -> None:
         config = setup.load_config(setup.CONFIG)
@@ -260,6 +611,51 @@ class SetupTests(unittest.TestCase):
                     self.assertRaisesRegex(setup.SetupError, message):
                 setup.load_config(Path("settings.json"))
 
+    def test_the_baseline_rejects_invalid_actions_settings(self) -> None:
+        config = setup.load_config(setup.CONFIG)
+        cases: list[tuple[str, Any, str]] = [
+            ("sha_pinning_required", 1, "sha_pinning_required"),
+            ("default_workflow_permissions", "none", "default_workflow_permissions"),
+            ("can_approve_pull_request_reviews", "false", "can_approve_pull_request_reviews"),
+            ("fork_pr_approval_policy", "everyone", "fork_pr_approval_policy"),
+            ("retention_days", True, "retention_days"),
+            ("retention_days", 0, "retention_days"),
+            ("retention_days", 401, "retention_days"),
+            ("retention_days", 90.0, "retention_days"),
+            ("extra", True, "exactly the five Actions settings")]
+        for key, value, message in cases:
+            broken = copy.deepcopy(config)
+            broken["actions"][key] = value
+            with self.subTest(key=key, value=value), \
+                    patch.object(Path, "read_text", return_value=json.dumps(broken)), \
+                    self.assertRaisesRegex(setup.SetupError, message):
+                setup.load_config(Path("settings.json"))
+
+    def test_the_baseline_rejects_invalid_environments_and_codeql_setup(self) -> None:
+        config = setup.load_config(setup.CONFIG)
+        cases: list[tuple[str, Any, str]] = [
+            ("environments", ["analytics"], "object keyed by name"),
+            ("environments", {"analytics": {"deployment_branches": ["main"], "reviewers": []}},
+             "Invalid baseline environment"),
+            ("environments", {"../x": {"deployment_branches": ["main"]}}, "Invalid baseline environment"),
+            ("environments", {"analytics": {"deployment_branches": []}}, "unique deployment branches"),
+            ("environments", {"analytics": {"deployment_branches": ["main", "main"]}},
+             "unique deployment branches"),
+            ("environments", {"analytics": {"deployment_branches": [""]}}, "unique deployment branches"),
+            ("code_scanning_default_setup", "configured", "default setup"),
+            ("code_scanning_default_setup", None, "default setup")]
+        for key, value, message in cases:
+            broken = copy.deepcopy(config)
+            broken[key] = value
+            with self.subTest(value=value), \
+                    patch.object(Path, "read_text", return_value=json.dumps(broken)), \
+                    self.assertRaisesRegex(setup.SetupError, message):
+                setup.load_config(Path("settings.json"))
+        del config["environments"]
+        with patch.object(Path, "read_text", return_value=json.dumps(config)), \
+                self.assertRaisesRegex(setup.SetupError, "Unsupported configuration schema"):
+            setup.load_config(Path("settings.json"))
+
     def test_duplicate_live_names_are_rejected_before_any_write(self) -> None:
         name = setup.load_config(setup.CONFIG)["rulesets"][0]["name"]
         self.api.rules = [{"name": name, "id": 1}, {"name": name, "id": 2}]
@@ -273,6 +669,88 @@ class SetupTests(unittest.TestCase):
         with self.assertRaisesRegex(setup.SetupError, "Read-back"):
             self.run_setup()
         self.assertIn("- Result: **DRIFT**", self.report.read_text(encoding="utf-8"))
+
+    def analytics(self, policy: Any, branches: list[dict[str, Any]] | None = None) -> None:
+        """An existing analytics environment with a reviewer, a wait timer and a secret."""
+        self.api.environments["analytics"] = {
+            "name": "analytics", "deployment_branch_policy": policy, "secrets_count": 1,
+            "protection_rules": [
+                {"id": 1, "type": "wait_timer", "wait_timer": 5},
+                {"id": 2, "type": "required_reviewers", "prevent_self_review": True,
+                 "reviewers": [{"type": "User", "reviewer": {"id": 7, "login": "me"}}]},
+                {"id": 3, "type": "branch_policy"}]}
+        if branches is not None:
+            self.api.branch_policies["analytics"] = branches
+
+    def environment_writes(self) -> list[tuple[str, str, Any]]:
+        return [w for w in self.api.writes if "/environments/" in w[1]]
+
+    def test_a_missing_environment_is_created_for_main_only(self) -> None:
+        self.args.check = True
+        self.assertEqual(self.run_setup()[0], 1)
+        self.assertIn("| `analytics` deployment branches | main | missing |",
+                      self.report.read_text(encoding="utf-8"))
+        self.args.check, self.args.apply = False, True
+        self.assertEqual(self.run_setup()[0], 0)
+        self.assertEqual(self.api.branch_policies["analytics"],
+                         [{"name": "main", "type": "branch", "id": 101}])
+        self.assertIn("| `analytics` deployment branches | main | main |",
+                      self.report.read_text(encoding="utf-8"))
+
+    def test_a_wrong_policy_is_updated_keeping_reviewers_and_the_wait_timer(self) -> None:
+        self.analytics({"protected_branches": True, "custom_branch_policies": False})
+        self.args.check = True
+        self.assertEqual(self.run_setup()[0], 1)
+        self.assertIn("| `analytics` deployment branches | main | protected branches |",
+                      self.report.read_text(encoding="utf-8"))
+        self.args.check, self.args.apply = False, True
+        self.assertEqual(self.run_setup()[0], 0)
+        self.assertEqual(self.environment_writes()[0], (
+            "PUT", "repos/owner/repo/environments/analytics",
+            {"deployment_branch_policy": {"protected_branches": False, "custom_branch_policies": True},
+             "wait_timer": 5, "prevent_self_review": True, "reviewers": [{"type": "User", "id": 7}]}))
+        rules = self.api.environments["analytics"]["protection_rules"]
+        self.assertEqual([r["wait_timer"] for r in rules if r["type"] == "wait_timer"], [5])
+        self.assertEqual([(r["prevent_self_review"], r["reviewers"][0]["reviewer"]["id"])
+                          for r in rules if r["type"] == "required_reviewers"],
+                         [(True, 7)])
+        # Secrets and variables have their own endpoints, which are never called.
+        self.assertFalse(any("/secrets" in e or "/variables" in e for _, e, _ in self.api.writes))
+
+    def test_extra_branch_policies_are_deleted(self) -> None:
+        self.analytics({"protected_branches": False, "custom_branch_policies": True},
+                       [{"id": 1, "name": "main", "type": "branch"},
+                        {"id": 2, "name": "release/*", "type": "branch"},
+                        {"id": 3, "name": "main", "type": "tag"}])
+        self.args.apply = True
+        self.assertEqual(self.run_setup()[0], 0)
+        self.assertEqual(self.environment_writes(), [
+            ("DELETE", "repos/owner/repo/environments/analytics/deployment-branch-policies/2", None),
+            ("DELETE", "repos/owner/repo/environments/analytics/deployment-branch-policies/3", None)])
+        self.assertEqual(self.api.branch_policies["analytics"], [{"id": 1, "name": "main", "type": "branch"}])
+
+    def test_the_codeql_default_setup_is_drift_until_turned_off(self) -> None:
+        self.args.check = True
+        self.assertEqual(self.run_setup()[0], 1)
+        self.assertIn("| `code_scanning_default_setup` | not-configured | configured |",
+                      self.report.read_text(encoding="utf-8"))
+        self.args.check, self.args.apply = False, True
+        self.assertEqual(self.run_setup()[0], 0)
+        self.assertIn(("PATCH", "repos/owner/repo/code-scanning/default-setup",
+                       {"state": "not-configured"}), self.api.writes)
+        self.assertEqual(self.api.default_setup, "not-configured")
+
+    def test_a_verified_environment_and_codeql_setup_need_no_write(self) -> None:
+        self.args.apply = True
+        self.run_setup()
+        self.api.writes.clear()
+        self.analytics({"protected_branches": False, "custom_branch_policies": True},
+                       [{"id": 1, "name": "main", "type": "branch"}])
+        self.assertEqual(self.run_setup()[0], 0)
+        self.assertEqual(self.api.writes, [])
+        text = self.report.read_text(encoding="utf-8")
+        self.assertIn("- Result: **VERIFIED**", text)
+        self.assertIn("| `code_scanning_default_setup` | not-configured | not-configured |", text)
 
     def test_evidence_records_each_managed_setting(self) -> None:
         self.args.check = True
@@ -296,6 +774,14 @@ class BaselineTests(unittest.TestCase):
         self.assertEqual(setup.rule_spec(rule), setup.rule_spec(reordered))
         reordered["rules"].append({"type": "creation"})
         self.assertNotEqual(setup.rule_spec(rule), setup.rule_spec(reordered))
+
+    def test_an_omitted_field_is_unknown_and_never_matches(self) -> None:
+        rule = copy.deepcopy(setup.load_config(setup.CONFIG)["rulesets"][0])
+        del rule["bypass_actors"]
+        self.assertIsInstance(setup.rule_spec(rule)["bypass_actors"], setup.Unknown)
+        unknown = setup.Unknown("not read")
+        self.assertFalse(unknown == unknown)
+        self.assertNotEqual(unknown, [])
 
     def test_the_baseline_matches_the_branch_policy(self) -> None:
         rules = {r["name"]: r for r in setup.load_config(setup.CONFIG)["rulesets"]}
@@ -322,6 +808,20 @@ class BaselineTests(unittest.TestCase):
                               if rule["type"] == "required_status_checks")
                 self.assertTrue(checks["parameters"]["strict_required_status_checks_policy"])
 
+    def test_only_release_branch_creation_skips_the_required_check(self) -> None:
+        # docs/GOVERNANCE.md: a release branch is opened from a commit that
+        # already passed the check on main; every other change needs it.
+        rulesets = {r["name"]: r for r in setup.load_config(setup.CONFIG)["rulesets"]}
+        skipped = {name: next(rule for rule in ruleset["rules"]
+                              if rule["type"] == "required_status_checks"
+                              )["parameters"]["do_not_enforce_on_create"]
+                   for name, ruleset in rulesets.items()
+                   if any(rule["type"] == "required_status_checks" for rule in ruleset["rules"])}
+        self.assertEqual(skipped, {"Protect main": False, "Protect release branches": True})
+        governance = (ROOT / "docs/GOVERNANCE.md").read_text(encoding="utf-8")
+        self.assertIn('"Protect release branches" sets `do_not_enforce_on_create`',
+                      " ".join(governance.split()))
+
     def test_release_branches_cannot_be_deleted_even_by_an_admin(self) -> None:
         # Admins may bypass "Protect release branches", and merging an
         # integration pull request as an admin would let "delete head
@@ -333,6 +833,19 @@ class BaselineTests(unittest.TestCase):
                    and r["rules"] == [{"type": "deletion"}]]
         self.assertEqual(len(keepers), 1)
 
+    def test_the_traffic_environment_deploys_only_from_main(self) -> None:
+        workflow = (ROOT / ".github/workflows/daily-traffic.yml").read_text(encoding="utf-8")
+        self.assertIn("    environment: analytics\n", workflow)
+        config = setup.load_config(setup.CONFIG)
+        self.assertEqual(config["environments"], {"analytics": {"deployment_branches": ["main"]}})
+        self.assertEqual(config["code_scanning_default_setup"], "not-configured")
+
+    def test_the_actions_baseline(self) -> None:
+        self.assertEqual(setup.load_config(setup.CONFIG)["actions"], {
+            "sha_pinning_required": True, "default_workflow_permissions": "read",
+            "can_approve_pull_request_reviews": False,
+            "fork_pr_approval_policy": "all_external_contributors", "retention_days": 90})
+
     def test_the_required_check_is_the_integrity_job(self) -> None:
         workflow = (ROOT / ".github/workflows/static-checks.yml").read_text(encoding="utf-8")
         self.assertIn("    name: Repository integrity\n", workflow)
@@ -342,7 +855,55 @@ class BaselineTests(unittest.TestCase):
         self.assertEqual(contexts, {"Repository integrity"})
 
 
+class OneReadingTests(unittest.TestCase):
+    def test_answers_and_failures_are_replayed_and_a_frozen_reading_reads_nothing_new(self) -> None:
+        calls = collections.Counter[str]()
+
+        def call(method: str, endpoint: str, payload: Any = None) -> Any:
+            calls[endpoint] += 1
+            if endpoint == "refused":
+                raise setup.SetupError("GET refused failed (HTTP 403).")
+            return {"value": [calls[endpoint]]}
+
+        reader = setup.OneReading(call)
+        first = reader("GET", "settings")
+        first["value"].append("changed by a caller")
+        self.assertEqual(reader("GET", "settings"), {"value": [1]})
+        for _ in range(2):
+            with self.assertRaisesRegex(setup.SetupError, "HTTP 403"):
+                reader("GET", "refused")
+        self.assertEqual(calls, {"settings": 1, "refused": 1})
+        with self.assertRaisesRegex(setup.SetupError, "PATCH settings during a reading"):
+            reader("PATCH", "settings", {})
+        reader.frozen = True
+        self.assertEqual(reader("GET", "settings"), {"value": [1]})
+        with self.assertRaisesRegex(setup.SetupError, "evidence read other"):
+            reader("GET", "other")
+        self.assertNotIn("other", calls)
+
+
 class CommandLineTests(unittest.TestCase):
+    def test_the_plan_digest_covers_order_and_content_not_key_order(self) -> None:
+        plan: setup.Plan = [("PUT", "repos/a/b/vulnerability-alerts", None),
+                             ("PATCH", "repos/a/b", {"has_projects": False, "has_downloads": False})]
+        same: setup.Plan = [plan[0], ("PATCH", "repos/a/b", {"has_downloads": False, "has_projects": False})]
+        self.assertEqual(setup.plan_digest(plan), setup.plan_digest(same))
+        self.assertNotEqual(setup.plan_digest(plan), setup.plan_digest(plan[::-1]))
+        self.assertNotEqual(setup.plan_digest(plan), setup.plan_digest(
+            [plan[0], ("PATCH", "repos/a/b", {"has_projects": True, "has_downloads": False})]))
+        self.assertNotEqual(setup.plan_digest(plan), setup.plan_digest(
+            [("DELETE", "repos/a/b/vulnerability-alerts", None), plan[1]]))
+        self.assertEqual(setup.plan_digest([]), setup.plan_digest([]))
+
+    def test_approve_plan_requires_apply_and_a_digest(self) -> None:
+        digest = "A" * 64
+        self.assertEqual(setup.parse_args(["--repo", "o/r", "--apply", "--approve-plan", digest])
+                         .approve_plan, "a" * 64)
+        for argv in (["--approve-plan", digest], ["--apply", "--approve-plan", "abc"]):
+            with self.subTest(argv=argv), redirect_stdout(io.StringIO()), \
+                    patch("sys.stderr", io.StringIO()), self.assertRaises(SystemExit):
+                setup.parse_args(["--repo", "o/r", *argv])
+
     def test_pagination_reads_beyond_the_first_page(self) -> None:
         calls: list[str] = []
 
@@ -353,12 +914,20 @@ class CommandLineTests(unittest.TestCase):
         self.assertEqual(len(setup.pages(call, "repos/x/y/rulesets?includes_parents=false")), 101)
         self.assertEqual(len(calls), 2)
 
-    def test_missing_reraises_errors_other_than_404(self) -> None:
-        def forbidden(method: str, endpoint: str, payload: Any = None) -> Any:
-            raise setup.SetupError(f"{method} {endpoint} failed (HTTP 403).")
+    def test_missing_reads_404_as_off_only_when_conclusive(self) -> None:
+        def failing(status: int) -> Any:
+            def call(method: str, endpoint: str, payload: Any = None) -> Any:
+                raise setup.SetupError(f"{method} {endpoint} failed (HTTP {status}).")
+            return call
 
-        with self.assertRaisesRegex(setup.SetupError, "HTTP 403"):
-            setup.missing(forbidden, "repos/a/b/vulnerability-alerts")
+        endpoint = "repos/a/b/vulnerability-alerts"
+        self.assertEqual(setup.missing(failing(404), endpoint), (None, True))
+        for status, conclusive in ((404, False), (403, True)):
+            value, absent = setup.missing(failing(status), endpoint, conclusive)
+            self.assertFalse(absent)
+            self.assertEqual(str(value), f"unknown (GET {endpoint}: HTTP {status})")
+        with self.assertRaisesRegex(setup.SetupError, "HTTP 500"):
+            setup.missing(failing(500), endpoint)
 
     def test_the_cli_call_is_explicit_and_hides_server_detail(self) -> None:
         ok = argparse.Namespace(returncode=0, stdout="{}", stderr="")

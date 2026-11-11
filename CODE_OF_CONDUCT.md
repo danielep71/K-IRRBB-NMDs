@@ -31,7 +31,7 @@ Everyone who participates through code, issues, pull requests, reviews,
 documentation, examples, releases or project email is expected to help create a
 harassment-free, inclusive and healthy environment.
 
-We welcome participants regardless of personal characteristics unrelated to the
+I welcome participants regardless of personal characteristics unrelated to the
 contribution, including age, disability, ethnicity, gender identity/expression,
 experience level, nationality, race, religion, socioeconomic status or sexual
 identity/orientation.
