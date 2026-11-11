@@ -388,6 +388,19 @@ Use only the categories needed by a release.
 
 ### Fixed
 
+- The automation and its documents agree: GOVERNANCE states that creating a
+  `release/**` branch is the one change the required check does not gate; a
+  label reconcile on `main` is never cancelled midway, only superseded
+  pull-request validations are; `tools/README.md` says that only the reconcile
+  job changes live labels, from `main`, while pull requests run their own label
+  scripts read-only, and no longer says CI skips the synchronizer tests;
+  Dependabot's comments no longer claim the issue audit covers its pull
+  requests; Ruff and mypy cover `.github/scripts/`; each script requests one recorded
+  REST API version (`2026-03-10` for the traffic export, which was written
+  against it, `2022-11-28` elsewhere). New tests check the
+  traffic schedule against `docs/TRAFFIC.md`, setup-python pins whatever their
+  layout, the Repository integrity job and its triggers, and that no automation
+  changes the labels or milestone of an existing issue (#199).
 - INSTALLATION and the CONTRIBUTING review checklist no longer require Excel
   evidence for every VBA change before merge: as GOVERNANCE states, a VBA
   change records Excel results when run, or states them as not run, and a
