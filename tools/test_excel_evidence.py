@@ -67,7 +67,8 @@ def scenario(name: str, exp: ev.Expected) -> Lines:
     primary = {"pasted-window": "Primary error 5: The data window must be two month ends in order, "
                                 "without a time of day. [IRRBB_Import.IRRBB_ImportData]",
                "pasted-attestation": "Primary error 5: Timely closure reporting is not attested; the "
-                                     "import does not run. [IRRBB_Import.IRRBB_ImportData]"}.get(name, "")
+                                     "import does not run. [IRRBB_Import.IRRBB_ImportData]",
+               "locked-file": "Primary error 70: Permission denied [IRRBB_Import]"}.get(name, "")
     info = [("INFO", v) for v in ["46337.4", "46337.5", "accounts.csv", "market_rates.csv",
                                   "2025-01-31 to 2025-06-30", "EUR_1M", "Yes", primary, ""]]
     if name in ("accepted", "rerun", "control-match"):
@@ -114,6 +115,10 @@ def passing_logs(exp: ev.Expected, sha: str) -> dict[str, Lines]:
                         + harness_run(exp, sha, ev.FAILURE_RUNS[3])),
         "import.log": [line for name in ev.SCENARIOS for line in scenario(name, exp)],
         "buttons.log": buttons,
+        "timing.log": [("COMMAND", "python tools/devbuild/make_large_panel.py"), ("EXIT", "0"),
+                       ("FILE_BYTES", "49183457"), ("SCENARIO", "large-panel"), ("STATE_BEFORE", STATE),
+                       ("STATE_AFTER", STATE), ("STATUS", ev.ACCEPTED), ("TOTAL_ROWS", "96"),
+                       ("LINEAGE", "Account panel bytes|49183457"), ("SECONDS", "412.7")],
         "sync.log": [("COMMAND", "Sync-IRRBB-VBA.ps1"),
                      ("OUTPUT", "SUCCESS: VBA synchronized. Workbook sheets were not removed or recreated."),
                      ("EXIT", "0"), ("COMPILE", "PASS")] + harness_run(exp, sha, "TEST_Harness.RunTests"),
@@ -311,6 +316,25 @@ class BundleTests(unittest.TestCase):
         self.breaks("template", lambda: self.logs["template.log"].remove(("PAGE", "Checks|landscape|9|0|0|1")),
                     "Checks 'missing'")
 
+    def test_locked_file_and_timing_failures(self) -> None:
+        cases: list[tuple[str, Callable[[], None], str]] = [
+            ("import", lambda: self.replace("import.log", "INFO", "Primary error 70: Permission denied [IRRBB_Import]",
+                                            ""), "expected error 70"),
+            ("import", lambda: self.replace("import.log", "INFO", "Primary error 70: Permission denied [IRRBB_Import]",
+                                            "Primary error 53: File not found [IRRBB_Import]"), "expected error 70"),
+            ("timing", lambda: self.replace("timing.log", "EXIT", "0", "1"), "exited with code 1"),
+            ("timing", lambda: self.replace("timing.log", "STATUS", ev.ACCEPTED, "FAILED"), "status 'FAILED'"),
+            ("timing", lambda: self.replace("timing.log", "LINEAGE", "Account panel bytes|49183457",
+                                            "Account panel bytes|1000"), "account panel bytes"),
+            ("timing", lambda: self.replace("timing.log", "SECONDS", "412.7", ""), "import time"),
+            ("timing", lambda: self.logs["timing.log"].append(("FINDING", "accounts_large.csv|2|E04|")),
+             "findings listed"),
+        ]
+        for stage, change, reason in cases:
+            with self.subTest(reason=reason):
+                self.setUp()
+                self.breaks(stage, change, reason)
+
     def test_button_failures(self) -> None:
         def drop(key: str, value: str) -> Callable[[], None]:
             return lambda: self.logs["buttons.log"].remove((key, value))
@@ -448,7 +472,7 @@ class ScriptShapeTests(unittest.TestCase):
     def test_logs_scenarios_and_runs_match_the_validator(self) -> None:
         self.assertEqual(re.findall(r'New-EvidenceLog "([a-z-]+\.log)"', self.text),
                          ["template.log", "build.log", "harness.log", "failure.log", "import.log",
-                          "buttons.log", "sync.log", "roundtrip.log", "sync-failure.log"])
+                          "buttons.log", "timing.log", "sync.log", "roundtrip.log", "sync-failure.log"])
         self.assertEqual(set(re.findall(r'New-EvidenceLog "([a-z-]+\.log)"', self.text)), set(ev.LOGS))
         scenarios = re.findall(r'Write-ImportScenario \$excel \$book \$qualified \$log "([a-z-]+)"', self.text)
         self.assertEqual(scenarios, list(ev.SCENARIOS))
