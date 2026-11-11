@@ -188,7 +188,9 @@ python tools/compare_vba_export.py --export "C:\path\to\export" --mode developme
 
 It ignores line endings, trailing blank lines, the letter case of code outside
 strings and comments (the VBE re-cases identifiers on import; such lines are
-counted) and the attributes of document modules, which Excel writes. Everything
+counted), the spelling of numbers in code, which the VBE rewrites on import
+(`1E+11` as `100000000000#`, `&H1000000&` as `&H1000000`), so numbers are
+compared by value and type (counted too) and the attributes of document modules, which Excel writes. Everything
 else must match. The export needs the same Trust access as the synchronizer;
 the comparison never runs Excel.
 

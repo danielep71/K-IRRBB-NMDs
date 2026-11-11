@@ -140,6 +140,40 @@ class CompareExportTests(unittest.TestCase):
         self.assertEqual(tool.fold_case("    Remaining = Rem2"), "    remaining = rem2")
         self.assertEqual(tool.fold_case('    S = """A"" B"'), '    s = """A"" B"')
 
+    def test_numbers_are_compared_by_value(self) -> None:
+        # Lines the VBE rewrote on import in a real export (Excel 16.0, build 20430).
+        same = [
+            ("Private Const LIMIT As Double = 1E+11", "Private Const LIMIT As Double = 100000000000#"),
+            ("    Loop While Abs(term) > 0.0000000000000000001 * Abs(s)", "    Loop While Abs(term) > 1E-19 * Abs(s)"),
+            ("    s0 = ((x And &H1000000&) Or (x * &H2000000&)) And &H80&",
+             "    s0 = ((x And &H1000000) Or (x * &H2000000)) And &H80&"),
+            ("    y = 1.0", "    y = 1#"),
+            ("    y = 3000000000", "    y = 3000000000#"),
+        ]
+        for left, right in same:
+            with self.subTest(left=left):
+                self.assertEqual(tool.canonical(left), tool.canonical(right))
+        different = [
+            ("    x = &H8000", "    x = &H8000&"),
+            ("    x = 5", "    x = 6"),
+            ("    x = 5", "    x = 5#"),
+            ('    s = "1E+11"', '    s = "100000000000#"'),
+            ("    x = 1E+11 ' 1E+11", "    x = 1E+11 ' 100000000000#"),
+            ("    x1 = 2", "    x2 = 2"),
+        ]
+        for left, right in different:
+            with self.subTest(left=left):
+                self.assertNotEqual(tool.canonical(left), tool.canonical(right))
+
+    def test_a_respelled_number_passes_and_is_counted(self) -> None:
+        source = tool.Component("CORE_A", ('Attribute VB_Name = "CORE_A"',),
+                                ("Option Explicit", "Private Const L As Double = 1E+11"))
+        export = tool.Component("CORE_A", ('Attribute VB_Name = "CORE_A"',),
+                                ("Option Explicit", "Private Const L As Double = 100000000000#"))
+        expected = {"core_a": tool.Expected("src/core/CORE_A.bas", source, False)}
+        findings, recased, respelled = tool.compare(expected, {"core_a": ("CORE_A.bas", export)})
+        self.assertEqual((findings, recased, respelled), ([], 0, 1))
+
     def test_changed_attribute_of_a_standard_module_fails(self) -> None:
         self.export("production")
         self.edit("CORE_Codes.bas", b'Attribute VB_Name = "CORE_Codes"\r\n',

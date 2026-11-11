@@ -32,6 +32,7 @@ import json
 import re
 import sys
 import zipfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -91,35 +92,90 @@ def parse(raw: bytes, label: str) -> Component:
     return Component(names[0], tuple(attributes), tuple(body))
 
 
-def fold_case(line: str) -> str:
-    """``line`` with its code lower-cased, string literals and the comment kept.
+def segments(line: str) -> list[tuple[str, str]]:
+    """``line`` split into ("code", text), ("string", text) and ("comment", text)
+    parts, a ``Rem`` comment as ("rem", text).
 
     A comment starts at an apostrophe outside a string, or at ``Rem`` where a
     statement starts: the start of the line, after a line number or after a
     colon."""
-    folded: list[str] = []
+    parts: list[tuple[str, str]] = []
+    code: list[str] = []
     in_string = False
     statement_start = True
     index = 0
     while index < len(line):
         char = line[index]
         if in_string:
+            parts[-1] = ("string", parts[-1][1] + char)
             in_string = char != '"'
         elif char == '"':
+            parts.append(("code", "".join(code)))
+            code = []
+            parts.append(("string", char))
             in_string, statement_start = True, False
         elif char == "'":
-            return "".join(folded) + line[index:]
-        elif char == ":":
-            statement_start = True
+            return parts + [("code", "".join(code)), ("comment", line[index:])]
         elif statement_start and REM.match(line, index):
-            return "".join(folded) + "rem" + line[index + 3:]
-        elif statement_start and char.isdigit() and not "".join(folded).strip(" \t0123456789"):
-            pass
-        elif not char.isspace():
-            statement_start = False
-        folded.append(char if in_string or char == '"' else char.lower())
+            return parts + [("code", "".join(code)), ("rem", line[index:])]
+        else:
+            if char == ":":
+                statement_start = True
+            elif statement_start and char.isdigit() and not "".join(code).strip(" \t0123456789"):
+                pass
+            elif not char.isspace():
+                statement_start = False
+            code.append(char)
         index += 1
-    return "".join(folded)
+    return parts + [("code", "".join(code))]
+
+
+def _join(line: str, code: Callable[[str], str]) -> str:
+    out = []
+    for kind, text in segments(line):
+        if kind == "code":
+            out.append(code(text.lower()))
+        elif kind == "rem":
+            out.append("rem" + text[3:])
+        else:
+            out.append(text)
+    return "".join(out)
+
+
+def fold_case(line: str) -> str:
+    """``line`` with its code lower-cased, string literals and the comment kept."""
+    return _join(line, lambda code: code)
+
+
+# A hexadecimal literal, or a decimal one with an optional exponent and type suffix.
+NUMBER = re.compile(r"&h([0-9a-f]+)([&%^]?)|(?<![\w.])((?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)([#!@%&^]?)(?![\w.])")
+LONG_MAX = 2**31 - 1
+
+
+def _literal(match: re.Match[str]) -> str:
+    """A numeric literal as its value: the VBE rewrites the spelling, never the value.
+
+    A hexadecimal literal is an Integer up to &HFFFF unless it ends in &, and a
+    Long above it, so &H1000000& and &H1000000 are the same Long while &H8000
+    (-32768) and &H8000& (32768) differ. A decimal literal with a point, an
+    exponent or the Double or Single suffix, or an integer beyond the Long
+    range, is a floating-point value, so 1E+11, 100000000000# and 100000000000
+    are the same Double."""
+    if match.group(1) is not None:
+        value = int(match.group(1), 16)
+        bits = 16 if value <= 0xFFFF and match.group(2) != "&" else 32
+        if value >= 1 << (bits - 1) and value < 1 << bits:
+            value -= 1 << bits
+        return f"<int {value}>"
+    text, suffix = match.group(3), match.group(4)
+    if "." in text or "e" in text or suffix in ("#", "!") or int(float(text)) > LONG_MAX:
+        return f"<float {float(text)!r}>"
+    return f"<int {int(text)}>"
+
+
+def canonical(line: str) -> str:
+    """``fold_case`` with every numeric literal of the code replaced by its value."""
+    return _join(line, lambda code: NUMBER.sub(_literal, code))
 
 
 def committed(root: Path, sha: str, path: str) -> bytes:
@@ -158,21 +214,22 @@ def exported_components(folder: Path) -> dict[str, tuple[str, Component]]:
 
 def first_difference(source: tuple[str, ...], export: tuple[str, ...]) -> str:
     for number, (left, right) in enumerate(zip(source, export), start=1):
-        if fold_case(left) != fold_case(right):
+        if canonical(left) != canonical(right):
             return f"line {number}: source {left!r}, export {right!r}"
     shorter = min(len(source), len(export))
     return f"line {shorter + 1}: source has {len(source)} lines, export {len(export)}"
 
 
 def compare(expected: dict[str, Expected],
-            exported: dict[str, tuple[str, Component]]) -> tuple[list[str], int]:
+            exported: dict[str, tuple[str, Component]]) -> tuple[list[str], int, int]:
     """The differences between the source and the export, empty when they
-    match, and the number of lines that differ only in letter case."""
+    match, the number of lines that differ only in letter case and the number
+    that differ in how the VBE spells a number."""
     findings = [f"missing from the export: {expected[key].component.name} ({expected[key].path})"
                 for key in sorted(set(expected) - set(exported))]
     findings += [f"not in the source for this mode: {exported[key][1].name} ({exported[key][0]})"
                  for key in sorted(set(exported) - set(expected))]
-    recased = 0
+    recased = respelled = 0
     for key in sorted(set(expected) & set(exported)):
         path, source = expected[key].path, expected[key].component
         _, export = exported[key]
@@ -183,11 +240,13 @@ def compare(expected: dict[str, Expected],
                 source.attributes, export.attributes, lineterm="", n=0)
                 if line[:1] in "+-" and line[:3] not in ("+++", "---")]
             findings.append(f"{path}: attributes differ: {'; '.join(changed)}")
-        if [fold_case(line) for line in source.body] != [fold_case(line) for line in export.body]:
+        if [canonical(line) for line in source.body] != [canonical(line) for line in export.body]:
             findings.append(f"{path}: code differs at {first_difference(source.body, export.body)}")
         else:
-            recased += sum(left != right for left, right in zip(source.body, export.body))
-    return findings, recased
+            pairs = list(zip(source.body, export.body))
+            respelled += sum(fold_case(left) != fold_case(right) for left, right in pairs)
+            recased += sum(left != right and fold_case(left) == fold_case(right) for left, right in pairs)
+    return findings, recased, respelled
 
 
 def sha256(data: bytes) -> str:
@@ -303,7 +362,7 @@ def main(arguments: list[str] | None = None) -> int:
             raise ValueError(f"export folder not found: {options.export}")
         expected = expected_components(options.root, sha, options.mode)
         exported = exported_components(options.export)
-        findings, recased = compare(expected, exported)
+        findings, recased, respelled = compare(expected, exported)
         if options.workbook is not None and not options.workbook.is_file():
             raise ValueError(f"workbook not found: {options.workbook}")
         binding, binding_findings, binding_notes = check_binding(options.export, options.workbook)
@@ -317,6 +376,7 @@ def main(arguments: list[str] | None = None) -> int:
     if options.workbook is not None:
         print(f"Workbook:  {options.workbook.name} sha256 {sha256(options.workbook.read_bytes())}")
     print(f"Re-cased:  {recased} line(s) differ only in the letter case of code (ignored)")
+    print(f"Numbers:   {respelled} line(s) differ only in how the VBE spells a number (ignored)")
     print(f"Binding:   {binding} - {binding_note(binding, options.export, options.workbook)}")
     for note in binding_notes:
         print(f"  NOTE {note}")
