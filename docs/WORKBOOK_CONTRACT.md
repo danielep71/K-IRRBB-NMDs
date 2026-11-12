@@ -229,7 +229,7 @@ harness constants. LibreOffice, as an early warning only (`tools/devbuild/lo_smo
 the development workbook built from the template and runs the harness,
 `WB-LAYOUT-01` included.
 
-**Verified in Excel** on `32ff849`, Windows Excel 64-bit
+**Verified in Excel** on `4f58a2f`, Windows Excel 64-bit
 ([`EXCEL_EVIDENCE.md`](EXCEL_EVIDENCE.md)): Excel opens the template without a
 repair prompt, with the contract's sheets, CodeNames, names, validation,
 appearance and print setup, and `WB-LAYOUT-01` passes in the development
