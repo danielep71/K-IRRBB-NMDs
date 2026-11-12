@@ -4,7 +4,7 @@
 
 ### Registered reference cases for every model, with independent provenance and tolerances
 
-[![Status](https://img.shields.io/badge/Cases-decay_built%2C_others_registered-d97706?style=flat-square)](#register)
+[![Status](https://img.shields.io/badge/Cases-22_built%2C_14_registered-d97706?style=flat-square)](#register)
 [![Rule](https://img.shields.io/badge/Rule-no_self--validation-6f42c1?style=flat-square)](#provenance)
 
 </div>
@@ -21,11 +21,15 @@ evidence protocol is in [`VALIDATION_PLAN.md`](VALIDATION_PLAN.md).
 > decay cases are *Built (VBA)*, pending review in #36. The data contract cases
 > are *built*: their fixtures and expected files exist and are checked on every
 > run of `python tools/check.py`. Cases marked *Built (VBA)* have a VBA
-> implementation run by `TEST_Harness.RunTests` in Excel; their literal
-> expectations are checked without Excel by `tools/test_vba_harness.py`; the
-> decay expectations are generated into `tests/modules/TEST_DecayData.bas` and
-> checked against their expected files by the same tool. No
-> Excel run is recorded yet. A case moves to *built* when its fixture and
+> implementation run by `TEST_Harness.RunTests` in Excel. The literal
+> expectations of the core, workbook, data and hash cases are checked without
+> Excel by `tools/test_vba_harness.py`, which does not read those of
+> `DATA-IMPORT-01`, `DATA-RECON-01` or `DEC-ERR-01`; the decay expectations
+> are generated into `tests/modules/TEST_DecayData.bas` and checked against
+> their expected files by the same tool. The built cases passed in Windows
+> Excel 64-bit on `32ff849`, before #264 extended `HARN-OUT-01` and
+> `DATA-PARSE-02` and changed `CORE_ParseDecimal`; those additions have run
+> only in the LibreOffice proxy so far. A case moves to *built* when its fixture and
 > expected file are committed with their provenance; the harness registry in
 > `tests/modules/TEST_Harness.bas` lists every ID here, in this order.
 
@@ -68,7 +72,7 @@ statistical check, not a tolerance test.
 
 | ID | Checks | Reference | Tolerance | Status |
 | --- | --- | --- | --- | --- |
-| `HARN-OUT-01` | Case outcome rules (`NOT RUN`, `ERROR`, `FAIL` with no assertion, `PASS` only when every assertion passes) and the `abs`, `rel` and `exact` tolerance kinds | Rules on this page; expectations re-derived by [`test_vba_harness.py`](../../tools/test_vba_harness.py) | `exact` | Built (VBA) |
+| `HARN-OUT-01` | Case outcome rules (`NOT RUN`, `ERROR`, `FAIL` with no assertion, `PASS` only when every assertion passes), the `abs`, `rel` and `exact` tolerance kinds, and the cut of a table at its named area | Rules on this page; expectations re-derived by [`test_vba_harness.py`](../../tools/test_vba_harness.py) | `exact` | Built (VBA) |
 
 ### Workbook
 
@@ -88,7 +92,7 @@ statistical check, not a tolerance test.
 | `DATA-RECON-01` | Reconciliation against a control-totals file: a matching file and one within the 0.005 tolerance accepted; a count difference, a balance difference beyond the tolerance (above and below), EUR and USD added together, keys with no import total (a missing segment month, a month after the window, an absent currency) rejected with `E13`; format rules of the file (`E01`–`E07`, `E09`), a control balance at the 1E+11 limit included; no reconciliation of a rejected panel; no file gives `none` in the lineage; the file's name, size, rows and SHA-256 in the lineage | Hand assignment, [`control_totals_findings.json`](../../tests/expected/data_contract/control_totals_findings.json), from the totals of `accounts_summary.json`; in VBA through `TEST_Fixtures` | `exact` (findings carry the 0.005 balance tolerance) | Built (Python, VBA) |
 | `DATA-SHA-01` | SHA-256 of the data fingerprint (`CORE_Sha256`): the published FIPS 180-2 examples (`abc`, the 448- and 896-bit messages; one million `a` is left out for run time), the empty message, the padding boundaries (55, 56, 63, 64, 65, 119, 120 bytes) and one message fed in pieces of 1, 7, 64 and 65 bytes | FIPS 180-2 examples; every digest re-derived with Python `hashlib` by [`test_vba_harness.py`](../../tools/test_vba_harness.py) | `exact` | Built (VBA) |
 | `DATA-PARSE-01` | ISO dates (`CORE_ParseIsoDate`): missing versus invalid, calendar and leap-year validity, years 1900–9999, no time part; month ends (`CORE_IsMonthEnd`) | [File format](DATA_CONTRACT.md#file-format); expectations re-derived from the Python reading in [`test_data_contract.py`](../../tools/test_data_contract.py) | `exact` | Built (VBA) |
-| `DATA-PARSE-02` | Balances (4 places) and rates (8 places, −0.05 to 0.25) (`CORE_ParseDecimal`, `CORE_ParseRate`): missing versus invalid, locale-like forms rejected | As `DATA-PARSE-01` | `rel 1e-15` balances; `exact` rates and codes | Built (VBA) |
+| `DATA-PARSE-02` | Balances (4 places, at most 300 integer digits) and rates (8 places, −0.05 to 0.25) (`CORE_ParseDecimal`, `CORE_ParseRate`): missing versus invalid, locale-like forms rejected | As `DATA-PARSE-01` | `rel 1e-15` balances; `exact` rates and codes | Built (VBA) |
 | `DATA-CODES-01` | Segment codes and the currency allowlist reject every other value, including case and spacing variants | As `DATA-PARSE-01` | `exact` | Built (VBA) |
 
 ### Rate pass-through

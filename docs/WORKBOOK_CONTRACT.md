@@ -6,7 +6,7 @@
 
 [![Template](https://img.shields.io/badge/Template-macro--free_xlsx-217346?style=flat-square)](#template)
 [![Source](https://img.shields.io/badge/Built-from_source-1d76db?style=flat-square)](#build)
-[![Status](https://img.shields.io/badge/Excel-not_yet_verified-d97706?style=flat-square)](#evidence)
+[![Status](https://img.shields.io/badge/Excel-verified_64--bit-217346?style=flat-square)](#evidence)
 
 <br>
 
@@ -120,6 +120,9 @@ beginning `COMPLETE` marks that sheet's results as current.**
 | `FAILED` | The run stopped; partial results, if any, are not current | Red |
 | `FAILED - IMPORT REJECTED` | The data files break the contract; findings are listed, no totals or outcomes | Red |
 
+A status may end with a note, such as ` (a table is cut at its last row)`; the
+color follows the status before it, so a cut failure stays red.
+
 A run that writes a sheet:
 
 1. sets the status to `RUNNING - previous results withdrawn` and clears the
@@ -222,9 +225,12 @@ after the workflow, and never overwrite the sheet map or build-stamp cells.
 
 Checked without Excel: the template matches its generator, the tables above
 match the generator, the package is sanitized, and the `Checks` names match the
-harness constants. LibreOffice, as an early warning only, opens the template
-with every sheet, CodeName, name and validation, and runs `WB-LAYOUT-01`.
+harness constants. LibreOffice, as an early warning only (`tools/devbuild/lo_smoke.py`), opens
+the development workbook built from the template and runs the harness,
+`WB-LAYOUT-01` included.
 
-**Not yet verified in Excel:** that Excel opens the template without a repair
-prompt, and that `WB-LAYOUT-01` passes in the development workbook on a
-supported host ([`EXCEL_EVIDENCE.md`](EXCEL_EVIDENCE.md)).
+**Verified in Excel** on `32ff849`, Windows Excel 64-bit
+([`EXCEL_EVIDENCE.md`](EXCEL_EVIDENCE.md)): Excel opens the template without a
+repair prompt, with the contract's sheets, CodeNames, names, validation,
+appearance and print setup, and `WB-LAYOUT-01` passes in the development
+workbook and in a workbook synchronized from the template.

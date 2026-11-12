@@ -33,7 +33,9 @@ model definitions are in [`README.md`](README.md); validation obligations in
 > [#71](https://github.com/danielep71/K-IRRBB-NMDs/issues/71)
 > ([decision 9](#decisions)); the control totals on 2026-11-11 in
 > [#202](https://github.com/danielep71/K-IRRBB-NMDs/issues/202)
-> ([decision 10](#decisions)). Other audit amendments remain tracked in
+> ([decision 10](#decisions)); the counting of masked accounts in the lineage
+> on 2026-11-11 in [#71](https://github.com/danielep71/K-IRRBB-NMDs/issues/71)
+> ([decision 11](#decisions)). Other audit amendments remain tracked in
 > [#26](https://github.com/danielep71/K-IRRBB-NMDs/issues/26). Only synthetic data is ever
 > committed or attached. Real data is loaded locally
 > and never enters Git, issues or pull requests.
@@ -97,7 +99,8 @@ The key is (`as_of_date`, `account_id`). A missing `customer_rate` excludes
 that account-month from rate-model inputs only. Missing `open_date` means
 opened before the data window or unknown.
 
-Balances must convert to finite VBA Double values; overflow is `E04`. A total
+A balance has at most 300 digits before the decimal point, leading zeros not
+counted, so it is always a finite VBA Double; a longer one is `E04`. A total
 balance above 1E+307 fails the import rather than produce an infinite result.
 Known non-empty opening/closure dates must be consistent throughout an account's
 history (`E11`); an omitted repeat does not erase a known date. A row dated on or
@@ -397,7 +400,7 @@ or reference may be used at runtime.
 | [`tests/expected/data_contract/accounts_summary.json`](../../tests/expected/data_contract/accounts_summary.json) | Hand-computed totals per date, segment and currency, and every expected warning |
 | [`tests/expected/data_contract/accounts_invalid_findings.json`](../../tests/expected/data_contract/accounts_invalid_findings.json) | Expected first error per invalid line |
 | [`tests/fixtures/data_contract/control_totals.csv`](../../tests/fixtures/data_contract/control_totals.csv) | The 23 totals of `accounts.csv`, unchanged |
-| `tests/fixtures/data_contract/control_totals_*.csv` | Balances 0.0049 from the total (`within`), 0.0051 from it (`balance`), a count difference and EUR plus USD added (`count`), keys with no import total (`unknown`), and one row per format rule, a balance at the 1E+11 limit included (`invalid`) |
+| `tests/fixtures/data_contract/control_totals_*.csv` | Balances 0.0049 and exactly 0.0050 from the total (`within`, the tolerance included), 0.0051 from it (`balance`), a count difference and EUR plus USD added (`count`), keys with no import total (`unknown`), and one row per format rule, a balance at the 1E+11 limit included (`invalid`) |
 | [`tests/expected/data_contract/control_totals_findings.json`](../../tests/expected/data_contract/control_totals_findings.json) | Expected findings per control-totals file against `accounts.csv`, with the steps of the hand assignment |
 
 The fixtures are hand-constructed; the expected values were computed by hand
@@ -424,7 +427,8 @@ call (`SECURITY.md`).
 
 I accepted decisions 1–5 on 2026-10-08 in issue #4;
 decisions 6–8 on 2026-10-09 in issue #32; decision 9 on 2026-10-13 in
-issue #71; decision 10 on 2026-11-11 in issue #202.
+issue #71; decision 10 on 2026-11-11 in issue #202; decision 11 on 2026-11-11
+in issue #71.
 
 | # | Decision | Outcome |
 | ---: | --- | --- |
@@ -438,6 +442,7 @@ issue #71; decision 10 on 2026-11-11 in issue #202.
 | 8 | Month end with no rows inside the window (#32, 2026-10-09) | Import rejected (`E12`) |
 | 9 | Import timestamp time zone (#71, 2026-10-13) | Host local time, without UTC offset; no system call is added to read it |
 | 10 | Control totals (#202, 2026-11-11) | Optional third CSV file chosen on `Config`; accounts exact, balances within 0.005 per date, segment and currency; any difference is `E13` and rejects the import; recorded in the lineage, `none` when not given |
+| 11 | Masked accounts in the lineage (#71, 2026-11-11) | At each origin, counted once per account under the segment and currency of its latest row on or before the origin, not per panel row |
 
 ---
 

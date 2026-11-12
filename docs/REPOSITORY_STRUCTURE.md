@@ -64,12 +64,13 @@ label catalog; this document makes it the architecture decision as well.
 ## 🔄 Intended Excel workflow
 
 The architecture is checked against this end-to-end workflow. Sheet names are
-the proposal in issue #5; data fields come from issue #4.
+fixed in [`WORKBOOK_CONTRACT.md`](WORKBOOK_CONTRACT.md); data fields come from
+[`DATA_CONTRACT.md`](methodology/DATA_CONTRACT.md).
 
 | Step | User action | Workbook layer (`src/workbook/`) | Facade and core |
 | ---: | --- | --- | --- |
 | 1 | Configure the run: segments, currency, data window, model versions | `Config`, `Segments` sheets | Validates and freezes run settings |
-| 2 | Load a synthetic or permitted dataset | Reads the input range into arrays | Data validation, segmentation, reconciliation (`DataSummary`) |
+| 2 | Load a synthetic or permitted dataset | Reads the file paths and settings on `Config` and `Segments`; the facade reads the CSV files | Data validation, segmentation, reconciliation (`DataSummary`) |
 | 3 | Calibrate the rate pass-through model | Writes parameters and diagnostics | ECM / OLS estimation and specification tests |
 | 4 | Calibrate the stable-amount model | Writes parameters and diagnostics | Cash-out measurement and logit estimation |
 | 5 | Calibrate the decay model | Writes the profile and diagnostics | Log-change dynamics, quantiles, mean life |
