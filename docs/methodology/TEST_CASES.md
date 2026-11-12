@@ -27,9 +27,7 @@ evidence protocol is in [`VALIDATION_PLAN.md`](VALIDATION_PLAN.md).
 > `DATA-IMPORT-01`, `DATA-RECON-01` or `DEC-ERR-01`; the decay expectations
 > are generated into `tests/modules/TEST_DecayData.bas` and checked against
 > their expected files by the same tool. The built cases passed in Windows
-> Excel 64-bit on `32ff849`, before #264 extended `HARN-OUT-01` and
-> `DATA-PARSE-02` and changed `CORE_ParseDecimal`; those additions have run
-> only in the LibreOffice proxy so far. A case moves to *built* when its fixture and
+> Excel 64-bit on `4f58a2f`. A case moves to *built* when its fixture and
 > expected file are committed with their provenance; the harness registry in
 > `tests/modules/TEST_Harness.bas` lists every ID here, in this order.
 
