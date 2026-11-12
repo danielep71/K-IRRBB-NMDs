@@ -128,12 +128,17 @@ Public Sub RunDecayExample()
 
 Fail:
     primary = "FAILED - " & Err.Description & " [" & Err.Source & ", " & Err.Number & "]"
+    ' Resume ends the handler, so an error while cleaning up is trapped too.
+    Resume ReportPrimary
+ReportPrimary:
     On Error GoTo CleanupFail
     ClearOutputs
     ThisWorkbook.Worksheets(SH).Range("B14").Value = primary
     Exit Sub
 CleanupFail:
     cleanup = " | cleanup error: " & Err.Description
+    Resume ReportBoth
+ReportBoth:
     On Error Resume Next
     ThisWorkbook.Worksheets(SH).Range("B14").Value = primary & cleanup
 End Sub

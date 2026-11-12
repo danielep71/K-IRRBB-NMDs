@@ -48,6 +48,7 @@ Private Const NM_INFO As String = "Checks_Info"
 Private Const NM_CASES As String = "Checks_Cases"
 Private Const NM_ASSERTIONS As String = "Checks_Assertions"
 Private Const NM_SOURCE_COMMIT As String = "Readme_SourceCommit"
+Private Const CUT_NOTE As String = " (a table is cut at its last row)"
 Private Const INFO_STARTED As Long = 1
 Private Const INFO_FINISHED As Long = 2
 Private Const INFO_COMMIT As Long = 3
@@ -297,6 +298,17 @@ End Function
 ' TEST_WithinTolerance (TEST_CASES.md): abs |x - r| <= eps;
 ' rel |x - r| <= eps * max(1, |r|); exact x = r. Any other kind is False.
 '------------------------------------------------------------------------------
+Public Function TEST_RowsToWrite(ByVal rows As Long, ByVal areaRows As Long) As Long
+    ' The rows of a table written into a named area of areaRows rows: all of
+    ' them, or the area's rows when the table is longer (it is then cut).
+    If rows > areaRows Then
+        TEST_RowsToWrite = areaRows
+    Else
+        TEST_RowsToWrite = rows
+    End If
+End Function
+
+
 Public Function TEST_WithinTolerance(ByVal actual As Double, ByVal expected As Double, _
                                      ByVal kind As String, ByVal eps As Double) As Boolean
     Dim diff As Double
@@ -419,21 +431,27 @@ End Sub
 
 
 Private Sub WriteResults(ByVal primary As String)
-    Dim i As Long, j As Long, block() As Variant
+    Dim i As Long, j As Long, n As Long, block() As Variant, cut As Boolean
     Dim nPass As Long, nFail As Long, nErr As Long, nNot As Long, aPass As Long, aTotal As Long
     If mInjectWriteFault Then
         Err.Raise ERR_INJECTED_WRITE, "TEST_Harness.WriteResults", "Injected results write fault"
     End If
 
+    ' A table longer than its named area is cut at the area's last row and the
+    ' cut is stated in the status (WORKBOOK_CONTRACT.md); the counts cover all.
     If mCaseCount > 0 Then
-        ReDim block(1 To mCaseCount, 1 To 6)
+        n = TEST_RowsToWrite(mCaseCount, NamedRange(NM_CASES).Rows.Count)
+        cut = (n < mCaseCount)
+        ReDim block(1 To n, 1 To 6)
         For i = 1 To mCaseCount
-            block(i, 1) = mCaseId(i)
-            block(i, 2) = mCaseOutcome(i)
-            block(i, 3) = mCaseAsserts(i)
-            block(i, 4) = mCasePassed(i)
-            block(i, 5) = mCaseAsserts(i) - mCasePassed(i)
-            block(i, 6) = mCaseNote(i)
+            If i <= n Then
+                block(i, 1) = mCaseId(i)
+                block(i, 2) = mCaseOutcome(i)
+                block(i, 3) = mCaseAsserts(i)
+                block(i, 4) = mCasePassed(i)
+                block(i, 5) = mCaseAsserts(i) - mCasePassed(i)
+                block(i, 6) = mCaseNote(i)
+            End If
             Select Case mCaseOutcome(i)
                 Case "PASS": nPass = nPass + 1
                 Case "FAIL": nFail = nFail + 1
@@ -443,24 +461,26 @@ Private Sub WriteResults(ByVal primary As String)
             aPass = aPass + mCasePassed(i)
             aTotal = aTotal + mCaseAsserts(i)
         Next i
-        NamedRange(NM_CASES).Resize(mCaseCount, 6).Value = block
+        NamedRange(NM_CASES).Resize(n, 6).Value = block
     End If
     If mRowCount > 0 Then
-        ReDim block(1 To mRowCount, 1 To 7)
-        For i = 1 To mRowCount
+        n = TEST_RowsToWrite(mRowCount, NamedRange(NM_ASSERTIONS).Rows.Count)
+        cut = cut Or (n < mRowCount)
+        ReDim block(1 To n, 1 To 7)
+        For i = 1 To n
             For j = 1 To 7
                 block(i, j) = mRows(j, i)
             Next j
         Next i
-        NamedRange(NM_ASSERTIONS).Resize(mRowCount, 7).Value = block
+        NamedRange(NM_ASSERTIONS).Resize(n, 7).Value = block
     End If
 
     If Len(primary) > 0 Then
         NamedRange(NM_STATUS).Value = "FAILED"
     ElseIf nFail + nErr > 0 Then
-        NamedRange(NM_STATUS).Value = "COMPLETE - FAILURES"
+        NamedRange(NM_STATUS).Value = "COMPLETE - FAILURES" & IIf(cut, CUT_NOTE, "")
     Else
-        NamedRange(NM_STATUS).Value = "COMPLETE - ALL EXECUTED CASES PASSED"
+        NamedRange(NM_STATUS).Value = "COMPLETE - ALL EXECUTED CASES PASSED" & IIf(cut, CUT_NOTE, "")
     End If
     Info INFO_STARTED, mStarted
     Info INFO_FINISHED, Now

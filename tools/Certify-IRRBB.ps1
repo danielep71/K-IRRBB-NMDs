@@ -693,7 +693,8 @@ finally {
 }
 
 # ----------------------------------------------------------------------------
-# Stages 1 to 5: build, compile, harness, failure path, import (development workbook)
+# Stages build, references, compile, smoke, failure_path, import, buttons,
+# timing and cleanup (the development workbook)
 # ----------------------------------------------------------------------------
 $devPath = Join-Path $BundleDir "IRRBB_Dev.xlsm"
 $log = New-EvidenceLog "build.log"
@@ -812,7 +813,7 @@ if ($buildCode -eq 0 -and (Test-Path -LiteralPath $devPath)) {
     }
 }
 else {
-    Write-Session "The development workbook was not built; stages 2 to 5 not run"
+    Write-Session "The development workbook was not built; the stages from references to cleanup were not run"
 }
 
 # ----------------------------------------------------------------------------
@@ -926,6 +927,11 @@ Write-Host "Bundle: $BundleDir"
 if ($code -eq 0) {
     Write-Host "RESULT=PASS: the bundle validates for candidate $sha."
     exit 0
+}
+if ($code -eq 3) {
+    Write-Host ("RESULT=BEST_EFFORT: every stage passed, but not in 64-bit Excel, so the bundle " +
+                "is not certification. Keep the bundle as it is.")
+    exit 3
 }
 Write-Host "RESULT=FAIL: see the stages above and session.log. Keep the bundle as it is."
 exit $code

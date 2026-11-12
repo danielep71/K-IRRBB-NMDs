@@ -325,11 +325,13 @@ def _xml(body: str) -> bytes:
 
 
 def _status_rules(priority: int) -> tuple[str, int]:
+    # Statuses are matched by their prefix: a note may follow, such as " (a table
+    # is cut at its last row)", and must not turn a failure green.
     rules = (f'<conditionalFormatting sqref="B3">'
              f'<cfRule type="expression" dxfId="1" priority="{priority}"><formula>'
-             f'OR(LEFT($B$3,6)="FAILED",$B$3="COMPLETE - FAILURES")</formula></cfRule>'
+             f'OR(LEFT($B$3,6)="FAILED",LEFT($B$3,19)="COMPLETE - FAILURES")</formula></cfRule>'
              f'<cfRule type="expression" dxfId="0" priority="{priority + 1}"><formula>'
-             f'AND(LEFT($B$3,8)="COMPLETE",$B$3&lt;&gt;"COMPLETE - FAILURES")</formula></cfRule>'
+             f'AND(LEFT($B$3,8)="COMPLETE",LEFT($B$3,19)&lt;&gt;"COMPLETE - FAILURES")</formula></cfRule>'
              f'<cfRule type="expression" dxfId="2" priority="{priority + 2}"><formula>'
              f'AND(LEFT($B$3,6)&lt;&gt;"FAILED",LEFT($B$3,8)&lt;&gt;"COMPLETE")</formula></cfRule>'
              f'</conditionalFormatting>')

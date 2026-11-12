@@ -39,8 +39,8 @@ that I follow as maintainer. Day-to-day contribution is owned by
 | Active milestone | `v0.2.0 - Workbook, data and Excel tests` |
 | Closed milestones | `v0.1.0 - Repository foundation` (2026-10-09, no release) |
 | Version file | Not present; created when the first release is prepared ([versioning](#versioning)) |
-| Release evidence tooling | Static checks (`tools/check.py`); development-workbook builder, synchronizer and source round trip ([`tools/README.md`](tools/README.md)) |
-| Excel certification procedure | Stages 1–6 of [`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md), with the harness `TEST_Harness.RunTests` |
+| Release evidence tooling | Static checks (`tools/check.py`); development-workbook builder, synchronizer, source round trip, and the one-command Excel session `tools/Certify-IRRBB.cmd` with its offline validator `tools/check_excel_evidence.py` ([`tools/README.md`](tools/README.md)) |
+| Excel certification procedure | The 13 [required stages](docs/EXCEL_EVIDENCE.md#required-stages) of `docs/EXCEL_EVIDENCE.md`, run by `tools/Certify-IRRBB.cmd` on Windows Excel 64-bit |
 
 The step below marked *(to be defined)* is settled with the first distributed
 artifact. The v0.1.0 foundation milestone closed without producing a release.
@@ -118,7 +118,7 @@ their base; no one, admins included, can bypass them. See
    ([`docs/repository-settings.json`](docs/repository-settings.json)).
 4. **Bring the release branch level with `main`:** start a task branch
    `fix/level-<release>-after-<PR>` from the release branch, merge `main`
-   into it with a merge commit (resolving any conflict in favour of the later
+   into it with a merge commit (resolving any conflict in favor of the later
    branch's work), and open a PR from that task branch into the release
    branch. Merge it with a **merge commit**,
    never a squash, which would cut the shared history. The task branch starts
