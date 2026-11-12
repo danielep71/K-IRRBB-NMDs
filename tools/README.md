@@ -30,6 +30,8 @@ The gate runner checks:
   LibreOffice accepts (`test_vba_reserved_words.py`);
 - no module spells a number with more than 15 significant digits, which the VBE
   rounds on import (`test_vba_double_literals.py`);
+- no error handler sets a new handler before ending with `Resume`, which VBA
+  would not trap (`test_vba_error_handlers.py`);
 - explicit public API declarations compared with `docs/PUBLIC_API.txt`;
 - changelog/version consistency;
 - `docs/LABELS.md` names every label of the catalog, and milestone titles use
@@ -104,7 +106,7 @@ Before it opens the workbook, the script lists the worksheet and
 well. Answer N to keep the sheet code of the workbook; the standard modules are
 imported either way. `-IncludeSheets` or `-SkipSheets` gives the answer in
 advance. The repository's sheet modules hold only `Option Explicit`, so
-skipping them changes no behaviour.
+skipping them changes no behavior.
 
 To test modules received outside the repository, for example downloaded during
 a review, without copying them into the working tree, drag the workbook onto
@@ -192,7 +194,8 @@ It ignores line endings, trailing blank lines, the letter case of code outside
 strings and comments (the VBE re-cases identifiers on import; such lines are
 counted), the spelling of numbers in code, which the VBE rewrites on import
 (`1E+11` as `100000000000#`, `&H1000000&` as `&H1000000`), so numbers are
-compared by value and type (counted too) and the attributes of document modules, which Excel writes. Everything
+compared by value and type (counted too); and the attributes of document
+modules, which Excel writes. Everything
 else must match. The export needs the same Trust access as the synchronizer;
 the comparison never runs Excel.
 
@@ -209,7 +212,7 @@ manifest and offline fixtures; they change nothing.
   the label scripts (`javascript-typescript`) and the Python tooling with the `security-extended` queries on pushes and
   pull requests to `main` and `release/**`, weekly and on demand. VBA is not a
   CodeQL language. Pushes and scheduled runs upload results to code scanning;
-  a pull request is analysed without uploading, and its SARIF files are kept
+  a pull request is analyzed without uploading, and its SARIF files are kept
   as a run artifact for 30 days. This workflow replaces GitHub's default
   CodeQL setup, which must stay off: the two cannot run together. On a private
   repository the scan needs GitHub Code Security and the repository variable
@@ -301,7 +304,7 @@ GitHub Actions pinned in the workflows and of the hash-locked quality tools in
 grouped pull request). Every `github/codeql-action` step also moves in one
 grouped pull request, because CodeQL refuses to run when its `init` and
 `analyze` steps differ in version. They are opened against the active release branch
-(`target-branch`) and labelled `ci` and `P3`. Dependabot reads this file from
+(`target-branch`) and labeled `ci` and `P3`. Dependabot reads this file from
 the default branch, so it takes effect once the file reaches `main`. Update
 every `target-branch` whenever a new release branch is opened
 ([`RELEASING.md`](../RELEASING.md)). An update of the quality tools may add

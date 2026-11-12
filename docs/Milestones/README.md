@@ -39,8 +39,8 @@ last revised and the work that still needs a detailed implementation issue.
 
 ## 🔗 Dependencies: delivery order and prerequisites
 
-v0.2.0 provides data, the Excel host foundation, and tests for all three
-models. Decay precedes Rates and Stable in the delivery sequence, but this
+v0.2.0 provides data, the Excel host foundation, and the test harness in which
+the cases of all three models run. Decay precedes Rates and Stable in the delivery sequence, but this
 does not create a mathematical dependency of Rates on the Decay formula.
 v0.6.0 requires all three models and an explicit composition contract.
 v0.7.0 adds coordinated scenarios and applicable constraints; v0.8.0 completes

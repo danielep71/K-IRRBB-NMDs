@@ -7,7 +7,8 @@ tools/Certify-IRRBB.ps1 runs this once the logs and session.json are in the
 bundle. It judges every stage from the logs (tools/excel_evidence.py), writes
 host.json, validates the bundle as tools/check_excel_evidence.py does and
 prints one line per stage. A host.json that exists already is never replaced.
-Exit code 0 only when the bundle validates as PASS. It never runs Excel.
+Exit code 0 only when the bundle validates as PASS; 3 when every stage passed
+outside 64-bit Excel (BEST_EFFORT), 1 for FAIL. It never runs Excel.
 """
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ import json
 import sys
 from pathlib import Path
 
-from excel_evidence import EvidenceError, record, report, validate
+from excel_evidence import EXIT_CODES, EvidenceError, record, report, validate
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -38,7 +39,7 @@ def main(argv: list[str] | None = None) -> int:
     print("\n".join(report(host)))
     result, findings = validate(args.root.resolve(), args.bundle, args.candidate_sha)
     print(f"Validation: {result}" + ("" if not findings else f" ({len(findings)} findings)"))
-    return 0 if result == "PASS" else 1
+    return EXIT_CODES.get(result, 1)
 
 
 if __name__ == "__main__":

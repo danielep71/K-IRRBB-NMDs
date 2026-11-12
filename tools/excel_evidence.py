@@ -48,6 +48,8 @@ REL_ID = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}i
 # A page setup as orientation|paperSize|fitToWidth|fitToHeight|fitToPage, with the
 # values SpreadsheetML gives an attribute that is left out.
 PAGE_DEFAULTS = ("default", "1", "1", "1", "0")
+# Exit codes of the writer and the checker: only PASS is 0. Certify-IRRBB.ps1 reads them.
+EXIT_CODES = {"PASS": 0, "FAIL": 1, "BEST_EFFORT": 3}
 TEMPLATE = "src/workbook/IRRBB_Template.xlsx"
 FIXTURES = "tests/fixtures/data_contract"
 EXPECTED = "tests/expected/data_contract"

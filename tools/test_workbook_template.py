@@ -40,6 +40,16 @@ def table(heading: str) -> list[list[str]]:
     return rows[2:]
 
 
+def evaluate_status_rule(formula: str, status: str) -> bool:
+    """A status rule of the template (OR, AND, LEFT, =, <> on $B$3) for one status."""
+    expression = formula.replace("$B$3", "status").replace("<>", "!=")
+    expression = re.sub(r"LEFT\(status,(\d+)\)", r"status[:\1]", expression)
+    expression = re.sub(r"(?<![!<>=])=(?!=)", "==", expression)
+    expression = expression.replace("OR(", "any_of(").replace("AND(", "all_of(")
+    return bool(eval(expression, {"__builtins__": {}},  # noqa: S307 - fixed template formulas only
+                     {"status": status, "any_of": lambda *a: any(a), "all_of": lambda *a: all(a)}))
+
+
 class Template(unittest.TestCase):
     blob: bytes
     package: zipfile.ZipFile
@@ -177,6 +187,21 @@ class Template(unittest.TestCase):
             if s.status.startswith("Placeholder"):
                 self.assertTrue(cast(str, self.value(s.name, "A5"))
                                 .startswith("Reserved: no function writes this sheet"))
+
+    def test_status_colours_follow_the_status_prefix(self) -> None:
+        # docs/WORKBOOK_CONTRACT.md: red for FAILED and COMPLETE - FAILURES, green for
+        # any other COMPLETE, amber otherwise; a note after the status changes nothing.
+        cases = {"COMPLETE - FAILURES": 0, "COMPLETE - FAILURES (a table is cut at its last row)": 0,
+                 "FAILED": 0, "FAILED - IMPORT REJECTED (2 errors)": 0,
+                 "COMPLETE - ALL EXECUTED CASES PASSED": 1,
+                 "COMPLETE - ALL EXECUTED CASES PASSED (a table is cut at its last row)": 1,
+                 "COMPLETE - IMPORT ACCEPTED": 1, "NOT RUN": 2, "RUNNING - previous results withdrawn": 2}
+        rules = self.sheet("Checks").findall("m:conditionalFormatting[@sqref='B3']/m:cfRule", NS)
+        formulas = [cast(str, r.findtext("m:formula", namespaces=NS)) for r in rules]
+        for status, colour in cases.items():
+            with self.subTest(status=status):
+                self.assertEqual([evaluate_status_rule(f, status) for f in formulas],
+                                 [i == colour for i in range(3)])
 
     def test_validation_lists_follow_the_data_contract(self) -> None:
         self.assertEqual({code for code, _ in build_template.SEGMENTS}, reference.SEGMENTS)
