@@ -45,10 +45,10 @@ decay model under review in #36.
 | VBA conventions | Defined in [`docs/VBA_HOUSE_STYLE.md`](docs/VBA_HOUSE_STYLE.md) |
 | Static checks | Available: `python tools/check.py` |
 | VBA source | `src/core/`: CORE_Parse (dates, decimals, rates), CORE_Codes (segments, currency allowlist, identifiers), CORE_Sha256 (data fingerprint) and CORE_Import (validation, summary, outcomes and point-in-time view of the data files); `src/modules/IRRBB_Import` (public import from files) and `src/workbook/WB_Import` (runs the import from `Config` into `DataSummary`), #71; the draft decay model CORE_Math, CORE_Decay, CORE_Overlay and `src/modules/IRRBB_Decay` (#36, not validated) |
-| Workbook template | [`src/workbook/IRRBB_Template.xlsx`](src/workbook/IRRBB_Template.xlsx), macro-free, generated from source; layout in [`docs/WORKBOOK_CONTRACT.md`](docs/WORKBOOK_CONTRACT.md) (#5); opened in Excel 64-bit on `32ff849` |
-| Regression harness | `tests/modules/` (#8): runs from a [development workbook](#development-workbook); passed in Excel 64-bit on `32ff849` |
+| Workbook template | [`src/workbook/IRRBB_Template.xlsx`](src/workbook/IRRBB_Template.xlsx), macro-free, generated from source; layout in [`docs/WORKBOOK_CONTRACT.md`](docs/WORKBOOK_CONTRACT.md) (#5); opened in Excel 64-bit on `4f58a2f` |
+| Regression harness | `tests/modules/` (#8): runs from a [development workbook](#development-workbook); passed in Excel 64-bit on `4f58a2f` |
 | Supported hosts and references | Decided in issue #3; see [supported hosts](#supported-hosts) |
-| Excel evidence | Defined in [`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md); a passing record on `32ff849`, Windows Excel 64-bit |
+| Excel evidence | Defined in [`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md); a passing record on `4f58a2f`, Windows Excel 64-bit |
 | Released versions | None |
 
 Passing static checks is **not** evidence of correct IRRBB calculations.
@@ -105,7 +105,7 @@ Python is also used by the static checks, which never run with the workbook.
 commits to support. Whether a given commit actually compiles and runs on a
 host is shown only by an Excel evidence record bound to that commit, as defined
 in [`docs/EXCEL_EVIDENCE.md`](docs/EXCEL_EVIDENCE.md). Tested so far: Windows 11
-x64 with Excel 16.0 build 20430, 64-bit, on `32ff849`. No 32-bit host is tested.
+x64 with Excel 16.0 build 20430, 64-bit, on `4f58a2f`. No 32-bit host is tested.
 
 ## 📥 Get the source
 

@@ -130,7 +130,7 @@ Use only the categories needed by a release.
   holds open for writing, which must be refused with error 70, and a
   `timing` stage records the import time of the large synthetic panel,
   with no speed target (#71). The manual procedure stays
-  as the fallback. All 13 stages passed in 64-bit Excel on `32ff849`
+  as the fallback. All 13 stages passed in 64-bit Excel on `4f58a2f`
   ([Validation](#validation)).
 - The import can reconcile its totals against control totals from the source
   system. An optional third CSV file (`as_of_date,segment,currency,accounts,balance`),
@@ -220,7 +220,7 @@ Use only the categories needed by a release.
   commit as a new argument (`toolkitCommit`). `DATA-SHA-01` checks the published FIPS
   180-2 examples and padding boundaries. The import time is local, without
   UTC offset (DATA_CONTRACT.md decision 9). In Excel, a 47.4 MB synthetic panel
-  imports in about two minutes ([Validation](#validation)).
+  imports in about three minutes ([Validation](#validation)).
 - Import from files (#71, stage 3): `IRRBB_ImportData`, the first public
   entry point, reads the account panel and market-rate CSV files (read only,
   other writers locked out while reading, streamed in 64 KB chunks, LF or
@@ -829,16 +829,15 @@ Use only the categories needed by a release.
 
 ### Validation
 
-- Excel, Windows 11 x64, Excel 16.0 build 20430, 64-bit: `tools/Certify-IRRBB.cmd` passed all 13 stages on `32ff849` (2026-11-11),
+- Excel, Windows 11 x64, Excel 16.0 build 20430, 64-bit: `tools/Certify-IRRBB.cmd` passed all 13 stages on `4f58a2f` (2026-11-12),
   validated offline (`RESULT=PASS`). The harness ran 22 cases `PASS` and 14
   `NOT RUN` (the Rates and Stable cases, not built); the failure path, every
   import scenario (control totals, pasted input, a locked file), the buttons,
   the template's appearance, the synchronizer and the source round trip passed;
-  a 47.4 MB synthetic panel imported in 125 s. This shows the source compiles
-  and behaves as tested in Excel; it validates no model.
-- The VBA changes of #264 (decay example cleanup, harness table cut, decimal
-  parser) were run only in the LibreOffice proxy: 22 `PASS`, 14 `NOT RUN`,
-  1405 of 1405 assertions. They are not yet run in Excel.
+  a 47.4 MB synthetic panel imported in 180 s. The run covers the VBA changes
+  of #264 (decay example cleanup, harness table cut, decimal parser). This
+  shows the source compiles and behaves as tested in Excel; it validates no
+  model.
 - Decay model as merged into `release/v0.3.0`: `python tools/check.py --ci`
   passes; LibreOffice 24.2 headless proxy run of the development workbook, see
   the merge commit messages for counts. LibreOffice is not a supported host

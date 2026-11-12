@@ -27,7 +27,7 @@ and [`RELEASING.md`](../RELEASING.md#release-invariants).
 > [!IMPORTANT]
 > `python tools/check.py` and CI never compile VBA or run Excel. Only a record
 > made by a person running Excel, bound to an exact commit, is Excel evidence.
-> A passing record exists for `32ff849` (2026-11-11), Windows Excel 64-bit.
+> A passing record exists for `4f58a2f` (2026-11-12), Windows Excel 64-bit.
 > [`tools/Certify-IRRBB.ps1`](../tools/Certify-IRRBB.ps1) runs every stage
 > below in one command and writes the record;
 > [`tools/check_excel_evidence.py`](../tools/check_excel_evidence.py) validates
