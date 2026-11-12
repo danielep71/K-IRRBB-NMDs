@@ -154,7 +154,7 @@ impact.
   `main` and manual dispatch, never on pull requests.
   CodeQL scans the workflows, the label scripts and the Python tooling; only
   pushes, the weekly run and manual runs hold `security-events: write` to
-  upload results, and a pull request is analysed read-only, with its results
+  upload results, and a pull request is analyzed read-only, with its results
   kept as a run artifact.
   The issue triage job reads issues and pull requests and writes nothing.
   The pull-request milestone guard runs on `pull_request_target` with
@@ -196,7 +196,8 @@ impact.
   that Excel session only, so their VBA runs without a prompt. Run it only on
   a commit you trust, in a clean checkout (it refuses local changes), on a
   machine you control. It never changes the Trust Center macro setting, and it
-  writes only to its bundle folder outside the checkout.
+  writes only to its bundle folder outside the checkout, apart from Python's
+  bytecode caches (`__pycache__/`, ignored by Git).
 - **Artifacts.** No workbook, add-in or other binary is distributed. Office
   packages are ignored by Git unless an exact path is re-included.
 

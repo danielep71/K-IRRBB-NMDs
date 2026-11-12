@@ -42,7 +42,7 @@ comment on the pull request. -->
 - Static repository checks result and run link:
 
 - [ ] The review covers the current PR head; every finding is fixed or answered and its thread resolved.
-- [ ] Static repository checks pass on the current head.
+- [ ] Static repository checks (the required `Repository integrity` job) pass on the current head.
 - [ ] Any push after this record is followed by a renewed review and CI run.
 
 ## Reviewer notes

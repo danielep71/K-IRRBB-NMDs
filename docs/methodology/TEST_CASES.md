@@ -21,11 +21,15 @@ evidence protocol is in [`VALIDATION_PLAN.md`](VALIDATION_PLAN.md).
 > decay cases are *Built (VBA)*, pending review in #36. The data contract cases
 > are *built*: their fixtures and expected files exist and are checked on every
 > run of `python tools/check.py`. Cases marked *Built (VBA)* have a VBA
-> implementation run by `TEST_Harness.RunTests` in Excel; their literal
-> expectations are checked without Excel by `tools/test_vba_harness.py`; the
-> decay expectations are generated into `tests/modules/TEST_DecayData.bas` and
-> checked against their expected files by the same tool. The built cases
-> passed in Windows Excel 64-bit on `32ff849`. A case moves to *built* when its fixture and
+> implementation run by `TEST_Harness.RunTests` in Excel. The literal
+> expectations of the core, workbook, data and hash cases are checked without
+> Excel by `tools/test_vba_harness.py`, which does not read those of
+> `DATA-IMPORT-01`, `DATA-RECON-01` or `DEC-ERR-01`; the decay expectations
+> are generated into `tests/modules/TEST_DecayData.bas` and checked against
+> their expected files by the same tool. The built cases passed in Windows
+> Excel 64-bit on `32ff849`, before #264 extended `HARN-OUT-01` and
+> `DATA-PARSE-02` and changed `CORE_ParseDecimal`; those additions have run
+> only in the LibreOffice proxy so far. A case moves to *built* when its fixture and
 > expected file are committed with their provenance; the harness registry in
 > `tests/modules/TEST_Harness.bas` lists every ID here, in this order.
 

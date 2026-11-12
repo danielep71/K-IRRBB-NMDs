@@ -64,7 +64,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for change and evidence requirements and
 
 The repository remains below `1.0.0` while its supported surface is still
 forming. Pre-release status does not excuse undocumented breaking changes.
-`python tools/check.py` enforces these rules and the match with `VERSION`.
+`python tools/check.py` enforces the heading format, real dates, newest-first
+order, link references and the match with `VERSION`; the meanings of Patch,
+Minor and Major are mine to apply.
 
 <details>
 <summary><strong>Entry categories</strong></summary>
@@ -119,7 +121,7 @@ Use only the categories needed by a release.
   code 3. `docs/EXCEL_EVIDENCE.md` defines the 13 stages the validator judges
   (#262). The session also checks
   the template's appearance in Excel against the template at the candidate:
-  tab colours, the brand strip and title, the dropdowns (whose values Excel
+  tab colors, the brand strip and title, the dropdowns (whose values Excel
   joins with the locale's list separator, such as `;`), the print titles and
   areas, and the page setup read from a copy Excel saves, never from Excel's
   print objects. A `buttons` stage checks every button of the development
@@ -215,7 +217,7 @@ Use only the categories needed by a release.
   (DATA_CONTRACT.md decision 5) while the import reads each file, and the
   lineage records both fingerprints and the toolkit commit, taken from the
   workbook's build stamp (`Readme_SourceCommit`). `IRRBB_ImportData` takes the
-  commit as a new last argument. `DATA-SHA-01` checks the published FIPS
+  commit as a new argument (`toolkitCommit`). `DATA-SHA-01` checks the published FIPS
   180-2 examples and padding boundaries. The import time is local, without
   UTC offset (DATA_CONTRACT.md decision 9). In Excel, a 47.4 MB synthetic panel
   imports in about two minutes ([Validation](#validation)).
@@ -273,26 +275,22 @@ Use only the categories needed by a release.
   writes `build/IRRBB_Dev.xlsm`, the workbook template with the VBA project
   generated from source, so no VBA trust setting is needed; standard library
   only; checked by `tools/test_devbuild.py` with an independent decoder.
-
 - Daily repository traffic export with history on a separate branch,
   main-only analytics access, and traffic alerts, following the SA-CCR
   repository setup.
   Setup and verification are documented in `docs/TRAFFIC.md`.
-
 - `tools/check_source.py` rejects Excel object-model and UI identifiers
   (`Range`, `Cells`, `Application`, `MsgBox` and others) in `src/core/` code,
   ignoring comments and string literals, so the model core stays
   host-independent; covered by `tools/test_core_boundary.py` (#2).
-
 - Initial repository foundation for a source-first Excel/VBA IRRBB behavioral
   modeling application.
 - Documentation of model scope, validation requirements, source boundaries and
   synthetic-data policy.
 - Portable static-checking tools and CI configuration adapted from my SA-CCR
   repository.
-
 - CodeQL scanning of the workflows, the label scripts and the Python tooling
-  on pushes, pull requests (analysed without uploading), weekly and on demand;
+  on pushes, pull requests (analyzed without uploading), weekly and on demand;
   an offline Markdown link check in the portable gates (`tools/check_links.py`)
   with a weekly run that also requests external links; and a workflow that
   removes milestones from pull requests, since milestones belong to issues.
@@ -350,8 +348,8 @@ Use only the categories needed by a release.
 - mypy also reports unreachable code (`warn_unreachable`, which `strict` does
   not include), and CI proves the setting is active with a probe; the tooling
   had no such code (#166).
-- Dependabot pull requests are assigned to `danielep71`, so they meet the
-  triage rules without a manual step (#164).
+- Dependabot pull requests are assigned to `danielep71`, as every issue is
+  (#164).
 - The daily traffic export reads the traffic API with a short-lived token of
   a GitHub App that has only `Administration: read`, created in each run from
   the `analytics` environment's `TRAFFIC_APP_CLIENT_ID` variable and
@@ -392,10 +390,10 @@ Use only the categories needed by a release.
   names the branch, and Static repository checks fails when a Dependabot
   `target-branch` is not an existing branch (#134).
 - CI runs one exact Python, 3.13.18, in every workflow, including the traffic
-  and issue-metadata workflows that used the runner's `python3`. A non-required
+  workflow, which used the runner's `python3`. A non-required
   job runs the portable gates on the minimum supported Python, 3.11, which
   replaces 3.10 (end of life) in `pyproject.toml` and the documentation.
-  `tools/requirements-quality-ci.txt` moves to Ruff 0.17.3 and mypy 2.4.1,
+  `tools/requirements-quality-ci.txt` moves to Ruff 0.17.4 and mypy 2.4.1,
   hash-locked for CPython 3.13, and Dependabot now proposes their updates as
   one grouped pull request. `tools/test_workflow_pins.py` checks the versions,
   the setup in every job that runs Python and every Dependabot target (#131).
@@ -412,7 +410,7 @@ Use only the categories needed by a release.
   `tools/`, tests included, with a strict-mode probe; `tools/` is clean under
   both (#115).
 - Dependabot proposes weekly updates of the pinned GitHub Actions as pull
-  requests against the active release branch, labelled `ci` and `P3`, as in
+  requests against the active release branch, labeled `ci` and `P3`, as in
   VBA-SACCR-Toolkit; `actions/upload-artifact` is updated to v7.0.2 and every
   action pin carries its version comment (#116).
 - The project is named K-IRRBB, like its sibling K-SACCR: the README heading,
@@ -460,7 +458,7 @@ Use only the categories needed by a release.
     before `Resume`;
   - the harness cuts the case and assertion tables at their named areas and
     says so in the status, as the workbook contract's status protocol states
-    (`TEST_RowsToWrite`, tested in `HARN-OUT-01`); the template colours a status
+    (`TEST_RowsToWrite`, tested in `HARN-OUT-01`); the template colors a status
     by its prefix, so `COMPLETE - FAILURES` with that note stays red;
   - `CORE_ParseDecimal` limits the digits before the point to 300 instead of
     the digit total to 1E+300, so a balance such as 1E+296 written with four
@@ -507,7 +505,6 @@ Use only the categories needed by a release.
   blocked deletion with the issues or pull requests that use the label, changes
   nothing and exits 0. A real reconcile still refuses those deletions, with the
   same message, before any change (#224).
-
 - The pull-request milestone guard (`.github/scripts/pr-milestones.py`) appends
   to the job summary a table of each pull request and the title of the
   milestone removed from it, or a line saying none was removed, instead of
@@ -515,7 +512,6 @@ Use only the categories needed by a release.
   are escaped and line breaks become spaces, so a title cannot break the
   table. `tools/test_pr_milestones.py` covers the summary, including a title
   with a pipe, a backslash and line breaks (#225).
-
 - Contract wording matches the code: `DATA_CONTRACT.md` states that a
   structural break reaches `IRRBB_DecayFit` as a month end, applies to the
   segment and currency of the call and has its reason recorded by the caller;
@@ -596,11 +592,9 @@ Use only the categories needed by a release.
   balance series: in production the per-segment totals of the import
   (`IRRBB_ImportTotals`), never a series the user supplies; tests and examples
   pass synthetic series (#189).
-- The data contract no longer requires a reconciliation the import does not
-  run: it states that the import reports per date, segment and currency
-  totals, each account row counted once, and takes no control totals. The
-  check against control totals from the source system is tracked in #202
-  (#188).
+- The data contract states that the import reports per date, segment and
+  currency totals, each account row counted once (#188); the reconciliation
+  against control totals is in #202 (Added).
 - Dependabot updates every `github/codeql-action` step in one grouped pull
   request, since CodeQL fails when `init` and `analyze` differ in version; both
   steps are pinned to v4.39.3, in place of the separate #180 and #181 (#183).
@@ -669,27 +663,17 @@ Use only the categories needed by a release.
   Python tooling, workflows, the synchronizer and the repository control files;
   `.gitattributes` marks `docs/assets/` as documentation instead of `assets/`
   and `images/`, which do not exist.
-- The issue-metadata and traffic-alert workflows no longer fall back to
-  milestone 1, the closed v0.1.0, when the repository variable
-  `ISSUE_MILESTONE_NUMBER` is unset; they fail with a message naming the
-  variable, and a value that is not a positive number is rejected (#117).
 - The synchronizer drops procedure-level attribute lines (for example
   `Attribute Worksheet_Change.VB_Description = ...`) from document modules
   before pasting their code, where they would be invalid VBA; the code around
   them is kept (#118).
-- The issue-metadata workflow no longer fails on issue events that GitHub
-  raises for pull requests (#41): it skips them before reading the item, which
-  its token, without pull-request access, cannot do. Failed API calls now log
-  the HTTP status and response, with token-like strings redacted, instead of a
-  bare `CalledProcessError`.
 - Label commands now default to the checked-in `.github/label-policy.json`.
 - Workbook package checks reject missing core parts and archive corruption;
   these structural checks do not certify Excel compatibility.
 - Traffic history labels the repository count `open_issues_and_prs`, including
   pull requests, and preserves values when migrating the old CSV column.
-- Traffic alert issues are now created in a milestone, so every issue
-  carries one: the milestone named by the repository variable
-  `ISSUE_MILESTONE_NUMBER`, which must be open; the run fails otherwise.
+- Traffic alert issues are created in the open milestone with the earliest due
+  date, so every issue carries one (#136).
 - The data-contract reference check applies the cross-row history rule
   (`E11`) before duplicate (`E05`) and currency-change (`E08`) rules and to
   every affected row, as `DATA_CONTRACT.md` orders them; duplicates and
@@ -719,6 +703,11 @@ Use only the categories needed by a release.
 
 ### Documentation
 
+- An audit of every Markdown file at `a194545` corrected 32 statements: the
+  scripted-only Excel stages are six; the manual procedure runs stages 1 to 6;
+  the Excel scope of the `32ff849` run excludes #264; superseded changelog
+  entries; milestone status lines and v0.2.0's tracked issues; the masked
+  account counting rule as data-contract decision 11; and US spelling (#267).
 - `docs/licenses/THIRD_PARTY_NOTICES.txt` lists the files adapted from
   VBA-SACCR-Toolkit, EXCEL-VBA-PROJECT-TEMPLATE and MyTemplate, with each
   source's license where verified and the changes made, and is linked from
@@ -729,7 +718,6 @@ Use only the categories needed by a release.
   contributors directly. `CONTRIBUTING.md` states both rules (#132).
 - Correct the contributor guide's current status: the draft Decay engine exists
   but remains unvalidated under #36; Rates and Stable are not implemented.
-
 - The manual-import component list in `INSTALLATION.md` names every module of
   `tools/vba-projects.json`, production and development, including the seven
   decay and example modules it omitted; `tools/test_devbuild.py` keeps the two
@@ -763,7 +751,6 @@ Use only the categories needed by a release.
   as the repository language standard. Standardize surrounding documentation
   while preserving glyphs, navigation, technical scope, and official source
   titles.
-
 - Detailed milestone guides in `docs/Milestones/`, one per milestone
   from v0.1.0 through v1.0.0, with a navigation index, purpose, deliverables,
   dependencies, synthetic examples and completion evidence. Implementation
@@ -777,7 +764,6 @@ Use only the categories needed by a release.
   the active milestone.
 - `docs/FOUNDATION_CLOSEOUT.md` records the v0.1.0 closeout: every checklist
   item is marked met with the evidence it rests on.
-
 - Root documents (`CHANGELOG.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`,
   `INSTALLATION.md`, `RELEASING.md`, `SECURITY.md`) expanded to my
   documentation standard, with headers, badges and complete
@@ -850,6 +836,9 @@ Use only the categories needed by a release.
   the template's appearance, the synchronizer and the source round trip passed;
   a 47.4 MB synthetic panel imported in 125 s. This shows the source compiles
   and behaves as tested in Excel; it validates no model.
+- The VBA changes of #264 (decay example cleanup, harness table cut, decimal
+  parser) were run only in the LibreOffice proxy: 22 `PASS`, 14 `NOT RUN`,
+  1405 of 1405 assertions. They are not yet run in Excel.
 - Decay model as merged into `release/v0.3.0`: `python tools/check.py --ci`
   passes; LibreOffice 24.2 headless proxy run of the development workbook, see
   the merge commit messages for counts. LibreOffice is not a supported host

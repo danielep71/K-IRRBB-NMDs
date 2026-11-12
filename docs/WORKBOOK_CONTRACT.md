@@ -121,7 +121,7 @@ beginning `COMPLETE` marks that sheet's results as current.**
 | `FAILED - IMPORT REJECTED` | The data files break the contract; findings are listed, no totals or outcomes | Red |
 
 A status may end with a note, such as ` (a table is cut at its last row)`; the
-colour follows the status before it, so a cut failure stays red.
+color follows the status before it, so a cut failure stays red.
 
 A run that writes a sheet:
 
@@ -225,8 +225,9 @@ after the workflow, and never overwrite the sheet map or build-stamp cells.
 
 Checked without Excel: the template matches its generator, the tables above
 match the generator, the package is sanitized, and the `Checks` names match the
-harness constants. LibreOffice, as an early warning only, opens the template
-with every sheet, CodeName, name and validation, and runs `WB-LAYOUT-01`.
+harness constants. LibreOffice, as an early warning only (`tools/devbuild/lo_smoke.py`), opens
+the development workbook built from the template and runs the harness,
+`WB-LAYOUT-01` included.
 
 **Verified in Excel** on `32ff849`, Windows Excel 64-bit
 ([`EXCEL_EVIDENCE.md`](EXCEL_EVIDENCE.md)): Excel opens the template without a

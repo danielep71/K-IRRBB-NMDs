@@ -93,7 +93,7 @@ first line `CANDIDATE=` and the SHA:
 
 | Log | What the script does and records |
 | --- | --- |
-| `template.log` | Opens the macro-free template read-only and checks:<br>• no repair;<br>• its sheets, CodeNames, defined names and title font;<br>• every validated cell refuses an invalid value and accepts a valid one;<br>• the appearance as Excel shows it: tab colours, the brand strip in `A1`, the title in `A2` (text, fill and font colour) and the `Yes`/`No` dropdowns (in-cell list and its values, which Excel joins with the list separator of the Windows locale, recorded with them);<br>• the print titles and print areas;<br>• the page setup (orientation, paper, fit to page) that Excel writes when it saves a copy of the template into the bundle (`template-copy.xlsx`).<br>Each is compared with the template at the candidate. Nothing is printed, exported or previewed, and no print object is read, so Excel never waits on a printer. How a printed page looks stays a judgement no log records |
+| `template.log` | Opens the macro-free template read-only and checks:<br>• no repair;<br>• its sheets, CodeNames, defined names and title font;<br>• every validated cell refuses an invalid value and accepts a valid one;<br>• the appearance as Excel shows it: tab colors, the brand strip in `A1`, the title in `A2` (text, fill and font color) and the `Yes`/`No` dropdowns (in-cell list and its values, which Excel joins with the list separator of the Windows locale, recorded with them);<br>• the print titles and print areas;<br>• the page setup (orientation, paper, fit to page) that Excel writes when it saves a copy of the template into the bundle (`template-copy.xlsx`).<br>Each is compared with the template at the candidate. Nothing is printed, exported or previewed, and no print object is read, so Excel never waits on a printer. How a printed page looks stays a judgement no log records |
 | `build.log` | Builds `IRRBB_Dev.xlsm` in the bundle with the [development builder](../INSTALLATION.md#development-workbook) (stage 1) |
 | `harness.log` | Opens it in a visible Excel with its macros enabled for that Excel session only, compiles it (stage 2) and runs the harness (stage 3) |
 | `failure.log` | The four runs of [stage 4](#4-failure-path) |
@@ -145,7 +145,7 @@ The validator (`tools/excel_evidence.py`) judges 13 stages, in this order. A
 record is `PASS` only when every one passes; a stage it cannot read is `FAIL`.
 The [one-command session](#one-command-session) runs all of them. The numbered
 sections below are the core six, which the [manual procedure](#procedure)
-also covers; the other seven are scripted only.
+also covers; the other six are scripted only.
 
 | Validator stage | Log | What passes | Section |
 | --- | --- | --- | --- |
@@ -268,8 +268,9 @@ that way is valid.
    `session.log` in UTF-8 with the SHA and the start time.
 3. Record the host and security context without changing them (stage 6 apart,
    as above).
-4. Run the [required stages](#required-stages) in order, copying each output
-   into the log as it appears.
+4. Run stages 1 to 6 below in order, copying each output into the log as it
+   appears; the six scripted-only [required stages](#required-stages) are
+   `NOT_RUN` by hand.
 5. Write the outcome of every stage, with `NOT_RUN` or `UNAVAILABLE` and a
    reason where a stage was not executed.
 6. Attach the log, or a summary that quotes its outcome lines, to the issue or
