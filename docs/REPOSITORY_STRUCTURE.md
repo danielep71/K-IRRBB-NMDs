@@ -101,7 +101,7 @@ tools/      static checks, the template and workbook builders, and the
 | `src/` | Production components that go into the workbook, and the workbook template | Tests, examples, built workbooks |
 | `tests/` | Test modules, synthetic fixtures, reviewed expected values | Production entry points, run output, real data |
 | `examples/` | Examples that use only the public API | Tests, real data |
-| `docs/` | Contracts, architecture and [methodology](methodology/README.md) | Copies of root documents |
+| `docs/` | Contracts, architecture, [methodology](methodology/README.md), images and [presentations](presentations/README.md) | Copies of root documents |
 | `tools/` | Deterministic checks, build and evidence scripts | Model or calculation logic |
 
 Each directory explains itself in a `README.md` until real material arrives.
