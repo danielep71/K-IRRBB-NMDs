@@ -703,6 +703,10 @@ Use only the categories needed by a release.
 
 ### Documentation
 
+- `docs/presentations/` holds a 70-slide lecture, *Modeling non-maturity
+  deposits*, with speaker notes and a PDF copy: the Basel, CRD/CRR and EBA rules,
+  the volume, rate and migration models, the outlier tests and the EU IAS 39
+  carve-out. It is teaching material and validates no model.
 - An audit of every Markdown file at `a194545` corrected 32 statements: the
   scripted-only Excel stages are six; the manual procedure runs stages 1 to 6;
   the Excel scope of the `32ff849` run excludes #264; superseded changelog
