@@ -321,6 +321,10 @@ Review each update pull request like any other:
 
 ## Quality gates
 
+Static repository checks run on every pull request, whatever its base, and on
+pushes to `main` and `release/**` only: a push to a task branch would repeat
+the run of its pull request. The release steps read the push run on `main`.
+
 CI runs one exact Python version, 3.13.18, in every workflow, and the minimum
 supported version, 3.11, in the non-required **Minimum Python (3.11)** job of
 Static repository checks, which runs `tools/check.py --ci`.

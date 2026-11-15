@@ -31,6 +31,16 @@
   review finding is fixed or answered, with its thread resolved. For a
   Dependabot PR, which does not use the template, I record the same in a
   comment.
+- **Unchanged levelling.** A PR that levels a release branch with `main`
+  needs no new automated review when three conditions hold:
+  - its head is the integration merge commit;
+  - its diff against the release branch is empty;
+  - the integration PR's final-head review covered the same tree.
+
+  Its record names that review. The required check still runs on its head,
+  and a review that arrives anyway is handled like any other. A levelling PR
+  that changes any file, such as the one for the next release branch, is
+  reviewed as usual.
 
 <a id="issue-triage"></a>
 
