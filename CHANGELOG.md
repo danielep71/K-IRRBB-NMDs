@@ -298,6 +298,11 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- Static repository checks run on every pull request, whatever its base, so a
+  pull request stacked on a task branch gets the required **Repository
+  integrity** check before it is retargeted. Pushes still run the checks only
+  on `main` and `release/**`. `tools/test_workflow_pins.py` fails when a
+  workflow's push branch filter omits the default branch (#280).
 - `tools/setup_repository.py --apply` writes only the plan I reviewed: the
   preview prints `Plan digest: <sha256>` over the ordered plan (method,
   endpoint and payload of each operation), and `--apply` requires
