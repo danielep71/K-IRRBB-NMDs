@@ -15,6 +15,8 @@ PYTHON_VERSION = re.compile(r"^\s+python-version:\s*(.*?)\s*$", re.M)
 RUNS_PYTHON = re.compile(r"^\s*(?:-\s+)?(?:run:\s*)?python3?\s", re.M)
 # The job that checks the documented minimum Python instead of the CI version.
 MINIMUM_JOB = ("static-checks.yml", "minimum-python")
+# Workflow branch filters name the default branch literally.
+DEFAULT_BRANCH = "main"
 
 
 def workflows() -> list[Path]:
@@ -120,12 +122,13 @@ class RequiredCheckTests(unittest.TestCase):
 
     TEXT = (ROOT / ".github/workflows/static-checks.yml").read_text(encoding="utf-8")
 
-    def test_it_triggers_on_pull_requests_and_pushes_to_main_and_release_branches(self) -> None:
-        for event in ("pull_request", "push"):
-            with self.subTest(event=event):
-                block = re.search(rf"^  {event}:\n    branches:\n((?:      - .+\n)+)", self.TEXT, re.M)
-                assert block is not None
-                self.assertEqual(re.findall(r"- (.+)", block.group(1)), ["main", '"release/**"'])
+    def test_it_triggers_on_every_pull_request_and_on_pushes_to_main_and_release_branches(self) -> None:
+        # A pull request to any base runs the check; a push runs it only where
+        # it lands, so a task-branch push never repeats its pull request's run.
+        self.assertRegex(self.TEXT, r"(?m)^  pull_request:\n  push:\n")
+        block = re.search(r"^  push:\n    branches:\n((?:      - .+\n)+)", self.TEXT, re.M)
+        assert block is not None
+        self.assertEqual(re.findall(r"- (.+)", block.group(1)), [DEFAULT_BRANCH, '"release/**"'])
         self.assertNotRegex(self.TEXT, r"(?m)^\s+(?:paths|paths-ignore|branches-ignore):")
 
     def test_the_integrity_job_runs_the_portable_gates_on_the_exact_commit(self) -> None:
@@ -295,6 +298,25 @@ class ConcurrencyTests(unittest.TestCase):
         assert block is not None
         self.assertEqual(block.group(2), "${{ github.event_name == 'pull_request' }}")
         self.assertNotRegex(text, r"(?m)^\s+concurrency:")
+
+
+class DefaultBranchFilterTests(unittest.TestCase):
+    """A push filter that omits the default branch would silently stop its workflow there."""
+
+    def test_every_push_branch_filter_names_the_default_branch(self) -> None:
+        filtered = 0
+        for path in workflows():
+            push = re.search(r"^  push:\n((?:    .*\n)*)", path.read_text(encoding="utf-8"), re.M)
+            if push is None or not re.search(r"^    branches:", push.group(1), re.M):
+                continue
+            filtered += 1
+            block = re.search(r"^    branches:\n((?:      - .+\n)+)", push.group(1), re.M)
+            flow = re.search(r"^    branches:\s*\[(.*)\]\s*$", push.group(1), re.M)
+            branches = (re.findall(r"- (.+)", block.group(1)) if block
+                        else [b.strip() for b in flow.group(1).split(",")] if flow else [])
+            with self.subTest(workflow=path.name):
+                self.assertIn(DEFAULT_BRANCH, branches)
+        self.assertGreater(filtered, 0)
 
 
 class ActiveBranchTests(unittest.TestCase):
