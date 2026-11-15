@@ -2,11 +2,12 @@ name: Static repository checks
 run-name: Static checks — ${{ github.ref_name }} @ ${{ github.sha }}
 
 # Static source and tooling checks only; no VBA compilation or Excel execution.
+# Every pull request runs the required check, whatever its base, so a pull
+# request stacked on a task branch is checked before it is retargeted. Pushes
+# run only where they land, on main and the release branches: a push to a task
+# branch would repeat the run of its pull request.
 on:
   pull_request:
-    branches:
-      - main
-      - "release/**"
   push:
     branches:
       - main

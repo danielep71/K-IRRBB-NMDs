@@ -298,6 +298,11 @@ Use only the categories needed by a release.
 
 ### Changed
 
+- Static repository checks run on every pull request, whatever its base, so a
+  pull request stacked on a task branch gets the required **Repository
+  integrity** check before it is retargeted. Pushes still run the checks only
+  on `main` and `release/**`. `tools/test_workflow_pins.py` fails when a
+  workflow's push branch filter omits the default branch (#280).
 - `tools/setup_repository.py --apply` writes only the plan I reviewed: the
   preview prints `Plan digest: <sha256>` over the ordered plan (method,
   endpoint and payload of each operation), and `--apply` requires
@@ -703,6 +708,11 @@ Use only the categories needed by a release.
 
 ### Documentation
 
+- `docs/GOVERNANCE.md`: a PR that levels a release branch with `main` needs no
+  new automated review when its head is the integration merge commit, its diff
+  against the release branch is empty, and the integration's final-head review
+  covered the same tree; its record names that review, and the required check
+  still runs. `RELEASING.md` step 4 lets that merge fast-forward (#281).
 - `docs/presentations/` holds a 70-slide lecture, *Modeling non-maturity
   deposits*, with speaker notes and a PDF copy: the Basel, CRD/CRR and EBA rules,
   the volume, rate and migration models, the outlier tests and the EU IAS 39
