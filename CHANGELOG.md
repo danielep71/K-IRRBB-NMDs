@@ -708,6 +708,11 @@ Use only the categories needed by a release.
 
 ### Documentation
 
+- `docs/GOVERNANCE.md`: a PR that levels a release branch with `main` needs no
+  new automated review when its head is the integration merge commit, its diff
+  against the release branch is empty, and the integration's final-head review
+  covered the same tree; its record names that review, and the required check
+  still runs. `RELEASING.md` step 4 lets that merge fast-forward (#281).
 - `docs/presentations/` holds a 70-slide lecture, *Modeling non-maturity
   deposits*, with speaker notes and a PDF copy: the Basel, CRD/CRR and EBA rules,
   the volume, rate and migration models, the outlier tests and the EU IAS 39

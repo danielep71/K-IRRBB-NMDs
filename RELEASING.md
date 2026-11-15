@@ -118,7 +118,7 @@ their base; no one, admins included, can bypass them. See
    ([`docs/repository-settings.json`](docs/repository-settings.json)).
 4. **Bring the release branch level with `main`:** start a task branch
    `fix/level-<release>-after-<PR>` from the release branch, merge `main`
-   into it with a merge commit (resolving any conflict in favor of the later
+   into it (resolving any conflict in favor of the later
    branch's work), and open a PR from that task branch into the release
    branch. Merge it with a **merge commit**,
    never a squash, which would cut the shared history. The task branch starts
@@ -126,7 +126,10 @@ their base; no one, admins included, can bypass them. See
    when the release branch holds commits `main` lacks, which a PR straight
    from `main` could never be. The release branch then contains the
    integration's merge commit, and the next integration PR is up to date with
-   `main`. At a milestone closeout, open the next `release/vX.Y.Z` branch from
+   `main`. When the release branch has not moved since the integration, the
+   merge fast-forwards: the task branch's head is the integration merge
+   commit and the PR changes no file, so it reuses the integration's review
+   ([unchanged levelling](docs/GOVERNANCE.md#pull-requests)). At a milestone closeout, open the next `release/vX.Y.Z` branch from
    the merge commit instead, and
    name it in the current-status table above, in every Dependabot
    `target-branch` of `.github/dependabot.yml` and in the `[Unreleased]`
