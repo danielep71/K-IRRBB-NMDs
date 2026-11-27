@@ -67,3 +67,5 @@ snapshot_date,rank,referrer,count,uniques
 2026-11-24,1,github.com,5,4
 2026-11-25,1,github.com,5,4
 2026-11-26,1,github.com,4,3
+2026-11-27,1,github.com,5,4
+2026-11-27,2,Google,1,1
