@@ -429,7 +429,7 @@ class WorkflowTests(unittest.TestCase):
     def test_only_the_fetch_step_receives_the_app_token(self) -> None:
         self.assertNotIn("TRAFFIC_TOKEN", self.text)
         self.assertIn("uses: actions/create-github-app-token@"
-                      "64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0", self.text)
+                      "f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0", self.text)
         steps = self.steps("collect")
         token = steps["Create the traffic App token"]
         self.assertIn("client-id: ${{ vars.TRAFFIC_APP_CLIENT_ID }}", token)
